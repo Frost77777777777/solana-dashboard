@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+  :root {
+    --radius: 0.5rem
+  }
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  background: #000000 !important;
+  color: #FFFFFF !important;
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Pure Black theme overrides */
+* {
+  box-sizing: border-box;
+}
+
+/* Animations from the original dashboard */
+@keyframes orbit-fadein {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.orbit-fadein {
+  animation: orbit-fadein 0.4s ease-out both;
+}
+
+@keyframes orbit-tip-pop {
+  from { opacity: 0; transform: translateY(-50%) scale(0.92); }
+  to   { opacity: 1; transform: translateY(-50%) scale(1); }
+}
+.orbit-tip-pop {
+  animation: orbit-tip-pop 0.18s ease-out both;
+}
+
