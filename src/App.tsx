@@ -206,6 +206,24 @@ const COLORS_UA = new Set([
   "nude","ivory","black","white","cream","pink","gray","grey","beige",
 ]);
 
+/* Neon palette for Income-by-Year chart — high contrast on #000000 */
+const HUBBER_NEON_COLORS = [
+  "#14F195", // Solana Green
+  "#9945FF", // Cyber Purple
+  "#00C2FF", // Electric Blue
+  "#FFD700", // Gold
+  "#FF0040", // Ruby
+  "#FF6B00", // Neon Orange
+  "#00FFD1", // Mint
+  "#FF69B4", // Hot Pink
+  "#7B68EE", // Slate Blue
+  "#ADFF2F", // Lime
+];
+function hubberYearColor(year: string, years: string[]): string {
+  const idx = years.indexOf(year);
+  return HUBBER_NEON_COLORS[idx >= 0 ? idx % HUBBER_NEON_COLORS.length : 0];
+}
+
 function normalizeProductKey(raw: string): string {
   const tokens = raw.split(/[\s,;/\\]+/).filter(t => t.length > 0);
   let productName = "";
@@ -1074,6 +1092,15 @@ function HubberSidebarPanel({
 
   const isComparing = cmpA && cmpB && cmpA !== cmpB;
 
+  /* all-years bar data for neon BarChart */
+  const yearBarData = React.useMemo(()=>{
+    if (!data) return [];
+    return displayYears.map(y=>({
+      year: y,
+      total: data.yearTotals[y] ?? Object.values(data.values[y]??{}).reduce((a: number,b: number)=>a+b,0),
+    })).filter(d=>d.total>0);
+  }, [data, displayYears]);
+
   /* ── visible years — hide future years with zero data ── */
   const displayYears = React.useMemo(()=>
     data ? data.years.filter(y=>(data.yearTotals[y]??Object.values(data.values[y]??{}).reduce((s:number,v:number)=>s+v,0))>0) : []
@@ -1143,14 +1170,14 @@ function HubberSidebarPanel({
           {displayYears.map(y=>(
             <button key={y} onClick={()=>setSelYear(y)} style={{
               padding:"3px 11px", borderRadius:12, border:"none", cursor:"pointer", fontSize:11, fontWeight:700,
-              background: selYear===y ? "#0052FF" : "#FFFFFF",
+              background: selYear===y ? hubberYearColor(y, displayYears) : "#FFFFFF",
               color: selYear===y ? "#fff" : "#374151",
-              boxShadow: selYear===y ? "0 2px 8px rgba(0,82,255,0.3)" : "0 1px 3px rgba(0,0,0,0.07)",
+              boxShadow: selYear===y ? `0 2px 8px ${hubberYearColor(y, displayYears)}50` : "0 1px 3px rgba(0,0,0,0.07)",
               transition:"all 0.14s ease",
             }}>{y}</button>
           ))}
           <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:6 }}>
-            <span style={{ fontSize:18, fontWeight:800, color:"#0052FF", letterSpacing:"-0.03em" }}>{fmtK(yearTotal)}</span>
+            <span style={{ fontSize:18, fontWeight:800, color:hubberYearColor(selYear, displayYears), letterSpacing:"-0.03em" }}>{fmtK(yearTotal)}</span>
             {delta !== null && <span style={{ fontSize:11, fontWeight:700, color:delta>=0?"#16A34A":"#FF4D4D" }}>{delta>=0?"▲":"▼"}{Math.abs(delta).toFixed(0)}%</span>}
           </div>
         </div>
@@ -1174,8 +1201,8 @@ function HubberSidebarPanel({
               </div>
               {isComparing && (
                 <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-                  <span style={{ fontSize:10, color:"#3376FF", fontWeight:700 }}>━ {cmpA}</span>
-                  <span style={{ fontSize:10, color:"#0052FF", fontWeight:700 }}>━ {cmpB}</span>
+                  <span style={{ fontSize:10, color:hubberYearColor(cmpA, displayYears), fontWeight:700 }}>━ {cmpA}</span>
+                  <span style={{ fontSize:10, color:hubberYearColor(cmpB, displayYears), fontWeight:700 }}>━ {cmpB}</span>
                   <span style={{ fontSize:10, color:"#9CA3AF" }}>
                     Δ {(((data.yearTotals[cmpB]??0)-(data.yearTotals[cmpA]??0))/(data.yearTotals[cmpA]??1)*100).toFixed(0)}%
                   </span>
@@ -1193,19 +1220,34 @@ function HubberSidebarPanel({
                     <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
                     <Tooltip contentStyle={{ background:"#fff", border:"1px solid #DCDCD2", borderRadius:8, fontSize:11 }} formatter={(v:number,name:string)=>[fmtK(v), name===`a`?cmpA:cmpB]}/>
                     <Legend formatter={(value:string)=>value===`a`?cmpA:cmpB} wrapperStyle={{ fontSize:11 }}/>
-                    <Line type="monotone" dataKey="a" name="a" stroke="#3376FF" strokeWidth={2.5} dot={{ r:3, fill:"#3376FF", strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
-                    <Line type="monotone" dataKey="b" name="b" stroke="#0052FF" strokeWidth={2.5} dot={{ r:3, fill:"#0052FF", strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
+                    <Line type="monotone" dataKey="a" name="a" stroke={hubberYearColor(cmpA, displayYears)} strokeWidth={2.5} dot={{ r:3, fill:hubberYearColor(cmpA, displayYears), strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
+                    <Line type="monotone" dataKey="b" name="b" stroke={hubberYearColor(cmpB, displayYears)} strokeWidth={2.5} dot={{ r:3, fill:hubberYearColor(cmpB, displayYears), strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
                   </LineChart>
                 ) : (
-                  <LineChart data={trendData} margin={{ top:4, right:8, left:-12, bottom:0 }}>
+                  <BarChart data={yearBarData} margin={{ top:4, right:8, left:-12, bottom:0 }}>
                     <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
-                    <XAxis dataKey="m" tick={{ fontSize:9, fill:"#6B7280" }} axisLine={false} tickLine={false}/>
+                    <XAxis dataKey="year" tick={{ fontSize:9, fill:"#6B7280" }} axisLine={false} tickLine={false}/>
                     <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
-                    <Tooltip contentStyle={{ background:"#fff", border:"1px solid #DCDCD2", borderRadius:8, fontSize:11 }} formatter={(v:number)=>[fmtK(v),"Дохід"]}/>
-                    <Line type="monotone" dataKey="v" stroke="#3376FF" strokeWidth={2.5} dot={{ r:3, fill:"#3376FF", strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
-                  </LineChart>
+                    <Tooltip contentStyle={{ background:"#fff", border:"1px solid #DCDCD2", borderRadius:8, fontSize:11 }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
+                    <Bar dataKey="total" radius={[4,4,0,0]} isAnimationActive={true} animationDuration={600}>
+                      {yearBarData.map((entry, idx) => (
+                        <Cell key={entry.year} fill={hubberYearColor(entry.year, displayYears)} />
+                      ))}
+                    </Bar>
+                  </BarChart>
                 )}
               </ResponsiveContainer>
+              {/* Neon color legend */}
+              {!isComparing && (
+                <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 10px", marginTop:6, justifyContent:"center" }}>
+                  {yearBarData.map(d=>(
+                    <div key={d.year} style={{ display:"flex", alignItems:"center", gap:3 }}>
+                      <div style={{ width:8, height:8, borderRadius:2, background:hubberYearColor(d.year, displayYears), flexShrink:0 }}/>
+                      <span style={{ fontSize:9, fontWeight:600, color:"#6B7280" }}>{d.year}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1221,7 +1263,7 @@ function HubberSidebarPanel({
                     return (
                       <th key={y} onClick={()=>setSelYear(y)} style={{
                         padding:"9px 11px", borderBottom:"2px solid #DCDCD2",
-                        color: isSel?"#0052FF":isBest?"#B8860B":"#374151",
+                        color: isSel?hubberYearColor(y, displayYears):isBest?"#B8860B":"#374151",
                         fontWeight: isSel||isBest?800:600,
                         textAlign:"right" as const, minWidth:72, cursor:"pointer",
                         background: isBest?"rgba(184,134,11,0.07)":"transparent",
@@ -1259,7 +1301,7 @@ function HubberSidebarPanel({
                         : isSel
                           ? (i%2===0?"rgba(0,82,255,0.05)":"rgba(0,82,255,0.09)")
                           : heatBg;
-                      const cellColor = val===0?"#C0C0B8":isSel?"#0052FF":isCmpA?"#3376FF":isCmpB?"#0052FF":isBest?"#8B6914":"#0A0A0A";
+                      const cellColor = val===0?"#C0C0B8":isSel?hubberYearColor(y, displayYears):isCmpA?hubberYearColor(cmpA, displayYears):isCmpB?hubberYearColor(cmpB, displayYears):isBest?"#8B6914":"#0A0A0A";
                       return (
                         <td key={y} style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #F0F0E8", fontWeight:val>0?(isSel||isBest?700:500):400, color:cellColor, background:cellBg }}>
                           {val>0 ? fmtK(val) : "—"}
@@ -1343,11 +1385,11 @@ function HubberSidebarPanel({
                   const isB = y===bestYear;
                   return (
                     <div key={y} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <span style={{ fontSize:12, fontWeight:isB?800:600, color:isB?"#B8860B":"#374151", width:38, flexShrink:0, textAlign:"right" }}>{y}</span>
+                      <span style={{ fontSize:12, fontWeight:isB?800:600, color:hubberYearColor(y, displayYears), width:38, flexShrink:0, textAlign:"right" }}>{y}</span>
                       <div style={{ flex:1, background:"rgba(0,0,0,0.06)", borderRadius:3, height:14, overflow:"hidden" }}>
-                        <div style={{ width:`${pct}%`, height:"100%", background:isB?"#B8860B":"#3376FF", borderRadius:3, transition:"width 0.4s ease" }}/>
+                        <div style={{ width:`${pct}%`, height:"100%", background:hubberYearColor(y, displayYears), borderRadius:3, transition:"width 0.4s ease" }}/>
                       </div>
-                      <span style={{ fontSize:12, fontWeight:700, color:isB?"#B8860B":"#0A0A0A", width:70, textAlign:"right", flexShrink:0 }}>{fmtK(v)}</span>
+                      <span style={{ fontSize:12, fontWeight:700, color:hubberYearColor(y, displayYears), width:70, textAlign:"right", flexShrink:0 }}>{fmtK(v)}</span>
                       {y===String(+y) && (() => {
                         const prevV = data.values[String(+y-1)]?.[drillMonth]??0;
                         if (prevV===0) return null;
