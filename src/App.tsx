@@ -1092,6 +1092,11 @@ function HubberSidebarPanel({
 
   const isComparing = cmpA && cmpB && cmpA !== cmpB;
 
+  /* ── visible years — hide future years with zero data ── */
+  const displayYears = React.useMemo(()=>
+    data ? data.years.filter(y=>(data.yearTotals[y]??Object.values(data.values[y]??{}).reduce((s:number,v:number)=>s+v,0))>0) : []
+  , [data]);
+
   /* all-years bar data for neon BarChart */
   const yearBarData = React.useMemo(()=>{
     if (!data) return [];
@@ -1100,11 +1105,6 @@ function HubberSidebarPanel({
       total: data.yearTotals[y] ?? Object.values(data.values[y]??{}).reduce((a: number,b: number)=>a+b,0),
     })).filter(d=>d.total>0);
   }, [data, displayYears]);
-
-  /* ── visible years — hide future years with zero data ── */
-  const displayYears = React.useMemo(()=>
-    data ? data.years.filter(y=>(data.yearTotals[y]??Object.values(data.values[y]??{}).reduce((s:number,v:number)=>s+v,0))>0) : []
-  , [data]);
 
   /* ── heatmap max cell ── */
   const maxCellVal = React.useMemo(()=>{
