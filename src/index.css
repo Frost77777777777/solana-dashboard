@@ -38,3 +38,112 @@ html, body, #root {
   animation: orbit-tip-pop 0.18s ease-out both;
 }
 
+/* ─── Fixed Sidebar Layout ─────────────────────────────────── */
+.orbit-sidebar {
+  position: fixed;
+  top: 56px; /* below navbar */
+  left: 0;
+  bottom: 0;
+  width: 252px;
+  z-index: 90;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.08) transparent;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.orbit-sidebar::-webkit-scrollbar { width: 4px; }
+.orbit-sidebar::-webkit-scrollbar-track { background: transparent; }
+.orbit-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+.orbit-main-offset {
+  margin-left: 252px;
+}
+
+/* Sidebar section animations */
+.sidebar-section-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.sidebar-section-header:hover {
+  background: rgba(255,255,255,0.04);
+}
+.sidebar-section-body[data-open="true"] {
+  max-height: 800px;
+  opacity: 1;
+  padding: 2px 0 6px;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+.sidebar-section-body[data-open="false"] {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  transition: max-height 0.2s ease, opacity 0.15s ease;
+}
+
+/* Mobile hamburger button */
+.sidebar-toggle-btn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: transparent;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.6);
+  flex-shrink: 0;
+}
+
+/* Mobile overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  top: 56px;
+  background: rgba(0,0,0,0.6);
+  z-index: 89;
+}
+
+/* ─── Mobile Responsive ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar-toggle-btn {
+    display: flex;
+  }
+
+  .orbit-sidebar {
+    transform: translateX(-100%);
+  }
+  .orbit-sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  .orbit-main-offset {
+    margin-left: 0;
+  }
+
+  .sidebar-overlay.sidebar-open {
+    display: block;
+  }
+}
+
+/* Tablet tweaks */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .orbit-sidebar {
+    width: 220px;
+  }
+  .orbit-main-offset {
+    margin-left: 220px;
+  }
+}
+

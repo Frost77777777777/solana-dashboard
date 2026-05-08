@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback, memo, Component } from "react";
 import { createPortal } from "react-dom";
-import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive } from "lucide-react";
+import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AreaChart, Area, BarChart, Bar, ComposedChart, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 
@@ -1759,6 +1759,7 @@ export default function Dashboard() {
   const [darkMode,    setDarkMode]    = useState(()=>_fc.darkMode);
   const [rejTooltip,  setRejTooltip]  = useState<{ reason:string; rect:DOMRect } | null>(null);
   const [cityFilter,  setCityFilter]  = useState<string|null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const t = darkMode ? DK : LT;
 
@@ -2453,6 +2454,12 @@ export default function Dashboard() {
       <div style={{ background:t.nav, borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100 }}>
         {/* Brand */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          {/* Mobile hamburger toggle */}
+          {fileData && (
+            <button className="sidebar-toggle-btn" onClick={()=>setSidebarOpen(v=>!v)} aria-label="Toggle sidebar">
+              <Menu size={18}/>
+            </button>
+          )}
           {/* Base-style mark: solid electric blue circle */}
           <div style={{ width:28, height:28, borderRadius:6, background:"#0052FF", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -2491,12 +2498,16 @@ export default function Dashboard() {
       {/* ── Body: sidebar (fixed) + main content ─────────────── */}
       <div>
 
+        {/* Mobile overlay */}
+        {fileData && sidebarOpen && (
+          <div className={`sidebar-overlay${sidebarOpen ? " sidebar-open" : ""}`} onClick={()=>setSidebarOpen(false)}/>
+        )}
+
         {/* ── LEFT SIDEBAR — position:fixed via CSS, never shifts content ── */}
         {fileData && (()=>{
           const st: T = t;
           return (
-          <nav className="orbit-sidebar" style={{
-            overflowY:"auto",
+          <nav className={`orbit-sidebar${sidebarOpen ? " sidebar-open" : ""}`} style={{
             background: st.bg,
             borderRight: `1px solid ${st.border}`,
             padding: "14px 8px 36px",
