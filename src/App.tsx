@@ -2242,37 +2242,70 @@ export default function Dashboard() {
       .slice(0, 10);
   },[filtered, fileData, cityFilter]);
 
-  /* ── brand MoM trend + sparkline ── */
+  /* ── brand MoM trend + sparkline — reactive to ALL active filters ── */
   const brandTrend = useMemo(()=>{
     const result = new Map<string, BrandTrend>();
     if (!fileData) return result;
-    // collect all month keys
+
+    /* rows respecting company filter but NOT brand filter (we need all brands) */
+    const baseRows = fileData.rows.filter(r=>{
+      if (!r._mkt) return false;
+      if (companyFilter!=="All" && String(r["_sheet_"]??"").trim()!==companyFilter) return false;
+      return true;
+    });
+
+    /* determine the visible month keys based on year/month filters */
     const allMks = Array.from(new Set(
-      fileData.rows.map(r=>String(r._monthKey??"")).filter(k=>k && k!=="No Date")
+      baseRows.map(r=>String(r._monthKey??"")).filter(k=>k && k!=="No Date")
     )).sort();
-    const lastMk  = allMks[allMks.length-1] ?? "";
-    const prevMk  = lastMk ? prevMonthKey(lastMk) : "";
-    const spark6  = allMks.slice(-6);
+
+    let activeMks: string[];
+    if (monthFilter!=="All" && monthFilter!=="No Date") {
+      activeMks = [monthFilter];
+    } else if (yearFilter!=="All") {
+      activeMks = allMks.filter(mk=>mk.startsWith(yearFilter));
+    } else {
+      activeMks = allMks;
+    }
+
+    /* previous period: for single month → previous month; for multi-month → same-length window before */
+    let prevMks: string[];
+    if (activeMks.length === 1) {
+      prevMks = [prevMonthKey(activeMks[0])];
+    } else if (activeMks.length > 1) {
+      const firstIdx = allMks.indexOf(activeMks[0]);
+      const len = activeMks.length;
+      prevMks = firstIdx >= len ? allMks.slice(firstIdx - len, firstIdx) : [];
+    } else {
+      prevMks = [];
+    }
+    const prevMkSet = new Set(prevMks);
+    const activeMkSet = new Set(activeMks);
+
+    /* sparkline months: use up to last 6 months from visible range (or all if ≤6) */
+    const sparkMks = activeMks.slice(-6);
+
     for (const brand of brandChips) {
       const byMonth = new Map<string,number>();
-      for (const r of fileData.rows) {
+      let currTotal = 0, prevTotal = 0;
+      for (const r of baseRows) {
         if (r._mkt !== brand) continue;
         const mk = String(r._monthKey ?? "");
         if (!mk || mk === "No Date") continue;
         byMonth.set(mk, (byMonth.get(mk)??0) + (r._net as number));
+        if (activeMkSet.has(mk)) currTotal += (r._net as number);
+        if (prevMkSet.has(mk)) prevTotal += (r._net as number);
       }
-      const curr = byMonth.get(lastMk) ?? 0;
-      const prev = byMonth.get(prevMk) ?? 0;
-      const pct  = prev !== 0 ? ((curr-prev)/Math.abs(prev))*100 : null;
-      const sparkData = spark6.map(mk => byMonth.get(mk) ?? 0);
+      const pct = prevTotal !== 0 ? ((currTotal-prevTotal)/Math.abs(prevTotal))*100 : null;
+      const sparkData = sparkMks.map(mk => byMonth.get(mk) ?? 0);
       const badge: BrandTrend["badge"] =
-        curr < 0 || (pct !== null && pct < -5) ? "risk" :
+        currTotal < 0 || (pct !== null && pct < -5) ? "risk" :
         pct !== null && pct > 15 ? "rising" :
         pct !== null ? "stable" : "none";
-      result.set(brand, { pct, sparkData, badge, curr });
+      result.set(brand, { pct, sparkData, badge, curr: currTotal });
     }
     return result;
-  }, [fileData, brandChips]);
+  }, [fileData, brandChips, companyFilter, monthFilter, yearFilter]);
 
   /* ── bar chart show-trend toggle ── */
   const [showBarTrend, setShowBarTrend] = useState(false);
