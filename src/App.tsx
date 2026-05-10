@@ -43,6 +43,8 @@ const PRESET_BRANDS = ["Каста", "Розетка", "Хаббер", "Шафа
 /* ─── Base Blue design-system palette ───────────────────────── */
 // Index 0 = leader (Deep Navy), index 1 = Electric Blue, rest lighter
 const BASE_BLUE = ["#0052FF","#3376FF","#66A0FF","#99C5FF","#CCE2FF","#6B7280"] as const;
+/* ─── Master Blue neon palette (Digital Bunker aesthetic) ──── */
+const MASTER_BLUE = ["#00E5FF","#2979FF","#651FFF","#00BFA5","#1DE9B6","#40C4FF","#7C4DFF","#18FFFF"] as const;
 // @ts-expect-error kept for future use
 const _NO_DATE_KEY   = "~~~~"; // sorts after all month keys (e.g. "2026-12")
 
@@ -2441,6 +2443,20 @@ export default function Dashboard() {
       .sort((a,b)=>b.net-a.net);
   }, [fileData, marketplaceBar]);
 
+  /* ── brand share: net income by company/collection (_sheet_) ── */
+  const brandShareData = useMemo(()=>{
+    if (!fileData) return [];
+    const map = new Map<string,number>();
+    for (const r of filtered) {
+      const sheet = String(r["_sheet_"]??"").trim() || "Інше";
+      map.set(sheet, (map.get(sheet)??0) + (r._net as number));
+    }
+    return Array.from(map.entries())
+      .map(([name, net])=>({ name, net }))
+      .filter(e=>e.net>0)
+      .sort((a,b)=>b.net-a.net);
+  },[filtered, fileData]);
+
   /* ── pie: success vs refusals ── */
   const pieData = useMemo(()=>{
     if (!kpi||kpi.orders===0) return [];
@@ -2893,7 +2909,7 @@ export default function Dashboard() {
 
             {/* ── Row 2: Bar chart by marketplace + Donut + Pie chart ── */}
             <ChartErrorBoundary t={t} label="Аналітика маркетплейсів">
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 260px 260px", gap:10 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 220px 220px 220px", gap:10 }}>
 
               {/* Bar chart — net income by marketplace */}
               <div className="analytics-card analytics-card--bar orbit-fadein" style={{ ...glassBase, padding:"20px 20px 12px", animationDelay:"140ms" }}>
@@ -3014,6 +3030,54 @@ export default function Dashboard() {
                   <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flex:1, gap:8 }}>
                     <span style={{ fontSize:24, opacity:0.18 }}>🍩</span>
                     <span style={{ fontSize:11, color:t.dim }}>Частка ринку</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Donut chart — brand market share */}
+              <div className="analytics-card orbit-fadein" style={{ ...glassBase, padding:"20px", display:"flex", flexDirection:"column", gap:10, animationDelay:"180ms" }}>
+                {brandShareData.length > 0 ? (()=>{
+                  const brandTotal = brandShareData.reduce((s,e)=>s+e.net,0)||1;
+                  return (<>
+                    <p style={{ color:t.text, fontSize:13, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>Частка брендів</p>
+                    <ResponsiveContainer width="100%" height={160}>
+                      <PieChart>
+                        <Pie
+                          isAnimationActive={true} animationDuration={600} animationEasing="ease-out"
+                          data={brandShareData} cx="50%" cy="50%"
+                          innerRadius={46} outerRadius={68}
+                          paddingAngle={3} dataKey="net"
+                        >
+                          {brandShareData.map((_,i)=>(
+                            <Cell key={i} fill={MASTER_BLUE[i % MASTER_BLUE.length]}/>
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/brandTotal)*100).toFixed(1)}%)`, name]}
+                          contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#fff", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11 }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                      {brandShareData.map((entry, i) => {
+                        const pct = ((entry.net/brandTotal)*100).toFixed(1);
+                        const clr = MASTER_BLUE[i % MASTER_BLUE.length];
+                        return (
+                          <div key={entry.name} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                              <div style={{ width:8, height:8, borderRadius:99, background:clr, flexShrink:0 }}/>
+                              <span style={{ fontSize:11, color:t.text, fontWeight:i===0?700:500 }}>{entry.name}</span>
+                            </div>
+                            <span style={{ fontSize:11, fontWeight:700, color:clr }}>{pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>);
+                })() : (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flex:1, gap:8 }}>
+                    <span style={{ fontSize:24, opacity:0.18 }}>🍩</span>
+                    <span style={{ fontSize:11, color:t.dim }}>Частка брендів</span>
                   </div>
                 )}
               </div>
