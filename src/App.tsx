@@ -43,7 +43,8 @@ const PRESET_BRANDS = ["Каста", "Розетка", "Хаббер", "Шафа
 /* ─── Base Blue design-system palette ───────────────────────── */
 // Index 0 = leader (Deep Navy), index 1 = Electric Blue, rest lighter
 const BASE_BLUE = ["#0052FF","#3376FF","#66A0FF","#99C5FF","#CCE2FF","#6B7280"] as const;
-const NO_DATE_KEY   = "~~~~"; // sorts after all month keys (e.g. "2026-12")
+// @ts-expect-error kept for future use
+const _NO_DATE_KEY   = "~~~~"; // sorts after all month keys (e.g. "2026-12")
 
 /* ─── financial parsers ──────────────────────────────────────── */
 // parseFinancial — matches reference "MASTER BLUE" parse():
@@ -789,7 +790,7 @@ const KPI_NUM: React.CSSProperties = {
   margin:"8px 0 4px",
 };
 
-const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount, syncError, debtCol, t, fmt }: KpiRowProps) {
+const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _filteredCount, syncError, debtCol, t, fmt }: KpiRowProps) {
   const cardBg: React.CSSProperties = {
     background: t.dark ? "rgba(10,14,26,1)" : "#ffffff",
   };
@@ -1075,7 +1076,8 @@ function HubberSidebarPanel({
   const UA_SHORT = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 
   /* single-year trend data */
-  const trendData = React.useMemo(()=>{
+  // @ts-expect-error reserved for future chart mode
+  const _trendData = React.useMemo(()=>{
     if (!data) return [];
     return data.months.map((m,i)=>({ m: UA_SHORT[i]??m.slice(0,3), v: data.values[selYear]?.[m]??0 }));
   }, [data, selYear]);
@@ -1230,7 +1232,7 @@ function HubberSidebarPanel({
                     <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
                     <Tooltip contentStyle={{ background:"#fff", border:"1px solid #DCDCD2", borderRadius:8, fontSize:11 }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
                     <Bar dataKey="total" radius={[4,4,0,0]} isAnimationActive={true} animationDuration={600}>
-                      {yearBarData.map((entry, idx) => (
+                      {yearBarData.map((entry, _idx) => (
                         <Cell key={entry.year} fill={hubberYearColor(entry.year, displayYears)} />
                       ))}
                     </Bar>
@@ -1500,7 +1502,8 @@ function HubberSidebarPanel({
 }
 
 /* Reusable shimmer skeleton bar */
-function SkeletonBar({ w = "100%", h = 14, r = 6 }: { w?: string|number; h?: number; r?: number }) {
+// @ts-expect-error reserved for loading states
+function _SkeletonBar({ w = "100%", h = 14, r = 6 }: { w?: string|number; h?: number; r?: number }) {
   return <div className="orbit-skel" style={{ width: w, height: h, borderRadius: r, flexShrink: 0 }}/>;
 }
 
@@ -1858,7 +1861,7 @@ export default function Dashboard() {
 
         for (const sheetName of wb.SheetNames) {
           const sh = wb.Sheets[sheetName];
-          const rawRows = XLSX.utils.sheet_to_json<Row>(sh, { raw:true,  cellDates:true });
+          const rawRows = XLSX.utils.sheet_to_json<Row>(sh, { raw:true,  cellDates:true } as XLSX.Sheet2JSONOpts);
           const fmtRows = XLSX.utils.sheet_to_json<Row>(sh, { raw:false });
           if (!rawRows.length) continue;
 
@@ -2031,7 +2034,6 @@ export default function Dashboard() {
   const prevKpi = useMemo(()=>{
     if (!fileData || monthFilter==="All" || monthFilter==="No Date") return null;
     const prevMk = prevMonthKey(monthFilter);
-    const c = fileData.cols;
     let net=0, logistics=0, orders=0;
     for (const r of fileData.rows) {
       if (!r._mkt) continue;
@@ -2814,7 +2816,7 @@ export default function Dashboard() {
               const pastCount   = pastBars.length;
               const futureCount = futureBars.length;
               const noDateCount = noDateBar?.rows ?? 0;
-              const refLabel    = pastBars.at(-1)?.label;
+              const refLabel    = pastBars.length > 0 ? pastBars[pastBars.length - 1].label : undefined;
               return (
               <div className="analytics-card analytics-card--trend orbit-fadein" style={{ ...glassBase, padding:"20px 20px 12px", animationDelay:"80ms" }}>
                 {chartData.length < 1 && (
