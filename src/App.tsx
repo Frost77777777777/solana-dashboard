@@ -1503,6 +1503,217 @@ function HubberSidebarPanel({
   );
 }
 
+/* ─── Mock inventory data ────────────────────────────────────── */
+const MOCK_INVENTORY: { brand: string; products: { name: string; qty: number }[] }[] = [
+  { brand: "Brizoll",       products: [{ name:"Сковорода чавунна 26см", qty:84 },{ name:"Казан 6л", qty:42 },{ name:"Гриль-сковорода", qty:31 },{ name:"Кришка чавунна", qty:67 }] },
+  { brand: "Elita",         products: [{ name:"Комплект постілі Євро", qty:156 },{ name:"Подушка 50×70", qty:210 },{ name:"Ковдра зимова 200×220", qty:73 },{ name:"Наматрацник", qty:95 }] },
+  { brand: "Iglen",         products: [{ name:"Ковдра пухова 172×205", qty:48 },{ name:"Подушка пухова 50×70", qty:112 },{ name:"Наматрацник 160×200", qty:64 },{ name:"Ковдра літня", qty:39 }] },
+  { brand: "Sl-Artmon",     products: [{ name:"Рушник махровий 70×140", qty:320 },{ name:"Халат жіночий L", qty:58 },{ name:"Комплект рушників", qty:145 },{ name:"Килимок для ванної", qty:89 }] },
+  { brand: "Афіна",         products: [{ name:"Скатертина 150×220", qty:76 },{ name:"Серветки набір 6шт", qty:134 },{ name:"Фартух кухонний", qty:92 },{ name:"Прихватка", qty:201 }] },
+  { brand: "Білий Халат",   products: [{ name:"Халат медичний S", qty:45 },{ name:"Халат медичний M", qty:63 },{ name:"Халат медичний L", qty:58 },{ name:"Шапочка медична", qty:180 }] },
+  { brand: "Ерка",          products: [{ name:"Плед флісовий 150×200", qty:167 },{ name:"Покривало 220×240", qty:53 },{ name:"Подушка декоративна", qty:241 },{ name:"Чохол на диван", qty:38 }] },
+  { brand: "Калина",        products: [{ name:"Комплект дитячий", qty:88 },{ name:"Пелюшка фланель", qty:312 },{ name:"Ковдра дитяча", qty:74 },{ name:"Подушка дитяча", qty:156 }] },
+];
+
+/* ─── InventorySkladPanel — СКЛАД sidebar button + portal modal ─ */
+function InventorySkladPanel({ t, fileData, filtered }: {
+  t: T;
+  fileData: { rows: Row[]; cols: ReturnType<typeof detectCols>; columns: string[] } | null;
+  filtered: Row[];
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<"brand"|"product">("brand");
+
+  const inventoryData = React.useMemo(()=>{
+    if (!fileData || filtered.length === 0) return MOCK_INVENTORY;
+
+    const brandMap = new Map<string, Map<string, number>>();
+    for (const r of fileData.rows) {
+      const brand = String(r._mkt ?? "").trim();
+      if (!brand) continue;
+      const product = getRowProduct(r, fileData.cols.product ?? null) || "Інше";
+      const qty = Math.max(1, Math.round(Math.abs(toNum(r[fileData.cols.quantity ?? ""] ?? 1))));
+      if (!brandMap.has(brand)) brandMap.set(brand, new Map());
+      const pm = brandMap.get(brand)!;
+      pm.set(product, (pm.get(product) ?? 0) + qty);
+    }
+    if (brandMap.size === 0) return MOCK_INVENTORY;
+    return Array.from(brandMap.entries())
+      .map(([brand, pm]) => ({
+        brand,
+        products: Array.from(pm.entries())
+          .map(([name, qty]) => ({ name, qty }))
+          .sort((a, b) => b.qty - a.qty),
+      }))
+      .sort((a, b) => {
+        const totalA = a.products.reduce((s, p) => s + p.qty, 0);
+        const totalB = b.products.reduce((s, p) => s + p.qty, 0);
+        return totalB - totalA;
+      });
+  }, [fileData, filtered]);
+
+  const totalItems = inventoryData.reduce((s, b) => s + b.products.reduce((ss, p) => ss + p.qty, 0), 0);
+  const totalProducts = inventoryData.reduce((s, b) => s + b.products.length, 0);
+
+  const modal = open ? createPortal(
+    <div
+      onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}
+      style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(0,10,30,0.7)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vh 3vw" }}
+    >
+      <div style={{ background:t.dark?"#0A0E18":"#F0F0E8", borderRadius:16, width:"85vw", maxWidth:960, maxHeight:"85vh", display:"flex", flexDirection:"column", boxShadow:"0 40px 100px rgba(0,0,0,0.5)", overflow:"hidden", border:`1px solid ${t.dark?"rgba(0,229,255,0.15)":"#DCDCD2"}` }}>
+
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 28px 16px", borderBottom:`1px solid ${t.dark?"rgba(0,229,255,0.12)":"#DCDCD2"}`, flexShrink:0, background:t.dark?"rgba(0,229,255,0.03)":"#fff" }}>
+          <div>
+            <div style={{ fontSize:20, fontWeight:800, color:t.dark?"#00E5FF":"#0A0A0A", letterSpacing:"-0.03em" }}>📦 СКЛАД — Залишки товарів</div>
+            <div style={{ fontSize:11, color:t.dark?"#6B8FA3":"#6B7280", marginTop:2 }}>Інвентаризація по брендах та товарах</div>
+          </div>
+          <button onClick={()=>setOpen(false)} style={{ background:t.dark?"#00E5FF":"#0A0A0A", border:"none", borderRadius:10, cursor:"pointer", color:t.dark?"#0A0E18":"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
+            <X size={16}/>
+          </button>
+        </div>
+
+        {/* Stats bar */}
+        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${t.dark?"rgba(0,229,255,0.12)":"#DCDCD2"}`, flexShrink:0, background:t.dark?"rgba(0,20,40,0.5)":"#FFFFFF" }}>
+          {[
+            { label:"Всього одиниць", value:totalItems.toLocaleString("uk-UA"), color:"#00E5FF" },
+            { label:"Брендів", value:String(inventoryData.length), color:"#2979FF" },
+            { label:"Позицій товарів", value:String(totalProducts), color:"#651FFF" },
+          ].map((s,i)=>(
+            <div key={i} style={{ flex:1, padding:"12px 20px", borderRight:`1px solid ${t.dark?"rgba(0,229,255,0.1)":"#DCDCD2"}` }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:t.dark?"#6B8FA3":"#9CA3AF", marginBottom:3 }}>{s.label}</div>
+              <div style={{ fontSize:16, fontWeight:800, color:s.color, letterSpacing:"-0.02em" }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* View toggle */}
+        <div style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 20px 8px", borderBottom:`1px solid ${t.dark?"rgba(0,229,255,0.08)":"#DCDCD2"}`, flexShrink:0 }}>
+          {(["brand","product"] as const).map(m=>(
+            <button key={m} onClick={()=>setViewMode(m)} style={{
+              padding:"4px 14px", borderRadius:12, border:"none", cursor:"pointer", fontSize:11, fontWeight:700,
+              background: viewMode===m ? "#00E5FF" : t.dark?"rgba(255,255,255,0.06)":"#FFFFFF",
+              color: viewMode===m ? "#0A0E18" : t.dark?"#9CA3AF":"#374151",
+              boxShadow: viewMode===m ? "0 2px 8px rgba(0,229,255,0.3)" : "0 1px 3px rgba(0,0,0,0.07)",
+              transition:"all 0.14s ease",
+            }}>{m==="brand"?"По брендах":"По товарах"}</button>
+          ))}
+          <span style={{ marginLeft:"auto", fontSize:11, fontWeight:600, color:t.dark?"#00E5FF":"#0052FF" }}>
+            {totalItems.toLocaleString("uk-UA")} шт. на складі
+          </span>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex:1, overflow:"auto", padding:"16px 20px" }}>
+          {viewMode === "brand" ? (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))", gap:12 }}>
+              {inventoryData.map((brand, bi)=>{
+                const brandTotal = brand.products.reduce((s,p)=>s+p.qty,0);
+                const clr = MASTER_BLUE[bi % MASTER_BLUE.length];
+                return (
+                  <div key={brand.brand} style={{ borderRadius:12, padding:"16px", background:t.dark?"rgba(255,255,255,0.03)":"#fff", border:`1px solid ${t.dark?"rgba(0,229,255,0.1)":"#E5E7EB"}`, transition:"border-color 0.15s" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <div style={{ width:10, height:10, borderRadius:99, background:clr, flexShrink:0 }}/>
+                        <span style={{ fontSize:14, fontWeight:800, color:t.dark?"#fff":"#0A0A0A", letterSpacing:"-0.02em" }}>{brand.brand}</span>
+                      </div>
+                      <span style={{ fontSize:13, fontWeight:800, color:clr }}>{brandTotal.toLocaleString("uk-UA")} шт</span>
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                      {brand.products.map(p=>{
+                        const pct = brandTotal > 0 ? (p.qty / brandTotal) * 100 : 0;
+                        return (
+                          <div key={p.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+                                <span style={{ fontSize:11, color:t.dark?"#D1D5DB":"#374151", fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
+                                <span style={{ fontSize:11, fontWeight:700, color:t.dark?"#E5E7EB":"#111827", flexShrink:0, marginLeft:6 }}>{p.qty}</span>
+                              </div>
+                              <div style={{ height:4, borderRadius:99, background:t.dark?"rgba(255,255,255,0.06)":"#F3F4F6", overflow:"hidden" }}>
+                                <div style={{ width:`${pct}%`, height:"100%", borderRadius:99, background:clr, transition:"width 0.5s ease" }}/>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Product view — flat table sorted by qty */
+            <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${t.dark?"rgba(0,229,255,0.1)":"#E5E7EB"}` }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:t.dark?"rgba(0,229,255,0.06)":"#F9FAFB" }}>
+                    <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:t.dark?"#00E5FF":"#374151", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Товар</th>
+                    <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:t.dark?"#00E5FF":"#374151", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Бренд</th>
+                    <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:t.dark?"#00E5FF":"#374151", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Кількість</th>
+                    <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:t.dark?"#00E5FF":"#374151", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const, width:120 }}>Частка</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventoryData.flatMap((b, bi) => b.products.map(p => ({ ...p, brand: b.brand, bi })))
+                    .sort((a, b) => b.qty - a.qty)
+                    .map((item, i) => {
+                      const pct = totalItems > 0 ? (item.qty / totalItems) * 100 : 0;
+                      const clr = MASTER_BLUE[item.bi % MASTER_BLUE.length];
+                      return (
+                        <tr key={`${item.brand}-${item.name}`} style={{ borderTop:`1px solid ${t.dark?"rgba(255,255,255,0.04)":"#F3F4F6"}`, background:i%2===0 ? "transparent" : t.dark?"rgba(255,255,255,0.01)":"#FAFAFA" }}>
+                          <td style={{ padding:"8px 14px", color:t.dark?"#E5E7EB":"#111827", fontWeight:500 }}>{item.name}</td>
+                          <td style={{ padding:"8px 14px" }}>
+                            <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, background:`${clr}18`, color:clr }}>{item.brand}</span>
+                          </td>
+                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:t.dark?"#fff":"#111827" }}>{item.qty.toLocaleString("uk-UA")}</td>
+                          <td style={{ padding:"8px 14px", textAlign:"right" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:6, justifyContent:"flex-end" }}>
+                              <div style={{ width:60, height:4, borderRadius:99, background:t.dark?"rgba(255,255,255,0.06)":"#F3F4F6", overflow:"hidden" }}>
+                                <div style={{ width:`${pct}%`, height:"100%", borderRadius:99, background:clr }}/>
+                              </div>
+                              <span style={{ fontSize:10, fontWeight:600, color:t.dark?"#9CA3AF":"#6B7280", minWidth:32 }}>{pct.toFixed(1)}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 16px rgba(0,229,255,0.35)")}
+        onMouseLeave={e => (e.currentTarget.style.boxShadow = "0 0 8px rgba(0,229,255,0.15)")}
+        style={{
+          width:"100%", marginTop:12, padding:"10px 14px", borderRadius:8,
+          background:"linear-gradient(135deg, rgba(0,229,255,0.12), rgba(41,121,255,0.12))",
+          border:"1px solid rgba(0,229,255,0.25)",
+          color:"#00E5FF", fontSize:12, fontWeight:800, cursor:"pointer",
+          display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+          letterSpacing:"0.08em", textTransform:"uppercase" as const,
+          transition:"all 0.2s ease",
+          boxShadow:"0 0 8px rgba(0,229,255,0.15)",
+        }}
+      >
+        📦 СКЛАД
+        <span style={{ fontSize:9, fontWeight:600, padding:"1px 6px", borderRadius:4, background:"rgba(0,229,255,0.15)", color:"#00E5FF" }}>
+          {totalItems.toLocaleString("uk-UA")} шт
+        </span>
+      </button>
+      {modal}
+    </>
+  );
+}
+
 /* Reusable shimmer skeleton bar */
 // @ts-expect-error reserved for loading states
 function _SkeletonBar({ w = "100%", h = 14, r = 6 }: { w?: string|number; h?: number; r?: number }) {
@@ -2712,6 +2923,9 @@ export default function Dashboard() {
               t={st}
               mktBreakdown={mktBreakdownForArchive}
             />
+
+            {/* СКЛАД — Inventory Management */}
+            <InventorySkladPanel t={st} fileData={fileData} filtered={filtered} />
 
           </nav>
           );
