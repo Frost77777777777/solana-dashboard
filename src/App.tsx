@@ -629,7 +629,7 @@ function parseHubberQuick(file: File): Promise<HubberQuick> {
 
 /* ─── theme ──────────────────────────────────────────────────── */
 interface T { bg:string; card:string; nav:string; border:string; text:string; sub:string; dim:string; in:string; blue:string; em:string; red:string; amb:string; dark:boolean }
-const DK: T = { bg:"#0D0B21", card:"rgba(16,14,36,0.95)", nav:"rgba(12,10,28,0.97)", border:"rgba(0,212,255,0.12)", text:"#FFFFFF", sub:"rgba(200,200,220,0.7)", dim:"rgba(140,140,170,0.50)", in:"rgba(0,212,255,0.04)", blue:"#00D4FF", em:"#00FF88", red:"#FF6B35", amb:"#8B8B9E", dark:true };
+const DK: T = { bg:"#1A1A1B", card:"#222223", nav:"#1A1A1B", border:"#2D2D2E", text:"#FFFFFF", sub:"#9CA3AF", dim:"#6B7280", in:"#1E1E1F", blue:"#3B82F6", em:"#22C55E", red:"#EF4444", amb:"#6B7280", dark:true };
 const LT: T = {
   bg:     "#F8FAFC",
   card:   "#FFFFFF",
@@ -646,23 +646,18 @@ const LT: T = {
   dark:   false,
 };
 
-function glass(t: T, glow?: string): React.CSSProperties {
+function glass(t: T, _glow?: string): React.CSSProperties {
   if (t.dark) {
     return {
-      background: "rgba(16,14,40,0.85)",
-      border: `1px solid ${glow ? glow+"55" : "rgba(0,212,255,0.15)"}`,
-      borderRadius: 14,
-      boxShadow: glow ? `0 0 28px ${glow}22, inset 0 1px 0 rgba(0,212,255,0.06)` : "0 2px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(0,212,255,0.06)",
-      backdropFilter: "blur(12px)",
+      background: "#222223",
+      border: "1px solid #2D2D2E",
+      borderRadius: 6,
     };
   }
   return {
     background: "#FFFFFF",
-    border: `1px solid ${glow ? glow+"30" : "#E5E7EB"}`,
-    borderRadius: 12,
-    boxShadow: glow
-      ? `0 0 16px ${glow}14, 0 2px 8px rgba(0,0,0,0.04)`
-      : "0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)",
+    border: "1px solid #E5E7EB",
+    borderRadius: 6,
   };
 }
 
@@ -776,18 +771,16 @@ interface KpiRowProps {
   fmt: (v:number)=>string;
 }
 const KPI_CARD_BASE: React.CSSProperties = {
-  borderRadius:14,
-  boxShadow:"0 2px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(0,212,255,0.06)",
+  borderRadius:6,
   padding:"22px 22px 18px",
   display:"flex", flexDirection:"column", justifyContent:"space-between",
   minHeight:136,
   contain:"layout",
-  backdropFilter:"blur(12px)",
 };
 const KPI_LABEL: React.CSSProperties = {
   fontSize:10, fontWeight:700, letterSpacing:"0.12em",
   textTransform:"uppercase" as const,
-  color:"#8B8B9E",
+  color:"#6B7280",
   fontFamily:"'JetBrains Mono', monospace",
 };
 const KPI_NUM: React.CSSProperties = {
@@ -798,7 +791,7 @@ const KPI_NUM: React.CSSProperties = {
 
 const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _filteredCount, syncError, debtCol, t, fmt }: KpiRowProps) {
   const cardBg: React.CSSProperties = {
-    background: t.dark ? "rgba(16,14,40,0.85)" : "#ffffff",
+    background: t.dark ? "#222223" : "#ffffff",
   };
   return (
     <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
@@ -1579,28 +1572,28 @@ function InventorySkladPanel({ t }: { t: T }) {
       onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}
       style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(0,10,30,0.7)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vh 3vw" }}
     >
-      <div style={{ background:t.dark?"#0A0E18":"#F0F0E8", borderRadius:16, width:"90vw", maxWidth:1100, maxHeight:"88vh", display:"flex", flexDirection:"column", boxShadow:"0 40px 100px rgba(0,0,0,0.5)", overflow:"hidden", border:`1px solid ${t.dark?"rgba(255,0,0,0.2)":"#DCDCD2"}` }}>
+      <div style={{ background:t.dark?"#1A1A1B":"#F0F0E8", borderRadius:6, width:"90vw", maxWidth:1100, maxHeight:"88vh", display:"flex", flexDirection:"column", overflow:"hidden", border:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}` }}>
 
         {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 28px 16px", borderBottom:`1px solid ${t.dark?"rgba(255,0,0,0.15)":"#DCDCD2"}`, flexShrink:0, background:t.dark?"rgba(255,0,0,0.04)":"#fff" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 28px 16px", borderBottom:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}`, flexShrink:0, background:t.dark?"#222223":"#fff" }}>
           <div>
-            <div style={{ fontSize:20, fontWeight:800, color:"#FF0000", letterSpacing:"-0.03em" }}>📦 СКЛАД — Залишки товарів</div>
+            <div style={{ fontSize:20, fontWeight:800, color:"#EF4444", letterSpacing:"-0.03em" }}>📦 СКЛАД — Залишки товарів</div>
             <div style={{ fontSize:11, color:t.dark?"#6B8FA3":"#6B7280", marginTop:2 }}>Інвентаризація по брендах та товарах</div>
           </div>
-          <button onClick={()=>setOpen(false)} style={{ background:"#FF0000", border:"none", borderRadius:10, cursor:"pointer", color:"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
+          <button onClick={()=>setOpen(false)} style={{ background:"#EF4444", border:"none", borderRadius:4, cursor:"pointer", color:"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
             <X size={16}/>
           </button>
         </div>
 
         {/* Stats bar */}
-        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${t.dark?"rgba(255,0,0,0.12)":"#DCDCD2"}`, flexShrink:0, background:t.dark?"rgba(0,20,40,0.5)":"#FFFFFF" }}>
+        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}`, flexShrink:0, background:t.dark?"#1E1E1F":"#FFFFFF" }}>
           {[
-            { label:"Всього одиниць", value:totalItems.toLocaleString("uk-UA"), color:"#FF0000" },
+            { label:"Всього одиниць", value:totalItems.toLocaleString("uk-UA"), color:"#EF4444" },
             { label:"Брендів", value:String(brands.length), color:"#FF4444" },
             { label:"Позицій товарів", value:String(totalPositions), color:"#FF6666" },
-            { label:"Загальна вартість", value:`${totalValue.toLocaleString("uk-UA")} ₴`, color:"#FF0000" },
+            { label:"Загальна вартість", value:`${totalValue.toLocaleString("uk-UA")} ₴`, color:"#EF4444" },
           ].map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"12px 20px", borderRight:`1px solid ${t.dark?"rgba(255,0,0,0.1)":"#DCDCD2"}` }}>
+            <div key={i} style={{ flex:1, padding:"12px 20px", borderRight:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}` }}>
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:t.dark?"#6B8FA3":"#9CA3AF", marginBottom:3 }}>{s.label}</div>
               <div style={{ fontSize:16, fontWeight:800, color:s.color, letterSpacing:"-0.02em" }}>{s.value}</div>
             </div>
@@ -1608,7 +1601,7 @@ function InventorySkladPanel({ t }: { t: T }) {
         </div>
 
         {/* Search + upload */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 20px 8px", borderBottom:`1px solid ${t.dark?"rgba(255,0,0,0.08)":"#DCDCD2"}`, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 20px 8px", borderBottom:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}`, flexShrink:0 }}>
           <div style={{ flex:1, display:"flex", alignItems:"center", gap:6, background:t.dark?"rgba(255,255,255,0.05)":"#fff", borderRadius:8, padding:"4px 10px", border:`1px solid ${t.dark?"rgba(255,255,255,0.08)":"#E5E7EB"}` }}>
             <Search size={12} style={{ color:t.dark?"#6B8FA3":"#9CA3AF", flexShrink:0 }}/>
             <input
@@ -1618,7 +1611,7 @@ function InventorySkladPanel({ t }: { t: T }) {
             />
           </div>
           <input ref={skladRef} type="file" accept=".csv,.xlsx,.xls" style={{ display:"none" }} onChange={e=>{ const f=e.target.files?.[0]; if(f) handleSkladFile(f); if(skladRef.current) skladRef.current.value=""; }}/>
-          <button onClick={()=>skladRef.current?.click()} style={{ padding:"5px 12px", borderRadius:8, border:`1px solid ${t.dark?"rgba(255,0,0,0.3)":"#E5E7EB"}`, background:t.dark?"rgba(255,0,0,0.08)":"#fff", color:"#FF0000", fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" as const, display:"flex", alignItems:"center", gap:4 }}>
+          <button onClick={()=>skladRef.current?.click()} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #EF4444", background:"transparent", color:"#EF4444", fontSize:11, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" as const, display:"flex", alignItems:"center", gap:4 }}>
             <Upload size={11}/> Завантажити Склад
           </button>
         </div>
@@ -1630,20 +1623,20 @@ function InventorySkladPanel({ t }: { t: T }) {
               <HardDrive size={40} style={{ marginBottom:12, opacity:0.4 }}/>
               <div style={{ fontSize:14, fontWeight:700, marginBottom:6, color:t.dark?"#fff":"#111827" }}>Немає даних складу</div>
               <div style={{ fontSize:12, marginBottom:16 }}>Завантажте файл Склад.csv або .xlsx (Колонка A — товар, B — кількість, D — ціна)</div>
-              <button onClick={()=>skladRef.current?.click()} style={{ padding:"8px 20px", borderRadius:8, border:"none", background:"#FF0000", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              <button onClick={()=>skladRef.current?.click()} style={{ padding:"8px 20px", borderRadius:8, border:"none", background:"#EF4444", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                 <Upload size={12} style={{ marginRight:6, verticalAlign:"middle" }}/> Обрати файл
               </button>
             </div>
           ) : (
-            <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${t.dark?"rgba(255,0,0,0.12)":"#E5E7EB"}` }}>
+            <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${t.dark?"#2D2D2E":"#E5E7EB"}` }}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                 <thead>
-                  <tr style={{ background:t.dark?"rgba(255,0,0,0.08)":"#F9FAFB" }}>
-                    <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:"#FF0000", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Бренд</th>
-                    <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:"#FF0000", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Товар / SKU</th>
-                    <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:"#FF0000", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Кількість</th>
-                    <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:"#FF0000", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Ціна ₴</th>
-                    <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:"#FF0000", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Вартість ₴</th>
+                  <tr style={{ background:t.dark?"#222223":"#F9FAFB" }}>
+                    <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Бренд</th>
+                    <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Товар / SKU</th>
+                    <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Кількість</th>
+                    <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Ціна ₴</th>
+                    <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Вартість ₴</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1660,17 +1653,17 @@ function InventorySkladPanel({ t }: { t: T }) {
                           <td style={{ padding:"8px 14px", color:t.dark?"#E5E7EB":"#111827", fontWeight:500, maxWidth:340, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{item.product}</td>
                           <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:t.dark?"#fff":"#111827" }}>{item.qty.toLocaleString("uk-UA")}</td>
                           <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:600, color:t.dark?"#D1D5DB":"#374151" }}>{item.price.toLocaleString("uk-UA")}</td>
-                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:"#FF0000" }}>{(item.qty * item.price).toLocaleString("uk-UA")}</td>
+                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:"#EF4444" }}>{(item.qty * item.price).toLocaleString("uk-UA")}</td>
                         </tr>
                       );
                     })}
                 </tbody>
                 <tfoot>
-                  <tr style={{ borderTop:`2px solid ${t.dark?"rgba(255,0,0,0.25)":"#E5E7EB"}`, background:t.dark?"rgba(255,0,0,0.06)":"#FEF2F2" }}>
-                    <td colSpan={2} style={{ padding:"12px 14px", fontWeight:800, fontSize:13, color:"#FF0000", letterSpacing:"0.02em" }}>РАЗОМ НА СКЛАДІ</td>
-                    <td style={{ padding:"12px 14px", textAlign:"right", fontWeight:800, fontSize:13, color:"#FF0000" }}>{totalItems.toLocaleString("uk-UA")}</td>
+                  <tr style={{ borderTop:`2px solid ${t.dark?"#2D2D2E":"#E5E7EB"}`, background:t.dark?"#222223":"#FEF2F2" }}>
+                    <td colSpan={2} style={{ padding:"12px 14px", fontWeight:800, fontSize:13, color:"#EF4444", letterSpacing:"0.02em" }}>РАЗОМ НА СКЛАДІ</td>
+                    <td style={{ padding:"12px 14px", textAlign:"right", fontWeight:800, fontSize:13, color:"#EF4444" }}>{totalItems.toLocaleString("uk-UA")}</td>
                     <td style={{ padding:"12px 14px" }}/>
-                    <td style={{ padding:"12px 14px", textAlign:"right", fontWeight:800, fontSize:14, color:"#FF0000" }}>{totalValue.toLocaleString("uk-UA")} ₴</td>
+                    <td style={{ padding:"12px 14px", textAlign:"right", fontWeight:800, fontSize:14, color:"#EF4444" }}>{totalValue.toLocaleString("uk-UA")} ₴</td>
                   </tr>
                 </tfoot>
               </table>
@@ -1686,22 +1679,21 @@ function InventorySkladPanel({ t }: { t: T }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 0 20px rgba(255,0,0,0.45)")}
-        onMouseLeave={e => (e.currentTarget.style.boxShadow = "0 0 10px rgba(255,0,0,0.2)")}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "#F87171")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "#EF4444")}
         style={{
-          width:"100%", marginTop:12, padding:"12px 14px", borderRadius:8,
-          background:"linear-gradient(135deg, rgba(255,0,0,0.18), rgba(255,50,50,0.12))",
-          border:"1px solid rgba(255,0,0,0.35)",
-          color:"#FF0000", fontSize:13, fontWeight:900, cursor:"pointer",
+          width:"100%", marginTop:12, padding:"12px 14px", borderRadius:4,
+          background:"transparent",
+          border:"1px solid #EF4444",
+          color:"#EF4444", fontSize:13, fontWeight:900, cursor:"pointer",
           display:"flex", alignItems:"center", justifyContent:"center", gap:8,
           letterSpacing:"0.08em", textTransform:"uppercase" as const,
           transition:"all 0.2s ease",
-          boxShadow:"0 0 10px rgba(255,0,0,0.2)",
         }}
       >
         📦 СКЛАД
         {skladItems.length > 0 && (
-          <span style={{ fontSize:9, fontWeight:600, padding:"1px 6px", borderRadius:4, background:"rgba(255,0,0,0.18)", color:"#FF0000" }}>
+          <span style={{ fontSize:9, fontWeight:600, padding:"1px 6px", borderRadius:4, background:"transparent", color:"#EF4444" }}>
             {totalItems.toLocaleString("uk-UA")} шт
           </span>
         )}
@@ -2751,70 +2743,54 @@ export default function Dashboard() {
   return (
     <div style={{ background:t.bg, minHeight:"100vh", fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
 
-      {/* ── Ethena-style navbar ─────────────────────────────────── */}
-      <div style={{ background:"rgba(12,10,28,0.97)", borderBottom:"1px solid rgba(0,212,255,0.12)", padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100, backdropFilter:"blur(16px)" }}>
+      {/* ── Professional Trading Terminal navbar ─────────────────── */}
+      <div style={{ background:"#1A1A1B", borderBottom:"1px solid #2D2D2E", padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100 }}>
         {/* Left: Brand + Nav */}
         <div style={{ display:"flex", alignItems:"center", gap:20 }}>
-          {/* Mobile hamburger toggle */}
           {fileData && (
             <button className="sidebar-toggle-btn" onClick={()=>setSidebarOpen(v=>!v)} aria-label="Toggle sidebar">
               <Menu size={18}/>
             </button>
           )}
-          {/* Ethena-style logo mark */}
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ width:30, height:30, borderRadius:8, background:"linear-gradient(135deg, #00D4FF 0%, #7B2FFF 100%)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 0 16px rgba(0,212,255,0.3)" }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 2L14 8L8 14L2 8L8 2Z" stroke="#fff" strokeWidth="1.5" fill="none"/>
-                <circle cx="8" cy="8" r="2.5" fill="#fff"/>
-              </svg>
-            </div>
-            <div style={{ display:"flex", alignItems:"baseline", gap:5 }}>
-              <span style={{ color:"#FFFFFF", fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', monospace" }}>SOLANA</span>
-              <span style={{ color:"rgba(0,212,255,0.5)", fontSize:13, fontWeight:400 }}>|</span>
-              <span style={{ color:"#00D4FF", fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', monospace" }}>CORE</span>
-            </div>
+          <div style={{ display:"flex", alignItems:"baseline", gap:5 }}>
+            <span style={{ color:"#FFFFFF", fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', monospace" }}>SOLANA</span>
+            <span style={{ color:"#2D2D2E", fontSize:13, fontWeight:400 }}>|</span>
+            <span style={{ color:"#3B82F6", fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', monospace" }}>CORE</span>
           </div>
-          {/* Nav links */}
-          <div className="ethena-nav-links" style={{ display:"flex", alignItems:"center", gap:4 }}>
+          <div className="ethena-nav-links" style={{ display:"flex", alignItems:"center", gap:2 }}>
             {["Dashboards","Earn","Swap","Rewards"].map((n,i) => (
-              <button key={n} style={{ padding:"5px 12px", borderRadius:6, background:i===0?"rgba(0,212,255,0.12)":"transparent", border:"none", color:i===0?"#00D4FF":"#8B8B9E", fontSize:11, fontWeight:i===0?700:500, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace", transition:"all 0.15s" }}>{n}</button>
+              <button key={n} style={{ padding:"5px 12px", borderRadius:4, background:i===0?"#2D2D2E":"transparent", border:"none", color:i===0?"#3B82F6":"#6B7280", fontSize:11, fontWeight:i===0?700:500, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace" }}>{n}</button>
             ))}
           </div>
         </div>
-        {/* Right: Pills + Actions */}
+        {/* Right: Actions */}
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          {/* TVL pill */}
-          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:20, background:"rgba(0,255,136,0.08)", border:"1px solid rgba(0,255,136,0.18)" }}>
-            <span style={{ fontSize:9, fontWeight:700, color:"#8B8B9E", letterSpacing:"0.06em" }}>TVL</span>
-            <span style={{ fontSize:11, fontWeight:800, color:"#00FF88", fontFamily:"'JetBrains Mono', monospace" }}>$5.4B</span>
+          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2D2D2E" }}>
+            <span style={{ fontSize:9, fontWeight:700, color:"#6B7280", letterSpacing:"0.06em" }}>TVL</span>
+            <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace" }}>$5.4B</span>
           </div>
-          {/* APY pill */}
-          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:20, background:"rgba(0,212,255,0.08)", border:"1px solid rgba(0,212,255,0.18)" }}>
-            <span style={{ fontSize:9, fontWeight:700, color:"#8B8B9E", letterSpacing:"0.06em" }}>APY</span>
-            <span style={{ fontSize:11, fontWeight:800, color:"#00D4FF", fontFamily:"'JetBrains Mono', monospace" }}>19.3%</span>
+          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2D2D2E" }}>
+            <span style={{ fontSize:9, fontWeight:700, color:"#6B7280", letterSpacing:"0.06em" }}>APY</span>
+            <span style={{ fontSize:11, fontWeight:800, color:"#3B82F6", fontFamily:"'JetBrains Mono', monospace" }}>19.3%</span>
           </div>
-          {/* Persistence badge */}
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
-              style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 9px", borderRadius:5, background:"rgba(0,255,136,0.08)", border:"1px solid rgba(0,255,136,0.18)" }}>
-              <HardDrive size={11} style={{ color:"#00FF88" }}/>
-              <span style={{ fontSize:10, fontWeight:700, color:"#00FF88", letterSpacing:"0.03em" }}>Збережено</span>
+              style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 9px", borderRadius:4, border:"1px solid #2D2D2E" }}>
+              <HardDrive size={11} style={{ color:"#22C55E" }}/>
+              <span style={{ fontSize:10, fontWeight:700, color:"#22C55E", letterSpacing:"0.03em" }}>Збережено</span>
             </div>
           )}
           {fileData && (
-            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:6, background:"transparent", border:"1px solid rgba(0,212,255,0.15)", color:"#8B8B9E", fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', monospace" }}><X size={11} /> Скинути</button>
+            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:4, background:"transparent", border:"1px solid #2D2D2E", color:"#6B7280", fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', monospace" }}><X size={11} /> Скинути</button>
           )}
-          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:8, background:"linear-gradient(135deg, #00D4FF 0%, #7B2FFF 100%)", color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace", boxShadow:"0 0 20px rgba(0,212,255,0.25)" }}>
+          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:"#3B82F6", color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>
             <Upload size={12} /> Генерація звіту
           </button>
-          {/* Dark/Light toggle */}
-          <button onClick={()=>setDarkMode(!darkMode)} style={{ width:32, height:32, borderRadius:8, background:"transparent", border:"1px solid rgba(0,212,255,0.15)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#8B8B9E", transition:"all 0.15s" }}>
+          <button onClick={()=>setDarkMode(!darkMode)} style={{ width:32, height:32, borderRadius:4, background:"transparent", border:"1px solid #2D2D2E", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#6B7280" }}>
             {darkMode?<Sun size={13}/>:<Moon size={13}/>}
           </button>
-          {/* Connect Wallet button */}
-          <button style={{ padding:"6px 14px", borderRadius:8, background:"transparent", border:"1px solid rgba(0,212,255,0.25)", color:"#00D4FF", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace", display:"flex", alignItems:"center", gap:5, transition:"all 0.15s" }}>
-            <span style={{ width:6, height:6, borderRadius:"50%", background:"#00D4FF", boxShadow:"0 0 8px rgba(0,212,255,0.5)" }}/>
+          <button style={{ padding:"6px 14px", borderRadius:4, background:"transparent", border:"1px solid #2D2D2E", color:"#3B82F6", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace", display:"flex", alignItems:"center", gap:5 }}>
+            <span style={{ width:6, height:6, borderRadius:"50%", background:"#3B82F6" }}/>
             Connect Wallet
           </button>
         </div>
@@ -2833,18 +2809,18 @@ export default function Dashboard() {
           const st: T = t;
           return (
           <nav className={`orbit-sidebar${sidebarOpen ? " sidebar-open" : ""}`} style={{
-            background: "rgba(10,8,24,0.98)",
-            borderRight: "1px solid rgba(0,212,255,0.10)",
+            background: "#1A1A1B",
+            borderRight: "1px solid #2D2D2E",
             padding: "14px 8px 36px",
             display:"flex", flexDirection:"column", gap:4,
           }}>
 
-            {/* Status pill */}
+            {/* Status indicator */}
             <div style={{
-              padding:"9px 12px", borderRadius:8, marginBottom:8,
-              background:"rgba(0,212,255,0.06)", border:"1px solid rgba(0,212,255,0.15)",
+              padding:"9px 12px", borderRadius:4, marginBottom:8,
+              border:"1px solid #2D2D2E",
             }}>
-              <p style={{ fontSize:11, fontWeight:700, color:"#00D4FF", margin:0, fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.06em" }}>● Аналіз активний</p>
+              <p style={{ fontSize:11, fontWeight:700, color:"#3B82F6", margin:0, fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.06em" }}>● Аналіз активний</p>
               <p style={{ fontSize:10, color:st.dim, margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
             </div>
 
@@ -2970,16 +2946,16 @@ export default function Dashboard() {
             onDragLeave={()=>setIsDragging(false)}
             onDrop={handleDrop}
             onClick={()=>fileRef.current?.click()}
-            style={{ border:`1px dashed ${isDragging?"#00D4FF":"rgba(0,212,255,0.20)"}`, borderRadius:14, padding:"90px 40px", display:"flex", flexDirection:"column", alignItems:"center", gap:20, cursor:"pointer", transition:"all 0.15s", background:isDragging?"rgba(0,212,255,0.04)":"rgba(16,14,40,0.5)" }}
+            style={{ border:`1px dashed ${isDragging?"#3B82F6":"#2D2D2E"}`, borderRadius:6, padding:"90px 40px", display:"flex", flexDirection:"column", alignItems:"center", gap:20, cursor:"pointer", transition:"all 0.15s", background:isDragging?"#1E1E1F":"#222223" }}
           >
-            <div style={{ width:64, height:64, borderRadius:12, background:"rgba(0,212,255,0.08)", border:"1px solid rgba(0,212,255,0.20)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 24px rgba(0,212,255,0.12)" }}>
-              <Upload size={26} style={{ color:"#00D4FF" }}/>
+                        <div style={{ width:64, height:64, borderRadius:6, border:"1px solid #2D2D2E", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Upload size={26} style={{ color:"#3B82F6" }}/>
             </div>
             <div style={{ textAlign:"center" }}>
               <p style={{ color:t.text, fontSize:18, fontWeight:800, margin:0, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажте дані звітності</p>
-              <p style={{ color:"#8B8B9E", fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
+              <p style={{ color:"#6B7280", fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
             </div>
-            <div style={{ padding:"9px 28px", background:"linear-gradient(135deg, #00D4FF 0%, #7B2FFF 100%)", borderRadius:8, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace", boxShadow:"0 0 20px rgba(0,212,255,0.25)" }}>Завантажити дані</div>
+            <div style={{ padding:"9px 28px", background:"#3B82F6", borderRadius:4, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажити дані</div>
           </div>
         )}
 
@@ -2987,25 +2963,24 @@ export default function Dashboard() {
         {fileData && kpi && (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
 
-            {/* ── ETHENA HERO ──────────────────────────────────── */}
-            <div className="orbit-fadein" style={{ marginBottom:4, paddingBottom:18, borderBottom:"1px solid rgba(0,212,255,0.10)" }}>
+            {/* ── TERMINAL HEADER ──────────────────────────────── */}
+            <div className="orbit-fadein" style={{ marginBottom:4, paddingBottom:18, borderBottom:"1px solid #2D2D2E" }}>
               <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
                 <div>
-                  <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:"#00D4FF", fontFamily:"'JetBrains Mono', monospace" }}>
-                    Solana Analytics · Ethena Protocol
+                  <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:"#3B82F6", fontFamily:"'JetBrains Mono', monospace" }}>
+                    Solana Analytics Terminal
                   </p>
                   <h1 style={{ margin:0, fontSize:"clamp(22px, 2.2vw, 32px)", fontWeight:800, letterSpacing:"-0.02em", lineHeight:1.12, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>
-                    A global business,{" "}
-                    <span style={{ background:"linear-gradient(135deg, #00D4FF, #7B2FFF)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>built on data</span>
+                    A global business, <span style={{ color:"#3B82F6" }}>built on data</span>
                   </h1>
-                  <p style={{ margin:"6px 0 0", fontSize:12, color:"#8B8B9E", fontWeight:400, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>
+                  <p style={{ margin:"6px 0 0", fontSize:12, color:"#6B7280", fontWeight:400, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>
                     Глобальний бізнес, побудований на даних · {kpi.orders.toLocaleString("uk-UA")} замовлень · {fmt(kpi.grossIncome)} ₴ виручки
                   </p>
                 </div>
-                {/* L I V E pill */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px", borderRadius:20, background:"rgba(0,255,136,0.06)", border:"1px solid rgba(0,255,136,0.20)", flexShrink:0, alignSelf:"center" }}>
-                  <span style={{ width:7, height:7, borderRadius:"50%", background:"#00FF88", boxShadow:"0 0 0 3px rgba(0,255,136,0.22), 0 0 12px rgba(0,255,136,0.3)", flexShrink:0, animation:"pulse 2s infinite" }}/>
-                  <span style={{ fontSize:11, fontWeight:800, color:"#00FF88", letterSpacing:"0.35em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>L I V E</span>
+                {/* L I V E indicator */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px", borderRadius:4, border:"1px solid #2D2D2E", flexShrink:0, alignSelf:"center" }}>
+                  <span style={{ width:7, height:7, borderRadius:"50%", background:"#22C55E", flexShrink:0, animation:"pulse 2s infinite" }}/>
+                  <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", letterSpacing:"0.35em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>L I V E</span>
                 </div>
               </div>
             </div>
@@ -3025,28 +3000,28 @@ export default function Dashboard() {
             {/* ── Debt & Logistics Priority Cards ── */}
             <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, animationDelay:"55ms" }}>
               {/* DEBT card */}
-              <div style={{ ...KPI_CARD_BASE, background:"rgba(16,14,40,0.85)", border:"1px solid rgba(255,107,53,0.25)", borderLeft:"3px solid #FF6B35" }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#222223", border:"1px solid #2D2D2E", borderLeft:"3px solid #EF4444" }}>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                  <div style={{ ...KPI_LABEL, color:"#FF6B35", letterSpacing:"0.14em" }}>ЗАБОРГОВАНІСТЬ DEBT (CRITICAL)</div>
-                  <span style={{ fontSize:14 }}>⚠</span>
+                  <div style={{ ...KPI_LABEL, color:"#EF4444", letterSpacing:"0.14em" }}>ЗАБОРГОВАНІСТЬ DEBT (CRITICAL)</div>
+                  <span style={{ fontSize:14, color:"#EF4444" }}>⚠</span>
                 </div>
-                <div style={{ ...KPI_NUM, color:"#FF6B35", fontSize:32 }}>
+                <div style={{ ...KPI_NUM, color:"#EF4444", fontSize:32 }}>
                   {fmt(kpi.debt)} ₴
                 </div>
-                <div style={{ fontSize:10, color:"#8B8B9E", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
+                <div style={{ fontSize:10, color:"#6B7280", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
               </div>
               {/* LOGISTICS card */}
-              <div style={{ ...KPI_CARD_BASE, background:"rgba(16,14,40,0.85)", border:"1px solid rgba(0,212,255,0.15)", borderLeft:"3px solid #00D4FF" }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#222223", border:"1px solid #2D2D2E", borderLeft:"3px solid #3B82F6" }}>
                 <div style={{ ...KPI_LABEL }}>LOGISTICS COST (ЛОГІСТИКА)</div>
                 <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
-                  <span style={{ ...KPI_NUM, color:"#00D4FF", fontSize:32 }}>{fmt(kpi.logistics)} ₴</span>
+                  <span style={{ ...KPI_NUM, color:"#3B82F6", fontSize:32 }}>{fmt(kpi.logistics)} ₴</span>
                   {kpi.grossIncome > 0 && (
-                    <span style={{ fontSize:11, fontWeight:700, color:"#8B8B9E", fontFamily:"'JetBrains Mono', monospace" }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>
                       ({((kpi.logistics / kpi.grossIncome) * 100).toFixed(0)}%)
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize:10, color:"#8B8B9E", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Витрати на доставку</div>
+                <div style={{ fontSize:10, color:"#6B7280", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Витрати на доставку</div>
               </div>
             </div>
 
@@ -3057,25 +3032,25 @@ export default function Dashboard() {
                 ? ((hubberProj2026.projected - hubberProj2026.bestTotal) / hubberProj2026.bestTotal * 100)
                 : null;
               return (
-                <div className="orbit-fadein" style={{ ...glassBase, padding:"20px 28px 18px", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", gap:6, animationDelay:"60ms", borderLeft:"3px solid #00D4FF" }}>
-                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#8B8B9E", fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік</div>
-                  <div style={{ fontSize:36, fontWeight:800, color:"#00D4FF", letterSpacing:"-0.04em", lineHeight:1, margin:"4px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>
+                <div className="orbit-fadein" style={{ ...glassBase, padding:"20px 28px 18px", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", gap:6, animationDelay:"60ms", borderLeft:"3px solid #3B82F6" }}>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const,                   color:"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік</div>
+                                    <div style={{ fontSize:36, fontWeight:800, color:"#3B82F6", letterSpacing:"-0.04em", lineHeight:1, margin:"4px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>
                     {fmtWhole(hubberProj2026.projected)} ₴
                   </div>
-                  <div style={{ fontSize:11, color:"#8B8B9E", marginTop:2, fontFamily:"'JetBrains Mono', monospace" }}>Базується на результатах за {hubberProj2026.monthsIn} міс. (YTD)</div>
+                  <div style={{ fontSize:11, color:"#6B7280", marginTop:2, fontFamily:"'JetBrains Mono', monospace" }}>Базується на результатах за {hubberProj2026.monthsIn} міс. (YTD)</div>
 
                   {/* Secondary row */}
-                  <div style={{ display:"flex", gap:20, marginTop:10, paddingTop:10, borderTop:"1px solid rgba(0,212,255,0.10)", width:"100%", justifyContent:"center", flexWrap:"wrap" }}>
+                  <div style={{ display:"flex", gap:20, marginTop:10, paddingTop:10, borderTop:"1px solid #2D2D2E", width:"100%", justifyContent:"center", flexWrap:"wrap" }}>
                     <div style={{ textAlign:"center" }}>
-                      <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#8B8B9E", marginBottom:3, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
+                      <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#6B7280", marginBottom:3, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
                       <div style={{ fontSize:14, fontWeight:800, color:t.text, letterSpacing:"-0.02em", fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
                     </div>
                     {vsRec !== null && (
                       <>
-                        <div style={{ width:1, background:"rgba(0,212,255,0.10)" }}/>
+                        <div style={{ width:1, background:"#2D2D2E" }}/>
                         <div style={{ textAlign:"center" }}>
-                          <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#8B8B9E", marginBottom:3, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
-                          <div style={{ fontSize:14, fontWeight:800, letterSpacing:"-0.02em", color:vsRec>=0?"#00D4FF":t.red, fontFamily:"'JetBrains Mono', monospace" }}>
+                          <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#6B7280", marginBottom:3, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
+                          <div style={{ fontSize:14, fontWeight:800, letterSpacing:"-0.02em", color:vsRec>=0?"#3B82F6":t.red, fontFamily:"'JetBrains Mono', monospace" }}>
                             {vsRec>=0?"+":""}{vsRec.toFixed(0)}%
                           </div>
                         </div>
@@ -3088,25 +3063,25 @@ export default function Dashboard() {
 
             {/* ── Performance Snapshot Grid ────────────────────────── */}
             <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10, animationDelay:"65ms" }}>
-              <div style={{ ...KPI_CARD_BASE, background:"rgba(16,14,40,0.85)", border:"1px solid rgba(0,212,255,0.15)" }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#222223", border:"1px solid #2D2D2E" }}>
                 <div style={{ ...KPI_LABEL }}>LFL vs 2025</div>
-                <div style={{ ...KPI_NUM, color:"#00FF88", fontSize:28 }}>+14.3%</div>
-                <div style={{ fontSize:10, color:"#8B8B9E", marginTop:4 }}>Порівняння з минулим роком</div>
+                <div style={{ ...KPI_NUM, color:"#22C55E", fontSize:28 }}>+14.3%</div>
+                <div style={{ fontSize:10, color:"#6B7280", marginTop:4 }}>Порівняння з минулим роком</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"rgba(16,14,40,0.85)", border:"1px solid rgba(0,212,255,0.15)" }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#222223", border:"1px solid #2D2D2E" }}>
                 <div style={{ ...KPI_LABEL }}>Дохід / Рік</div>
-                <div style={{ ...KPI_NUM, color:"#00D4FF", fontSize:28 }}>+11%</div>
-                <div style={{ fontSize:10, color:"#8B8B9E", marginTop:4 }}>Річна динаміка</div>
+                <div style={{ ...KPI_NUM, color:"#3B82F6", fontSize:28 }}>+11%</div>
+                <div style={{ fontSize:10, color:"#6B7280", marginTop:4 }}>Річна динаміка</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"rgba(16,14,40,0.85)", border:"1px solid rgba(255,107,53,0.20)" }}>
-                <div style={{ ...KPI_LABEL, color:"#FF6B35" }}>Заборгованість</div>
-                <div style={{ ...KPI_NUM, color:"#FF6B35", fontSize:28 }}>-7.7k</div>
-                <div style={{ fontSize:10, color:"#8B8B9E", marginTop:4 }}>Дебіторська заборгованість</div>
+              <div style={{ ...KPI_CARD_BASE, background:"#222223", border:"1px solid #2D2D2E" }}>
+                <div style={{ ...KPI_LABEL, color:"#EF4444" }}>Заборгованість</div>
+                <div style={{ ...KPI_NUM, color:"#EF4444", fontSize:28 }}>-7.7k</div>
+                <div style={{ fontSize:10, color:"#6B7280", marginTop:4 }}>Дебіторська заборгованість</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"rgba(16,14,40,0.85)", border:"1px solid rgba(0,212,255,0.15)" }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#222223", border:"1px solid #2D2D2E" }}>
                 <div style={{ ...KPI_LABEL }}>ROI / Sebe</div>
-                <div style={{ ...KPI_NUM, color:"#00D4FF", fontSize:28 }}>—</div>
-                <div style={{ fontSize:10, color:"#8B8B9E", marginTop:4 }}>Розрахунок в процесі</div>
+                <div style={{ ...KPI_NUM, color:"#3B82F6", fontSize:28 }}>—</div>
+                <div style={{ fontSize:10, color:"#6B7280", marginTop:4 }}>Розрахунок в процесі</div>
               </div>
             </div>
 
@@ -3164,10 +3139,10 @@ export default function Dashboard() {
                         <stop offset="100%" stopColor={t.blue} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(0,212,255,0.06)":"rgba(0,0,0,0.05)"} vertical={false}/>
-                    <XAxis dataKey="label" tick={{ fontSize:11, fill:"#8B8B9E" }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#6B6B80" }} tickLine={false} axisLine={false} width={96} domain={["auto","auto"]}/>
-                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:t.dark?"rgba(0,212,255,0.10)":"rgba(0,0,0,0.06)", strokeWidth:1 }}/>
+                    <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"#2D2D2E":"rgba(0,0,0,0.05)"} vertical={false}/>
+                    <XAxis dataKey="label" tick={{ fontSize:11, fill:"#6B7280" }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
+                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#6B7280" }} tickLine={false} axisLine={false} width={96} domain={["auto","auto"]}/>
+                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:t.dark?"#2D2D2E":"rgba(0,0,0,0.06)", strokeWidth:1 }}/>
                     {refLabel && futureCount>0 && (
                       <ReferenceLine x={refLabel} stroke={t.dim} strokeDasharray="5 3" strokeWidth={1.5}
                         label={{ value:"прогноз →", position:"insideTopRight", fontSize:9, fill:t.dim, fontWeight:600 }}/>
@@ -3215,10 +3190,10 @@ export default function Dashboard() {
                     return (
                       <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={marketplaceBarWithMoM} margin={{ top:showBarTrend?28:18, right:8, left:8, bottom:4 }}>
-                          <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(0,212,255,0.06)":"rgba(0,0,0,0.05)"} vertical={false}/>
-                          <XAxis dataKey="name" tick={{ fontSize:11, fill:"#8B8B9E" }} tickLine={false} axisLine={false}/>
-                          <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#6B6B80" }} tickLine={false} axisLine={false} width={90}/>
-                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"rgba(12,10,28,0.97)":"#fff", border:"1px solid rgba(0,212,255,0.15)", borderRadius:10, fontSize:12 }}/>
+                          <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"#2D2D2E":"rgba(0,0,0,0.05)"} vertical={false}/>
+                          <XAxis dataKey="name" tick={{ fontSize:11, fill:"#6B7280" }} tickLine={false} axisLine={false}/>
+                          <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#6B7280" }} tickLine={false} axisLine={false} width={90}/>
+                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"#222223":"#fff", border:"1px solid #2D2D2E", borderRadius:4, fontSize:12 }}/>
                           <Bar isAnimationActive={true} animationDuration={500} animationEasing="ease-out" dataKey="net" name="Дохід" radius={[6,6,0,0]}
                             label={(props: Record<string,unknown>) => {
                               const entry = marketplaceBarWithMoM[props.index as number];
@@ -3253,11 +3228,11 @@ export default function Dashboard() {
                     const totalPos = marketplaceBar.filter(e=>e.net>0).reduce((s,e)=>s+e.net,0)||1;
                     const leaderPct = ((leader.net/totalPos)*100).toFixed(0);
                     return (
-                      <div style={{ marginTop:12, padding:"9px 12px", borderRadius:10, background:"rgba(0,212,255,0.05)", border:"1px solid rgba(0,212,255,0.12)", display:"flex", alignItems:"flex-start", gap:7 }}>
+                      <div style={{ marginTop:12, padding:"9px 12px", borderRadius:10, background:"#1E1E1F", border:"1px solid #2D2D2E", display:"flex", alignItems:"flex-start", gap:7 }}>
                         <span style={{ fontSize:12, flexShrink:0, marginTop:1 }}>💡</span>
                         <span style={{ fontSize:10, color:t.text, lineHeight:1.55 }}>
-                          <strong style={{ color:"#00D4FF" }}>{leader.name}</strong> генерує основний потік готівки ({leaderPct}%).{" "}
-                          {second && <span>Рентабельність на <strong style={{ color:"#00D4FF" }}>{second.name}</strong> вища завдяки нижчій вартості логістики.</span>}
+                          <strong style={{ color:"#3B82F6" }}>{leader.name}</strong> генерує основний потік готівки ({leaderPct}%).{" "}
+                          {second && <span>Рентабельність на <strong style={{ color:"#3B82F6" }}>{second.name}</strong> вища завдяки нижчій вартості логістики.</span>}
                         </span>
                       </div>
                     );
@@ -3292,7 +3267,7 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/donutTotal)*100).toFixed(1)}%)`, name]}
-                          contentStyle={{ background:t.dark?"rgba(12,10,28,0.97)":"#fff", border:"1px solid rgba(0,212,255,0.15)", borderRadius:10, fontSize:11 }}
+                          contentStyle={{ background:t.dark?"#222223":"#fff", border:"1px solid #2D2D2E", borderRadius:4, fontSize:11 }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -3305,9 +3280,9 @@ export default function Dashboard() {
                           <div key={entry.name} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                               <div style={{ width:8, height:8, borderRadius:99, background:clr, flexShrink:0 }}/>
-                              <span style={{ fontSize:11, color:i===0?"#00D4FF":t.text, fontWeight:i===0?700:500 }}>{entry.name}</span>
+                              <span style={{ fontSize:11, color:i===0?"#3B82F6":t.text, fontWeight:i===0?700:500 }}>{entry.name}</span>
                             </div>
-                            <span style={{ fontSize:11, fontWeight:700, color:i===0?"#00D4FF":"#8B8B9E" }}>{pct}%</span>
+                            <span style={{ fontSize:11, fontWeight:700, color:i===0?"#3B82F6":"#6B7280" }}>{pct}%</span>
                           </div>
                         );
                       })}
@@ -3341,7 +3316,7 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/brandTotal)*100).toFixed(1)}%)`, name]}
-                          contentStyle={{ background:t.dark?"rgba(12,10,28,0.97)":"#fff", border:"1px solid rgba(0,212,255,0.15)", borderRadius:10, fontSize:11 }}
+                          contentStyle={{ background:t.dark?"#222223":"#fff", border:"1px solid #2D2D2E", borderRadius:4, fontSize:11 }}
                         />
                       </PieChart>
                     </ResponsiveContainer>

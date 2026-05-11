@@ -10,7 +10,7 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  background: #0D0B21 !important;
+  background: #1A1A1B !important;
   color: #FFFFFF !important;
   min-height: 100vh;
   font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
@@ -160,11 +160,6 @@ html, body, #root {
   50% { opacity: 0.4; }
 }
 
-/* Ethena glow effects */
-@keyframes ethena-glow {
-  0%, 100% { box-shadow: 0 0 12px rgba(0,212,255,0.15); }
-  50% { box-shadow: 0 0 24px rgba(0,212,255,0.25); }
-}
 
 /* KPI cards responsive */
 @media (max-width: 1200px) {
