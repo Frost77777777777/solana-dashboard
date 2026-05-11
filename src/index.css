@@ -10,10 +10,10 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  background: #000000 !important;
+  background: #0D0B21 !important;
   color: #FFFFFF !important;
   min-height: 100vh;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 
 /* Pure Black theme overrides */
@@ -144,6 +144,42 @@ html, body, #root {
   }
   .orbit-main-offset {
     margin-left: 220px;
+  }
+}
+
+/* Hide nav links on small screens */
+@media (max-width: 900px) {
+  .ethena-nav-links {
+    display: none !important;
+  }
+}
+
+/* Pulse animation for LIVE indicator */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Ethena glow effects */
+@keyframes ethena-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(0,212,255,0.15); }
+  50% { box-shadow: 0 0 24px rgba(0,212,255,0.25); }
+}
+
+/* KPI cards responsive */
+@media (max-width: 1200px) {
+  .kpi-cards-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+@media (max-width: 768px) {
+  .kpi-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+@media (max-width: 480px) {
+  .kpi-cards-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 
