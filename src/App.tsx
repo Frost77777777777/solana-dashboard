@@ -1516,12 +1516,30 @@ function detectWarehouseBrand(productName: string): string {
 
 interface SkladItem { product: string; qty: number; price: number; brand: string }
 
+const SKLAD_STORAGE_KEY = "solana_core_sklad_v1";
+
+function readSkladCache(): SkladItem[] {
+  try {
+    const raw = localStorage.getItem(SKLAD_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed as SkladItem[];
+  } catch { /* corrupt cache — ignore */ }
+  return [];
+}
+
 /* ─── InventorySkladPanel — СКЛАД sidebar button + portal modal ─ */
 function InventorySkladPanel({ t }: { t: T }) {
   const [open, setOpen] = React.useState(false);
-  const [skladItems, setSkladItems] = React.useState<SkladItem[]>([]);
+  const [skladItems, setSkladItems] = React.useState<SkladItem[]>(readSkladCache);
   const [searchQ, setSearchQ] = React.useState("");
   const skladRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    try {
+      if (skladItems.length > 0) localStorage.setItem(SKLAD_STORAGE_KEY, JSON.stringify(skladItems));
+    } catch { /* quota exceeded — ignore */ }
+  }, [skladItems]);
 
   function handleSkladFile(file: File) {
     const reader = new FileReader();
