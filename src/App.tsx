@@ -2839,8 +2839,8 @@ export default function Dashboard() {
           const st: T = t;
           return (
           <nav className={`orbit-sidebar${sidebarOpen ? " sidebar-open" : ""}`} style={{
-            background: "#1A1A1B",
-            borderRight: "1px solid #2D2D2E",
+            background: t.dark ? "#1A1A1B" : "#FFFFFF",
+            borderRight: `1px solid ${t.dark ? "#2D2D2E" : "#E2E8F0"}`,
             padding: "14px 8px 36px",
             display:"flex", flexDirection:"column", gap:4,
           }}>
@@ -2848,10 +2848,10 @@ export default function Dashboard() {
             {/* Status indicator */}
             <div style={{
               padding:"9px 12px", borderRadius:4, marginBottom:8,
-              border:"1px solid #2D2D2E",
+              border:`1px solid ${t.dark ? "#2D2D2E" : "#E2E8F0"}`,
             }}>
               <p style={{ fontSize:11, fontWeight:700, color:"#3B82F6", margin:0, fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.06em" }}>● Аналіз активний</p>
-              <p style={{ fontSize:10, color:st.dim, margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
+              <p style={{ fontSize:10, color:t.dark ? st.dim : "#1A1A1B", margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
             </div>
 
             {/* Marketplace — collapsible + 2-col icon grid */}
@@ -3026,34 +3026,6 @@ export default function Dashboard() {
               t={t}
               fmt={fmt}
             />
-
-            {/* ── Debt & Logistics Priority Cards ── */}
-            <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, animationDelay:"55ms" }}>
-              {/* DEBT card */}
-              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", borderLeft:"3px solid #EF4444" }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                  <div style={{ ...KPI_LABEL, color:"#EF4444", letterSpacing:"0.14em" }}>ЗАБОРГОВАНІСТЬ DEBT (CRITICAL)</div>
-                  <span style={{ fontSize:14, color:"#EF4444" }}>⚠</span>
-                </div>
-                <div style={{ ...KPI_NUM, color:"#EF4444", fontSize:32 }}>
-                  {fmt(kpi.debt)} ₴
-                </div>
-                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
-              </div>
-              {/* LOGISTICS card */}
-              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", borderLeft:"3px solid #3B82F6" }}>
-                <div style={{ ...KPI_LABEL, color:"#1A1A1B" }}>LOGISTICS COST (ЛОГІСТИКА)</div>
-                <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
-                  <span style={{ ...KPI_NUM, color:"#3B82F6", fontSize:32 }}>{fmt(kpi.logistics)} ₴</span>
-                  {kpi.grossIncome > 0 && (
-                    <span style={{ fontSize:11, fontWeight:700, color:"#1A1A1B", fontFamily:"'JetBrains Mono', monospace" }}>
-                      ({((kpi.logistics / kpi.grossIncome) * 100).toFixed(0)}%)
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Витрати на доставку</div>
-              </div>
-            </div>
 
             {/* ── Revenue Performance Panel ── */}
             {hubberProj2026 && (()=>{
