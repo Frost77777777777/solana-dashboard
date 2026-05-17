@@ -3030,7 +3030,7 @@ export default function Dashboard() {
             {/* ── Debt & Logistics Priority Cards ── */}
             <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, animationDelay:"55ms" }}>
               {/* DEBT card */}
-              <div style={{ ...KPI_CARD_BASE, background:t.dark?"#222223":"#FFFFFF", border:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}`, borderLeft:"3px solid #EF4444" }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", borderLeft:"3px solid #EF4444" }}>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                   <div style={{ ...KPI_LABEL, color:"#EF4444", letterSpacing:"0.14em" }}>ЗАБОРГОВАНІСТЬ DEBT (CRITICAL)</div>
                   <span style={{ fontSize:14, color:"#EF4444" }}>⚠</span>
@@ -3038,20 +3038,20 @@ export default function Dashboard() {
                 <div style={{ ...KPI_NUM, color:"#EF4444", fontSize:32 }}>
                   {fmt(kpi.debt)} ₴
                 </div>
-                <div style={{ fontSize:10, color:t.dark?"#6B7280":"#64748B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
+                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
               </div>
               {/* LOGISTICS card */}
-              <div style={{ ...KPI_CARD_BASE, background:t.dark?"#222223":"#FFFFFF", border:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}`, borderLeft:"3px solid #3B82F6" }}>
-                <div style={{ ...KPI_LABEL, color:t.dark?"#6B7280":"#64748B" }}>LOGISTICS COST (ЛОГІСТИКА)</div>
+              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", borderLeft:"3px solid #3B82F6" }}>
+                <div style={{ ...KPI_LABEL, color:"#1A1A1B" }}>LOGISTICS COST (ЛОГІСТИКА)</div>
                 <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
                   <span style={{ ...KPI_NUM, color:"#3B82F6", fontSize:32 }}>{fmt(kpi.logistics)} ₴</span>
                   {kpi.grossIncome > 0 && (
-                    <span style={{ fontSize:11, fontWeight:700, color:t.dark?"#6B7280":"#64748B", fontFamily:"'JetBrains Mono', monospace" }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:"#1A1A1B", fontFamily:"'JetBrains Mono', monospace" }}>
                       ({((kpi.logistics / kpi.grossIncome) * 100).toFixed(0)}%)
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize:10, color:t.dark?"#6B7280":"#64748B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Витрати на доставку</div>
+                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Витрати на доставку</div>
               </div>
             </div>
 
@@ -3067,14 +3067,14 @@ export default function Dashboard() {
                 ? Math.min((hubberProj2026.ytd / hubberProj2026.bestTotal) * 100, 100)
                 : 0;
               return (
-                <div className="orbit-fadein" style={{ ...glassBase, padding:0, animationDelay:"60ms", overflow:"hidden", background:t.dark?undefined:"#FFFFFF", border:t.dark?undefined:`1px solid #E2E8F0` }}>
+                <div className="orbit-fadein" style={{ ...glassBase, padding:0, animationDelay:"60ms", overflow:"hidden", background:"#FFFFFF", border:"1px solid #E2E8F0" }}>
                   {/* Panel header */}
-                  <div style={{ padding:"16px 24px 12px", borderBottom:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <div style={{ padding:"16px 24px 12px", borderBottom:"1px solid #E2E8F0", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       <div style={{ width:3, height:20, borderRadius:2, background:"#3B82F6" }}/>
                       <div>
-                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>Revenue Performance</div>
-                        <div style={{ fontSize:9, color:"#6B7280", marginTop:1, fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік · YTD vs Record</div>
+                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:"#1A1A1B", fontFamily:"'JetBrains Mono', monospace" }}>Revenue Performance</div>
+                        <div style={{ fontSize:9, color:"#1A1A1B", marginTop:1, fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік · YTD vs Record</div>
                       </div>
                     </div>
                     <div style={{ fontSize:9, padding:"3px 8px", borderRadius:3, background:"#3B82F614", color:"#3B82F6", fontWeight:700, letterSpacing:"0.06em", fontFamily:"'JetBrains Mono', monospace" }}>
@@ -3085,39 +3085,39 @@ export default function Dashboard() {
                   {/* Main metrics row */}
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:0 }}>
                     {/* YTD Fact */}
-                    <div style={{ padding:"16px 24px", borderRight:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}` }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.dark?"#6B7280":"#64748B", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:t.dark?t.text:"#1A1A1B", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
-                      <div style={{ fontSize:9, color:t.dark?"#6B7280":"#64748B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>{hubberProj2026.monthsIn} міс. даних</div>
+                    <div style={{ padding:"16px 24px", borderRight:"1px solid #E2E8F0" }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#1A1A1B", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
+                      <div style={{ fontSize:24, fontWeight:800, color:"#1A1A1B", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
+                      <div style={{ fontSize:9, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>{hubberProj2026.monthsIn} міс. даних</div>
                     </div>
                     {/* Projected Year-End */}
-                    <div style={{ padding:"16px 24px", borderRight:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}` }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#6B7280", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>Прогноз до кінця року</div>
+                    <div style={{ padding:"16px 24px", borderRight:"1px solid #E2E8F0" }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#1A1A1B", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>Прогноз до кінця року</div>
                       <div style={{ fontSize:24, fontWeight:800, color:"#3B82F6", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(projectedYearEnd)} ₴</div>
-                      <div style={{ fontSize:9, color:"#6B7280", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
+                      <div style={{ fontSize:9, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
                     </div>
                     {/* vs Record */}
                     <div style={{ padding:"16px 24px" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#6B7280", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#1A1A1B", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
                       <div style={{ fontSize:24, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1, color:vsRec!==null?(vsRec>=0?"#22C55E":t.red):"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>
                         {vsRec!==null ? (vsRec>=0?"+":"")+vsRec.toFixed(1)+"%" : "—"}
                       </div>
-                      <div style={{ fontSize:9, color:"#6B7280", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
+                      <div style={{ fontSize:9, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
                     </div>
                   </div>
 
                   {/* Progress bar: YTD vs Record */}
-                  <div style={{ padding:"12px 24px 16px", borderTop:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}` }}>
+                  <div style={{ padding:"12px 24px 16px", borderTop:"1px solid #E2E8F0" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                      <span style={{ fontSize:8, fontWeight:700, color:"#6B7280", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>YTD vs Record {hubberProj2026.bestYear}</span>
+                      <span style={{ fontSize:8, fontWeight:700, color:"#1A1A1B", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>YTD vs Record {hubberProj2026.bestYear}</span>
                       <span style={{ fontSize:10, fontWeight:800, color:progressPct>=100?"#22C55E":"#3B82F6", fontFamily:"'JetBrains Mono', monospace" }}>{progressPct.toFixed(0)}%</span>
                     </div>
-                    <div style={{ position:"relative", height:6, borderRadius:3, background:t.dark?"#2D2D2E":"#E2E8F0", overflow:"hidden" }}>
+                    <div style={{ position:"relative", height:6, borderRadius:3, background:"#E2E8F0", overflow:"hidden" }}>
                       <div style={{ width:`${progressPct}%`, height:"100%", borderRadius:3, background: progressPct>=100 ? "linear-gradient(90deg, #22C55E, #16A34A)" : "linear-gradient(90deg, #3B82F6, #2563EB)", transition:"width 0.8s ease" }}/>
                     </div>
                     <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-                      <span style={{ fontSize:8, color:"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>0</span>
-                      <span style={{ fontSize:8, color:"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
+                      <span style={{ fontSize:8, color:"#1A1A1B", fontFamily:"'JetBrains Mono', monospace" }}>0</span>
+                      <span style={{ fontSize:8, color:"#1A1A1B", fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
                     </div>
                   </div>
                 </div>
@@ -3131,35 +3131,35 @@ export default function Dashboard() {
               const roiVal = kpi.logistics > 0 ? kpi.net / kpi.logistics : null;
               return (
             <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10, animationDelay:"65ms" }}>
-              <div style={{ ...KPI_CARD_BASE, background:t.dark?"#222223":"#FFFFFF", border:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}`, minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:t.dark?"#6B7280":"#64748B" }}>LFL %</div>
+              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:"#1A1A1B" }}>LFL %</div>
                 <div style={{ ...KPI_NUM, color:lflPct!==null?(lflPct>=0?"#22C55E":"#EF4444"):"#6B7280", fontSize:28 }}>
                   {lflPct!==null ? (lflPct>=0?"+":"")+lflPct.toFixed(1)+"%" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#6B7280", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>
+                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>
                   {hubberLfl ? `vs ${hubberLfl.prevYear} · ${hubberLfl.monthName}` : prevKpi ? "vs попер. місяць" : "Немає даних"}
                 </div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:t.dark?"#222223":"#FFFFFF", border:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}`, minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:t.dark?"#6B7280":"#64748B" }}>Margin %</div>
+              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:"#1A1A1B" }}>Margin %</div>
                 <div style={{ ...KPI_NUM, color:marginPct!==null?(marginPct>=0?"#3B82F6":"#EF4444"):"#6B7280", fontSize:28 }}>
                   {marginPct!==null ? marginPct.toFixed(1)+"%" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#6B7280", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Чистий дохід / Виручка</div>
+                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Чистий дохід / Виручка</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:t.dark?"#222223":"#FFFFFF", border:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}`, minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:kpi.debt>0?"#EF4444":(t.dark?"#6B7280":"#64748B") }}>Заборгованість</div>
+              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:kpi.debt>0?"#EF4444":"#1A1A1B" }}>Заборгованість</div>
                 <div style={{ ...KPI_NUM, color:kpi.debt>0?"#EF4444":"#22C55E", fontSize:28 }}>
                   {kpi.debt > 0 ? "-"+fmtK(kpi.debt) : "0"}
                 </div>
-                <div style={{ fontSize:10, color:"#6B7280", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
+                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:t.dark?"#222223":"#FFFFFF", border:`1px solid ${t.dark?"#2D2D2E":"#E2E8F0"}`, minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:t.dark?"#6B7280":"#64748B" }}>ROI / Sebe</div>
+              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:"#1A1A1B" }}>ROI / Sebe</div>
                 <div style={{ ...KPI_NUM, color:roiVal!==null?(roiVal>=0?"#3B82F6":"#EF4444"):"#6B7280", fontSize:28 }}>
                   {roiVal!==null ? roiVal.toFixed(2)+"x" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#6B7280", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Net / Логістика</div>
+                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Net / Логістика</div>
               </div>
             </div>
               );
