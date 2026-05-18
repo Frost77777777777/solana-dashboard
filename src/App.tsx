@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback, memo, Component } from "react";
 import { createPortal } from "react-dom";
-import { Upload, X, Search, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu } from "lucide-react";
+import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AreaChart, Area, BarChart, Bar, ComposedChart, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 
@@ -630,11 +630,12 @@ function parseHubberQuick(file: File): Promise<HubberQuick> {
 /* ─── theme ──────────────────────────────────────────────────── */
 interface T { bg:string; card:string; nav:string; border:string; text:string; sub:string; dim:string; in:string; blue:string; em:string; red:string; amb:string; dark:boolean }
 const DK: T = { bg:"#0B0B0B", card:"#0B0B0B", nav:"#0B0B0B", border:"#2B4559", text:"#E4E4E4", sub:"#E4E4E4", dim:"#E4E4E4", in:"#0B0B0B", blue:"#2B4559", em:"#22C55E", red:"#EF4444", amb:"#E4E4E4", dark:true };
+const LT: T = { bg:"#FFFFFF", card:"#FFFFFF", nav:"#FFFFFF", border:"#E2E8F0", text:"#1A1A1B", sub:"#1A1A1B", dim:"#6B7280", in:"#FFFFFF", blue:"#2B4559", em:"#22C55E", red:"#EF4444", amb:"#1A1A1B", dark:false };
 
-function glass(_t: T, _glow?: string): React.CSSProperties {
+function glass(t: T): React.CSSProperties {
   return {
-    background: "#0B0B0B",
-    border: "1px solid #2B4559",
+    background: t.card,
+    border: `1px solid ${t.border}`,
     borderRadius: 6,
   };
 }
@@ -656,7 +657,7 @@ function LflBadge({ current, previous, fmt: fmtFn, t }: { current: number; previ
   const pct   = (delta / Math.abs(previous)) * 100;
   const up    = delta >= 0;
   const sign  = up ? "+" : "";
-  const subColor = t?.dark ? "rgba(255,255,255,0.35)" : "#E4E4E4";
+  const subColor = t?.dark ? "rgba(255,255,255,0.35)" : t?.dim ?? "#6B7280";
   // Pastel green chip for positive, soft red chip for negative
   const chipBg    = up ? "#DCFCE7" : "rgba(239,68,68,0.08)";
   const chipColor = up ? "#15803D" : "#DC2626";
@@ -758,7 +759,6 @@ const KPI_CARD_BASE: React.CSSProperties = {
 const KPI_LABEL: React.CSSProperties = {
   fontSize:10, fontWeight:700, letterSpacing:"0.12em",
   textTransform:"uppercase" as const,
-  color:"#E4E4E4",
   fontFamily:"'JetBrains Mono', monospace",
 };
 const KPI_NUM: React.CSSProperties = {
@@ -769,7 +769,7 @@ const KPI_NUM: React.CSSProperties = {
 
 const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _filteredCount, syncError, debtCol, t, fmt }: KpiRowProps) {
   const cardBg: React.CSSProperties = {
-    background: "#0B0B0B",
+    background: t.bg,
   };
   return (
     <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
@@ -790,25 +790,25 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
           <LflBadge current={kpi.net} previous={prevKpi?.net??null} fmt={fmt} t={t}/>
           {hubberLfl && (
             <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-              <span style={{ fontSize:8, fontWeight:700, letterSpacing:"0.06em", color:"#E4E4E4", textTransform:"uppercase" as const }}>LFL vs {hubberLfl.prevYear}</span>
+              <span style={{ fontSize:8, fontWeight:700, letterSpacing:"0.06em", color:t.text, textTransform:"uppercase" as const }}>LFL vs {hubberLfl.prevYear}</span>
               <span style={{ display:"inline-flex", alignItems:"center", padding:"2px 7px", borderRadius:4, background:hubberLfl.pct>=0?"#DCFCE7":"rgba(239,68,68,0.08)", fontSize:11, fontWeight:700, color:hubberLfl.pct>=0?"#15803D":"#DC2626", letterSpacing:"-0.01em" }}>
                 {hubberLfl.pct>=0?"↑":"↓"} {hubberLfl.pct>=0?"+":""}{hubberLfl.pct.toFixed(1)}%
               </span>
-              <span style={{ fontSize:9, color:"#E4E4E4" }}>{hubberLfl.monthName}</span>
+              <span style={{ fontSize:9, color:t.text }}>{hubberLfl.monthName}</span>
             </div>
           )}
         </div>
         {/* Margin % + Net ROI */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:8, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Margin %</span>
-            <strong style={{ fontSize:14, fontWeight:800, color:kpi.grossIncome>0?(kpi.net/kpi.grossIncome*100)>=0?t.em:t.red:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Margin %</span>
+            <strong style={{ fontSize:14, fontWeight:800, color:kpi.grossIncome>0?(kpi.net/kpi.grossIncome*100)>=0?t.em:t.red:t.text, fontFamily:"'JetBrains Mono', monospace" }}>
               {kpi.grossIncome>0 ? (kpi.net/kpi.grossIncome*100).toFixed(1)+"%" : "—"}
             </strong>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:8, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Net ROI</span>
-            <strong style={{ fontSize:14, fontWeight:800, color:kpi.logistics>0?(kpi.net/kpi.logistics)>=0?t.em:t.red:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Net ROI</span>
+            <strong style={{ fontSize:14, fontWeight:800, color:kpi.logistics>0?(kpi.net/kpi.logistics)>=0?t.em:t.red:t.text, fontFamily:"'JetBrains Mono', monospace" }}>
               {kpi.logistics>0 ? (kpi.net/kpi.logistics).toFixed(2)+"x" : "—"}
             </strong>
           </div>
@@ -816,15 +816,15 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* Sub-metrics row */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:4, paddingTop:8, borderTop:`1px solid ${t.border}`, marginTop:8 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:"#E4E4E4", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>лог</span>
+            <span style={{ fontSize:7, color:t.text, letterSpacing:"0.04em", textTransform:"uppercase" as const }}>лог</span>
             <strong style={{ fontSize:10, fontWeight:700, color:t.amb }}>{fmt(kpi.logistics)}</strong>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:"#E4E4E4", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>дост</span>
+            <span style={{ fontSize:7, color:t.text, letterSpacing:"0.04em", textTransform:"uppercase" as const }}>дост</span>
             <strong style={{ fontSize:10, fontWeight:700, color:t.red }}>{fmt(kpi.del)}</strong>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:"#E4E4E4", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>кому</span>
+            <span style={{ fontSize:7, color:t.text, letterSpacing:"0.04em", textTransform:"uppercase" as const }}>кому</span>
             <strong style={{ fontSize:10, fontWeight:700, color:t.amb }}>{fmt(kpi.com)}</strong>
           </div>
         </div>
@@ -834,7 +834,7 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
       <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${t.border}` }}>
         <div>
           <span style={{ ...KPI_LABEL }}>Відмови %</span>
-          <div style={{ ...KPI_NUM, color:kpi.returnRate>0?t.red:"#E4E4E4" }}><AnimNum value={kpi.returnRate} fmt={v=>v.toFixed(1)+"%"}/></div>
+          <div style={{ ...KPI_NUM, color:kpi.returnRate>0?t.red:t.text }}><AnimNum value={kpi.returnRate} fmt={v=>v.toFixed(1)+"%"}/></div>
           {kpi.orders>0 && kpi.returnRate>0 && (
             <div style={{ position:"relative", height:4, borderRadius:99, background:"rgba(255,255,255,0.08)", overflow:"hidden", marginTop:8 }}>
               <div style={{ width:`${Math.min(kpi.returnRate,100)}%`, height:"100%", borderRadius:99, background:t.red, transition:"width 0.5s ease" }}/>
@@ -842,8 +842,8 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
           )}
         </div>
         <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10, display:"flex", alignItems:"center", gap:6 }}>
-          <span style={{ fontSize:10, fontWeight:700, color:kpi.refs>0?t.red:"#E4E4E4" }}>{kpi.refs}</span>
-          <span style={{ fontSize:10, color:"#E4E4E4" }}>замовлень відмовлено</span>
+          <span style={{ fontSize:10, fontWeight:700, color:kpi.refs>0?t.red:t.text }}>{kpi.refs}</span>
+          <span style={{ fontSize:10, color:t.text }}>замовлень відмовлено</span>
         </div>
       </div>
 
@@ -857,12 +857,12 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* Average Check */}
         <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
-            <span style={{ fontSize:8, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Середній чек</span>
-            <strong style={{ fontSize:16, fontWeight:800, color:"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Середній чек</span>
+            <strong style={{ fontSize:16, fontWeight:800, color:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>
               {kpi.orders>0 ? fmt(kpi.grossIncome/kpi.orders)+" ₴" : "—"}
             </strong>
           </div>
-          <span style={{ fontSize:10, color:"#E4E4E4" }}>Успішних: <strong style={{ color:t.em }}>{kpi.successOrders.toLocaleString()}</strong></span>
+          <span style={{ fontSize:10, color:t.text }}>Успішних: <strong style={{ color:t.em }}>{kpi.successOrders.toLocaleString()}</strong></span>
         </div>
       </div>
 
@@ -873,10 +873,10 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
           <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${hasDebt ? t.red+"44" : t.border}`, borderLeft: hasDebt ? `3px solid ${t.red}` : `1px solid ${t.border}` }}>
             <div>
               <span style={{ ...KPI_LABEL, color: hasDebt ? t.red : undefined }}>Дебіторка{hasDebt ? " ⚠" : ""}</span>
-              <div style={{ ...KPI_NUM, color: hasDebt ? t.red : kpi.debt===0 ? "#E4E4E4" : t.text, fontWeight:900 }}><AnimNum value={kpi.debt} fmt={fmt}/></div>
+              <div style={{ ...KPI_NUM, color: hasDebt ? t.red : kpi.debt===0 ? t.text : t.text, fontWeight:900 }}><AnimNum value={kpi.debt} fmt={fmt}/></div>
             </div>
             <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
-              <span style={{ fontSize:10, color: hasDebt ? t.red : "#E4E4E4" }}>
+              <span style={{ fontSize:10, color: hasDebt ? t.red : t.text }}>
                 {debtCol ? (hasDebt ? "Загальна дебіторська заборгованість" : "Заборгованість відсутня") : "Дані відсутні"}
               </span>
             </div>
@@ -894,12 +894,12 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* % of Revenue */}
         <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
-            <span style={{ fontSize:8, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>% від виручки</span>
-            <strong style={{ fontSize:16, fontWeight:800, color:kpi.grossIncome>0&&(kpi.logistics/kpi.grossIncome*100)>15?t.red:"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>% від виручки</span>
+            <strong style={{ fontSize:16, fontWeight:800, color:kpi.grossIncome>0&&(kpi.logistics/kpi.grossIncome*100)>15?t.red:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>
               {kpi.grossIncome>0 ? (kpi.logistics/kpi.grossIncome*100).toFixed(1)+"%" : "—"}
             </strong>
           </div>
-          <span style={{ fontSize:10, color:"#E4E4E4" }}>Доставка + Комісія</span>
+          <span style={{ fontSize:10, color:t.text }}>Доставка + Комісія</span>
         </div>
       </div>
 
@@ -1016,7 +1016,7 @@ function BrandGridCell({ brand, active, onClick, t, logo, isTop, trend }: { bran
       {trend && trend.sparkData.length >= 2 && (
         <MiniSparkline
           data={trend.sparkData}
-          color={trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":"#E4E4E4"}
+          color={trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":t.text}
         />
       )}
       {trend && trend.badge !== "none" && (
@@ -1024,7 +1024,7 @@ function BrandGridCell({ brand, active, onClick, t, logo, isTop, trend }: { bran
           fontSize:7.5, fontWeight:700, letterSpacing:"0.03em",
           padding:"1px 5px", borderRadius:3, lineHeight:1.6,
           background:trend.badge==="rising"?"rgba(22,163,74,0.12)":trend.badge==="risk"?"rgba(255,77,77,0.1)":"rgba(156,163,175,0.12)",
-          color:trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":"#E4E4E4",
+          color:trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":t.text,
         }}>
           {trend.badge==="rising"?`↑ +${trend.pct!.toFixed(0)}%`:trend.badge==="risk"?`↓ Ризик`:`→ Стаб.`}
         </span>
@@ -1132,41 +1132,41 @@ function HubberSidebarPanel({
       onClick={e=>{ if(e.target===e.currentTarget) setModalOpen(false); }}
       style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(5,5,20,0.6)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vh 3vw" }}
     >
-      <div style={{ background:"#0B0B0B", borderRadius:16, width:"80vw", height:"80vh", display:"flex", flexDirection:"column", boxShadow:"0 40px 100px rgba(0,0,0,0.35)", overflow:"hidden" }}>
+      <div style={{ background:t.bg, borderRadius:16, width:"80vw", height:"80vh", display:"flex", flexDirection:"column", boxShadow:"0 40px 100px rgba(0,0,0,0.35)", overflow:"hidden" }}>
 
         {/* ── Header ── */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 28px 14px", borderBottom:"1px solid #2B4559", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 28px 14px", borderBottom:`1px solid ${t.border}`, flexShrink:0 }}>
           <div>
-            <div style={{ fontSize:20, fontWeight:800, color:"#E4E4E4", letterSpacing:"-0.03em" }}>Дохід за роки (2017–2026)</div>
-            <div style={{ fontSize:11, color:"#E4E4E4", marginTop:2 }}>Аркуш «Дохід» · {data.fileName}</div>
+            <div style={{ fontSize:20, fontWeight:800, color:t.text, letterSpacing:"-0.03em" }}>Дохід за роки (2017–2026)</div>
+            <div style={{ fontSize:11, color:t.text, marginTop:2 }}>Аркуш «Дохід» · {data.fileName}</div>
           </div>
-          <button onClick={()=>setModalOpen(false)} style={{ background:"#0B0B0B", border:"none", borderRadius:10, cursor:"pointer", color:"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
+          <button onClick={()=>setModalOpen(false)} style={{ background:t.bg, border:"none", borderRadius:10, cursor:"pointer", color:"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
             <X size={16}/>
           </button>
         </div>
 
         {/* ── Stats bar ── */}
-        <div style={{ display:"flex", gap:0, borderBottom:"1px solid #2B4559", flexShrink:0, background:"#0B0B0B" }}>
+        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${t.border}`, flexShrink:0, background:t.bg }}>
           {[
-            { label:"Загальний дохід", value:fmt(grandTotal), color:"#2B4559" },
+            { label:"Загальний дохід", value:fmt(grandTotal), color:t.blue },
             { label:"🏆 Рекорд", value:`${bestYear} · ${fmtK(data.yearTotals[bestYear]??0)}`, color:"#B8860B" },
-            { label:"🌱 Старт", value:`${worstYear} · ${fmtK(data.yearTotals[worstYear]??0)}`, color:"#E4E4E4" },
+            { label:"🌱 Старт", value:`${worstYear} · ${fmtK(data.yearTotals[worstYear]??0)}`, color:t.text },
           ].map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"10px 20px", borderRight:"1px solid #2B4559" }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:3 }}>{s.label}</div>
+            <div key={i} style={{ flex:1, padding:"10px 20px", borderRight:`1px solid ${t.border}` }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:t.text, marginBottom:3 }}>{s.label}</div>
               <div style={{ fontSize:14, fontWeight:800, color:s.color, letterSpacing:"-0.02em" }}>{s.value}</div>
             </div>
           ))}
           {/* Marketplace contribution column */}
           {mktBreakdown && mktBreakdown.length > 0 && (
-            <div style={{ minWidth:200, padding:"10px 20px", borderLeft:"1px solid #2B4559" }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:6 }}>🛒 Маркетплейси (усього)</div>
+            <div style={{ minWidth:200, padding:"10px 20px", borderLeft:`1px solid ${t.border}` }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:t.text, marginBottom:6 }}>🛒 Маркетплейси (усього)</div>
               <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                 {mktBreakdown.slice(0,4).map((m,i)=>(
                   <div key={m.name} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <div style={{ width:`${Math.max(4,m.pct*0.9)}px`, height:5, borderRadius:2, background:i===0?"#2B4559":i===1?"#3376FF":i===2?"#F59E0B":"#E4E4E4", flexShrink:0 }}/>
-                    <span style={{ fontSize:10, fontWeight:i===0?700:500, color:i===0?"#2B4559":"#E4E4E4" }}>{m.name}</span>
-                    <span style={{ marginLeft:"auto", fontSize:10, fontWeight:700, color:"#E4E4E4" }}>{m.pct.toFixed(0)}%</span>
+                    <div style={{ width:`${Math.max(4,m.pct*0.9)}px`, height:5, borderRadius:2, background:i===0?t.blue:i===1?"#3376FF":i===2?"#F59E0B":t.text, flexShrink:0 }}/>
+                    <span style={{ fontSize:10, fontWeight:i===0?700:500, color:i===0?t.blue:t.text }}>{m.name}</span>
+                    <span style={{ marginLeft:"auto", fontSize:10, fontWeight:700, color:t.text }}>{m.pct.toFixed(0)}%</span>
                   </div>
                 ))}
               </div>
@@ -1175,12 +1175,12 @@ function HubberSidebarPanel({
         </div>
 
         {/* ── Year pills row + selected total ── */}
-        <div style={{ display:"flex", alignItems:"center", gap:5, padding:"10px 20px 9px", borderBottom:"1px solid #2B4559", flexShrink:0, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:5, padding:"10px 20px 9px", borderBottom:`1px solid ${t.border}`, flexShrink:0, flexWrap:"wrap" }}>
           {displayYears.map(y=>(
             <button key={y} onClick={()=>setSelYear(y)} style={{
               padding:"3px 11px", borderRadius:12, border:"none", cursor:"pointer", fontSize:11, fontWeight:700,
-              background: selYear===y ? hubberYearColor(y, displayYears) : "#0B0B0B",
-              color: selYear===y ? "#fff" : "#E4E4E4",
+              background: selYear===y ? hubberYearColor(y, displayYears) : t.bg,
+              color: selYear===y ? "#fff" : t.text,
               boxShadow: selYear===y ? `0 2px 8px ${hubberYearColor(y, displayYears)}50` : "0 1px 3px rgba(0,0,0,0.07)",
               transition:"all 0.14s ease",
             }}>{y}</button>
@@ -1195,14 +1195,14 @@ function HubberSidebarPanel({
         <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
 
           {/* Chart panel */}
-          <div style={{ width:310, flexShrink:0, borderRight:"1px solid #2B4559", padding:"14px 12px 14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ width:310, flexShrink:0, borderRight:`1px solid ${t.border}`, padding:"14px 12px 14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
             {/* Compare dropdowns */}
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-              <div style={{ fontSize:10, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Порівняти роки</div>
+              <div style={{ fontSize:10, fontWeight:700, color:t.text, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Порівняти роки</div>
               <div style={{ display:"flex", gap:6 }}>
                 {[{val:cmpA, set:setCmpA, label:"Рік A"},{val:cmpB, set:setCmpB, label:"Рік B"}].map(({val,set,label})=>(
                   <select key={label} value={val} onChange={e=>set(e.target.value)}
-                    style={{ flex:1, padding:"4px 6px", borderRadius:6, border:"1px solid #2B4559", fontSize:11, fontWeight:600, color:"#E4E4E4", background:"#fff", cursor:"pointer", outline:"none" }}>
+                    style={{ flex:1, padding:"4px 6px", borderRadius:6, border:`1px solid ${t.border}`, fontSize:11, fontWeight:600, color:t.text, background:"#fff", cursor:"pointer", outline:"none" }}>
                     <option value="">{label}</option>
                     {displayYears.map(y=><option key={y} value={y}>{y}</option>)}
                   </select>
@@ -1212,7 +1212,7 @@ function HubberSidebarPanel({
                 <div style={{ display:"flex", gap:12, alignItems:"center" }}>
                   <span style={{ fontSize:10, color:hubberYearColor(cmpA, displayYears), fontWeight:700 }}>━ {cmpA}</span>
                   <span style={{ fontSize:10, color:hubberYearColor(cmpB, displayYears), fontWeight:700 }}>━ {cmpB}</span>
-                  <span style={{ fontSize:10, color:"#E4E4E4" }}>
+                  <span style={{ fontSize:10, color:t.text }}>
                     Δ {(((data.yearTotals[cmpB]??0)-(data.yearTotals[cmpA]??0))/(data.yearTotals[cmpA]??1)*100).toFixed(0)}%
                   </span>
                 </div>
@@ -1225,9 +1225,9 @@ function HubberSidebarPanel({
                 {isComparing ? (
                   <LineChart data={cmpData} margin={{ top:4, right:8, left:-12, bottom:0 }}>
                     <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
-                    <XAxis dataKey="m" tick={{ fontSize:9, fill:"#E4E4E4" }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fontSize:9, fill:"#E4E4E4" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
-                    <Tooltip contentStyle={{ background:"#fff", border:"1px solid #2B4559", borderRadius:8, fontSize:11 }} formatter={(v:number,name:string)=>[fmtK(v), name===`a`?cmpA:cmpB]}/>
+                    <XAxis dataKey="m" tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
+                    <Tooltip contentStyle={{ background:"#fff", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11 }} formatter={(v:number,name:string)=>[fmtK(v), name===`a`?cmpA:cmpB]}/>
                     <Legend formatter={(value:string)=>value===`a`?cmpA:cmpB} wrapperStyle={{ fontSize:11 }}/>
                     <Line type="monotone" dataKey="a" name="a" stroke={hubberYearColor(cmpA, displayYears)} strokeWidth={2.5} dot={{ r:3, fill:hubberYearColor(cmpA, displayYears), strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
                     <Line type="monotone" dataKey="b" name="b" stroke={hubberYearColor(cmpB, displayYears)} strokeWidth={2.5} dot={{ r:3, fill:hubberYearColor(cmpB, displayYears), strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
@@ -1235,9 +1235,9 @@ function HubberSidebarPanel({
                 ) : (
                   <BarChart data={yearBarData} margin={{ top:4, right:8, left:-12, bottom:0 }}>
                     <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
-                    <XAxis dataKey="year" tick={{ fontSize:9, fill:"#E4E4E4" }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fontSize:9, fill:"#E4E4E4" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
-                    <Tooltip contentStyle={{ background:"#fff", border:"1px solid #2B4559", borderRadius:8, fontSize:11 }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
+                    <XAxis dataKey="year" tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
+                    <Tooltip contentStyle={{ background:"#fff", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11 }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
                     <Bar dataKey="total" radius={[4,4,0,0]} isAnimationActive={true} animationDuration={600}>
                       {yearBarData.map((entry, _idx) => (
                         <Cell key={entry.year} fill={hubberYearColor(entry.year, displayYears)} />
@@ -1252,7 +1252,7 @@ function HubberSidebarPanel({
                   {yearBarData.map(d=>(
                     <div key={d.year} style={{ display:"flex", alignItems:"center", gap:3 }}>
                       <div style={{ width:8, height:8, borderRadius:2, background:hubberYearColor(d.year, displayYears), flexShrink:0 }}/>
-                      <span style={{ fontSize:9, fontWeight:600, color:"#E4E4E4" }}>{d.year}</span>
+                      <span style={{ fontSize:9, fontWeight:600, color:t.text }}>{d.year}</span>
                     </div>
                   ))}
                 </div>
@@ -1264,15 +1264,15 @@ function HubberSidebarPanel({
           <div style={{ flex:1, overflowY:"auto", overflowX:"auto" }}>
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11.5 }}>
               <thead style={{ position:"sticky", top:0, zIndex:2 }}>
-                <tr style={{ background:"#0B0B0B" }}>
-                  <th style={{ textAlign:"left", padding:"9px 16px", borderBottom:"2px solid #2B4559", color:"#E4E4E4", fontWeight:700, minWidth:80, whiteSpace:"nowrap" as const }}>Місяць</th>
+                <tr style={{ background:t.bg }}>
+                  <th style={{ textAlign:"left", padding:"9px 16px", borderBottom:"2px solid #2B4559", color:t.text, fontWeight:700, minWidth:80, whiteSpace:"nowrap" as const }}>Місяць</th>
                   {displayYears.map(y=>{
                     const isBest = y===bestYear;
                     const isSel = y===selYear;
                     return (
                       <th key={y} onClick={()=>setSelYear(y)} style={{
                         padding:"9px 11px", borderBottom:"2px solid #2B4559",
-                        color: isSel?hubberYearColor(y, displayYears):isBest?"#B8860B":"#E4E4E4",
+                        color: isSel?hubberYearColor(y, displayYears):isBest?"#B8860B":t.text,
                         fontWeight: isSel||isBest?800:600,
                         textAlign:"right" as const, minWidth:72, cursor:"pointer",
                         background: isBest?"rgba(184,134,11,0.07)":"transparent",
@@ -1282,17 +1282,17 @@ function HubberSidebarPanel({
                       </th>
                     );
                   })}
-                  <th style={{ padding:"9px 11px", borderBottom:"2px solid #2B4559", color:"#2B4559", fontWeight:700, textAlign:"right" as const, minWidth:72, whiteSpace:"nowrap" as const }}>
-                    LFL %<br/><span style={{ fontSize:9, fontWeight:400, color:"#E4E4E4" }}>{selYear} / {String(+selYear-1)}</span>
+                  <th style={{ padding:"9px 11px", borderBottom:"2px solid #2B4559", color:t.blue, fontWeight:700, textAlign:"right" as const, minWidth:72, whiteSpace:"nowrap" as const }}>
+                    LFL %<br/><span style={{ fontSize:9, fontWeight:400, color:t.text }}>{selYear} / {String(+selYear-1)}</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {data.months.map((m,i)=>(
-                  <tr key={m} style={{ background: i%2===0?"#0B0B0B":"#0B0B0B" }}>
+                  <tr key={m} style={{ background: t.bg }}>
                     <td
                       onClick={()=>setDrillMonth(m)}
-                      style={{ padding:"7px 16px", color:"#E4E4E4", fontWeight:500, borderBottom:"1px solid #0B0B0B", whiteSpace:"nowrap" as const, cursor:"pointer", userSelect:"none" as const }}
+                      style={{ padding:"7px 16px", color:t.text, fontWeight:500, borderBottom:"1px solid #0B0B0B", whiteSpace:"nowrap" as const, cursor:"pointer", userSelect:"none" as const }}
                       title="Клікніть для деталей"
                     >
                       <span style={{ borderBottom:"1px dashed #9CA3AF" }}>{m}</span>
@@ -1310,7 +1310,7 @@ function HubberSidebarPanel({
                         : isSel
                           ? (i%2===0?"rgba(0,82,255,0.05)":"rgba(0,82,255,0.09)")
                           : heatBg;
-                      const cellColor = val===0?"#C0C0B8":isSel?hubberYearColor(y, displayYears):isCmpA?hubberYearColor(cmpA, displayYears):isCmpB?hubberYearColor(cmpB, displayYears):isBest?"#8B6914":"#0B0B0B";
+                      const cellColor = val===0?"#C0C0B8":isSel?hubberYearColor(y, displayYears):isCmpA?hubberYearColor(cmpA, displayYears):isCmpB?hubberYearColor(cmpB, displayYears):isBest?"#8B6914":t.bg;
                       return (
                         <td key={y} style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #0B0B0B", fontWeight:val>0?(isSel||isBest?700:500):400, color:cellColor, background:cellBg }}>
                           {val>0 ? fmtK(val) : "—"}
@@ -1331,14 +1331,14 @@ function HubberSidebarPanel({
                 ))}
               </tbody>
               <tfoot>
-                <tr style={{ background:"#0B0B0B", borderTop:"2px solid #2B4559" }}>
-                  <td style={{ padding:"9px 16px", fontWeight:800, color:"#2B4559", fontSize:12, whiteSpace:"nowrap" as const }}>Всього</td>
+                <tr style={{ background:t.bg, borderTop:"2px solid #2B4559" }}>
+                  <td style={{ padding:"9px 16px", fontWeight:800, color:t.blue, fontSize:12, whiteSpace:"nowrap" as const }}>Всього</td>
                   {displayYears.map(y=>{
                     const total = data.yearTotals[y]??Object.values(data.values[y]??{}).reduce((a,b)=>a+b,0);
                     const isBest = y===bestYear;
                     const isSel = y===selYear;
                     return (
-                      <td key={y} style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:isBest?"#B8860B":isSel?"#2B4559":"#E4E4E4", background:isBest?"rgba(184,134,11,0.1)":isSel?"rgba(0,82,255,0.08)":"transparent" }}>
+                      <td key={y} style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:isBest?"#B8860B":isSel?t.blue:t.text, background:isBest?"rgba(184,134,11,0.1)":isSel?"rgba(0,82,255,0.08)":"transparent" }}>
                         {total>0?fmtK(total):"—"}
                       </td>
                     );
@@ -1347,7 +1347,7 @@ function HubberSidebarPanel({
                     const prevY = String(+selYear-1);
                     const curr = data.yearTotals[selYear]??Object.values(data.values[selYear]??{}).reduce((a,b)=>a+b,0);
                     const prev = data.yearTotals[prevY]??Object.values(data.values[prevY]??{}).reduce((a,b)=>a+b,0);
-                    if (prev===0) return <td key="lfl" style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:"#E4E4E4" }}>—</td>;
+                    if (prev===0) return <td key="lfl" style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:t.text }}>—</td>;
                     const pct = ((curr-prev)/prev)*100;
                     return <td key="lfl" style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:pct>=0?"#16A34A":"#FF4D4D" }}>
                       {pct>=0?"+":""}{pct.toFixed(0)}%
@@ -1370,14 +1370,14 @@ function HubberSidebarPanel({
       onClick={e=>{ if(e.target===e.currentTarget) setDrillMonth(null); }}
       style={{ position:"fixed", inset:0, zIndex:999999, background:"rgba(5,5,20,0.5)", backdropFilter:"blur(4px)", WebkitBackdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"4vh 4vw" }}
     >
-      <div style={{ background:"#0B0B0B", borderRadius:14, width:"min(560px,90vw)", maxHeight:"70vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,0.32)", overflow:"hidden" }}>
+      <div style={{ background:t.bg, borderRadius:14, width:"min(560px,90vw)", maxHeight:"70vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,0.32)", overflow:"hidden" }}>
         {/* header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 22px 12px", borderBottom:"1px solid #2B4559", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 22px 12px", borderBottom:`1px solid ${t.border}`, flexShrink:0 }}>
           <div>
-            <div style={{ fontSize:17, fontWeight:800, color:"#E4E4E4", letterSpacing:"-0.03em" }}>📅 {drillMonth} — усі роки</div>
-            <div style={{ fontSize:10, color:"#E4E4E4", marginTop:2 }}>Порівняння цього місяця за роками</div>
+            <div style={{ fontSize:17, fontWeight:800, color:t.text, letterSpacing:"-0.03em" }}>📅 {drillMonth} — усі роки</div>
+            <div style={{ fontSize:10, color:t.text, marginTop:2 }}>Порівняння цього місяця за роками</div>
           </div>
-          <button onClick={()=>setDrillMonth(null)} style={{ background:"#0B0B0B", border:"none", borderRadius:8, cursor:"pointer", color:"#fff", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <button onClick={()=>setDrillMonth(null)} style={{ background:t.bg, border:"none", borderRadius:8, cursor:"pointer", color:"#fff", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center" }}>
             <X size={13}/>
           </button>
         </div>
@@ -1386,7 +1386,7 @@ function HubberSidebarPanel({
           {(() => {
             const rows = displayYears.map(y=>({ y, v:data.values[y]?.[drillMonth]??0 })).filter(r=>r.v>0);
             const maxV = rows.reduce((m,r)=>Math.max(m,r.v),0)||1;
-            if (rows.length===0) return <div style={{ color:"#E4E4E4", fontSize:13, textAlign:"center", padding:"24px 0" }}>Немає даних за цей місяць</div>;
+            if (rows.length===0) return <div style={{ color:t.text, fontSize:13, textAlign:"center", padding:"24px 0" }}>Немає даних за цей місяць</div>;
             return (
               <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
                 {rows.map(({y,v})=>{
@@ -1522,7 +1522,7 @@ function detectWarehouseBrand(productName: string): string {
 interface SkladItem { product: string; qty: number; price: number; brand: string }
 
 /* ─── InventorySkladPanel — СКЛАД sidebar button + portal modal ─ */
-function InventorySkladPanel({ t: _t }: { t: T }) { void _t;
+function InventorySkladPanel({ t }: { t: T }) {
   const [open, setOpen] = React.useState(false);
   const [skladItems, setSkladItems] = React.useState<SkladItem[]>([]);
   const [searchQ, setSearchQ] = React.useState("");
@@ -1580,10 +1580,10 @@ function InventorySkladPanel({ t: _t }: { t: T }) { void _t;
       onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}
       style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(0,10,30,0.7)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vh 3vw" }}
     >
-      <div style={{ background:"#0B0B0B", borderRadius:6, width:"90vw", maxWidth:1100, maxHeight:"88vh", display:"flex", flexDirection:"column", overflow:"hidden", border:`1px solid ${"#2B4559"}` }}>
+      <div style={{ background:t.bg, borderRadius:6, width:"90vw", maxWidth:1100, maxHeight:"88vh", display:"flex", flexDirection:"column", overflow:"hidden", border:`1px solid ${t.border}` }}>
 
         {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 28px 16px", borderBottom:`1px solid ${"#2B4559"}`, flexShrink:0, background:"#0B0B0B" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 28px 16px", borderBottom:`1px solid ${t.border}`, flexShrink:0, background:t.bg }}>
           <div>
             <div style={{ fontSize:20, fontWeight:800, color:"#EF4444", letterSpacing:"-0.03em" }}>📦 СКЛАД — Залишки товарів</div>
             <div style={{ fontSize:11, color:"#6B8FA3", marginTop:2 }}>Інвентаризація по брендах та товарах</div>
@@ -1594,14 +1594,14 @@ function InventorySkladPanel({ t: _t }: { t: T }) { void _t;
         </div>
 
         {/* Stats bar */}
-        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${"#2B4559"}`, flexShrink:0, background:"#0B0B0B" }}>
+        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${t.border}`, flexShrink:0, background:t.bg }}>
           {[
             { label:"Всього одиниць", value:totalItems.toLocaleString("uk-UA"), color:"#EF4444" },
             { label:"Брендів", value:String(brands.length), color:"#FF4444" },
             { label:"Позицій товарів", value:String(totalPositions), color:"#FF6666" },
             { label:"Загальна вартість", value:`${totalValue.toLocaleString("uk-UA")} ₴`, color:"#EF4444" },
           ].map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"12px 20px", borderRight:`1px solid ${"#2B4559"}` }}>
+            <div key={i} style={{ flex:1, padding:"12px 20px", borderRight:`1px solid ${t.border}` }}>
               <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:"#6B8FA3", marginBottom:3 }}>{s.label}</div>
               <div style={{ fontSize:16, fontWeight:800, color:s.color, letterSpacing:"-0.02em" }}>{s.value}</div>
             </div>
@@ -1609,7 +1609,7 @@ function InventorySkladPanel({ t: _t }: { t: T }) { void _t;
         </div>
 
         {/* Search + upload */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 20px 8px", borderBottom:`1px solid ${"#2B4559"}`, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 20px 8px", borderBottom:`1px solid ${t.border}`, flexShrink:0 }}>
           <div style={{ flex:1, display:"flex", alignItems:"center", gap:6, background:"rgba(255,255,255,0.05)", borderRadius:8, padding:"4px 10px", border:`1px solid ${"rgba(255,255,255,0.08)"}` }}>
             <Search size={12} style={{ color:"#6B8FA3", flexShrink:0 }}/>
             <input
@@ -1636,10 +1636,10 @@ function InventorySkladPanel({ t: _t }: { t: T }) { void _t;
               </button>
             </div>
           ) : (
-            <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${"#2B4559"}` }}>
+            <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${t.border}` }}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                 <thead>
-                  <tr style={{ background:"#0B0B0B" }}>
+                  <tr style={{ background:t.bg }}>
                     <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Бренд</th>
                     <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Товар / SKU</th>
                     <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Кількість</th>
@@ -1667,7 +1667,7 @@ function InventorySkladPanel({ t: _t }: { t: T }) { void _t;
                     })}
                 </tbody>
                 <tfoot>
-                  <tr style={{ borderTop:`2px solid ${"#2B4559"}`, background:"#0B0B0B" }}>
+                  <tr style={{ borderTop:`2px solid ${t.border}`, background:t.bg }}>
                     <td colSpan={2} style={{ padding:"12px 14px", fontWeight:800, fontSize:13, color:"#EF4444", letterSpacing:"0.02em" }}>РАЗОМ НА СКЛАДІ</td>
                     <td style={{ padding:"12px 14px", textAlign:"right", fontWeight:800, fontSize:13, color:"#EF4444" }}>{totalItems.toLocaleString("uk-UA")}</td>
                     <td style={{ padding:"12px 14px" }}/>
@@ -1978,12 +1978,12 @@ function getReasonAdvice(reason: string) {
 }
 
 /* ─── Persistence helpers ──────────────────────────────────────── */
-function readFiltersCache(): { brandFilter:string; monthFilter:string; companyFilter:string; yearFilter:string; hubberQYear:string } {
+function readFiltersCache(): { brandFilter:string; monthFilter:string; companyFilter:string; yearFilter:string; hubberQYear:string; darkMode:boolean } {
   try {
     const s = localStorage.getItem(FILTERS_KEY);
-    if (s) return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", ...JSON.parse(s) };
+    if (s) return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:true, ...JSON.parse(s) };
   } catch {}
-  return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025" };
+  return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:true };
 }
 function readHubberCache(): HubberQuick|null {
   try {
@@ -2014,8 +2014,9 @@ export default function Dashboard() {
   const [rejTooltip,  setRejTooltip]  = useState<{ reason:string; rect:DOMRect } | null>(null);
   const [cityFilter,  setCityFilter]  = useState<string|null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(()=>_fc.darkMode);
   const fileRef = useRef<HTMLInputElement>(null);
-  const t = DK;
+  const t = darkMode ? DK : LT;
 
   /* ── Memoize the glass base style — only recomputes when theme changes ── */
   const glassBase = useMemo(() => glass(t), [t]);
@@ -2053,9 +2054,16 @@ export default function Dashboard() {
   /* ── localStorage save — filters & prefs ── */
   useEffect(() => {
     try {
-      localStorage.setItem(FILTERS_KEY, JSON.stringify({ brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear }));
+      localStorage.setItem(FILTERS_KEY, JSON.stringify({ brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear, darkMode }));
     } catch { /* ignore */ }
-  }, [brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear]);
+  }, [brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear, darkMode]);
+
+  /* ── sync html background with theme ── */
+  useEffect(() => {
+    document.documentElement.style.background = t.bg;
+    document.body.style.background = t.bg;
+    document.body.style.color = t.text;
+  }, [t]);
 
   /* ── file processing ── */
   function processFile(file: File) {
@@ -2767,7 +2775,7 @@ export default function Dashboard() {
     <div style={{ background:t.bg, minHeight:"100vh", fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
 
       {/* ── Professional Trading Terminal navbar ─────────────────── */}
-      <div style={{ background:"#0B0B0B", borderBottom:"1px solid #2B4559", padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100 }}>
+      <div style={{ background:t.bg, borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100 }}>
         {/* Left: Brand + Nav */}
         <div style={{ display:"flex", alignItems:"center", gap:20 }}>
           {fileData && (
@@ -2776,42 +2784,45 @@ export default function Dashboard() {
             </button>
           )}
           <div style={{ display:"flex", alignItems:"baseline", gap:5 }}>
-            <span style={{ color:"#E4E4E4", fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', monospace" }}>SOLANA</span>
-            <span style={{ color:"#2B4559", fontSize:13, fontWeight:400 }}>|</span>
-            <span style={{ color:"#2B4559", fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', monospace" }}>CORE</span>
+            <span style={{ color:t.text, fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', monospace" }}>SOLANA</span>
+            <span style={{ color:t.blue, fontSize:13, fontWeight:400 }}>|</span>
+            <span style={{ color:t.blue, fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', monospace" }}>CORE</span>
           </div>
           <div className="ethena-nav-links" style={{ display:"flex", alignItems:"center", gap:2 }}>
             {["Dashboards","Earn","Swap","Rewards"].map((n,i) => (
-              <button key={n} style={{ padding:"5px 12px", borderRadius:4, background:i===0?"#2B4559":"transparent", border:"none", color:i===0?"#2B4559":"#E4E4E4", fontSize:11, fontWeight:i===0?700:500, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace" }}>{n}</button>
+              <button key={n} style={{ padding:"5px 12px", borderRadius:4, background:i===0?t.blue:"transparent", border:"none", color:i===0?t.blue:t.text, fontSize:11, fontWeight:i===0?700:500, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace" }}>{n}</button>
             ))}
           </div>
         </div>
         {/* Right: Actions */}
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2B4559" }}>
-            <span style={{ fontSize:9, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.06em" }}>ВИРУЧКА</span>
+          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:`1px solid ${t.border}` }}>
+            <span style={{ fontSize:9, fontWeight:700, color:t.text, letterSpacing:"0.06em" }}>ВИРУЧКА</span>
             <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace" }}>{kpi ? fmtK(kpi.grossIncome)+" ₴" : "—"}</span>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2B4559" }}>
-            <span style={{ fontSize:9, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.06em" }}>APY</span>
-            <span style={{ fontSize:11, fontWeight:800, color:"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>19.3%</span>
+          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:`1px solid ${t.border}` }}>
+            <span style={{ fontSize:9, fontWeight:700, color:t.text, letterSpacing:"0.06em" }}>APY</span>
+            <span style={{ fontSize:11, fontWeight:800, color:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>19.3%</span>
           </div>
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
-              style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 9px", borderRadius:4, border:"1px solid #2B4559" }}>
+              style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 9px", borderRadius:4, border:`1px solid ${t.border}` }}>
               <HardDrive size={11} style={{ color:"#22C55E" }}/>
               <span style={{ fontSize:10, fontWeight:700, color:"#22C55E", letterSpacing:"0.03em" }}>Збережено</span>
             </div>
           )}
           {fileData && (
-            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:4, background:"transparent", border:"1px solid #2B4559", color:"#E4E4E4", fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', monospace" }}><X size={11} /> Скинути</button>
+            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.text, fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', monospace" }}><X size={11} /> Скинути</button>
           )}
-          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:"#2B4559", color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>
+          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:t.blue, color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>
             <Upload size={12} /> Генерація звіту
           </button>
-          <button style={{ padding:"6px 14px", borderRadius:4, background:"transparent", border:"1px solid #2B4559", color:"#2B4559", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace", display:"flex", alignItems:"center", gap:5 }}>
-            <span style={{ width:6, height:6, borderRadius:"50%", background:"#2B4559" }}/>
+          <button style={{ padding:"6px 14px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.blue, fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace", display:"flex", alignItems:"center", gap:5 }}>
+            <span style={{ width:6, height:6, borderRadius:"50%", background:t.blue }}/>
             Connect Wallet
+          </button>
+          <button onClick={()=>setDarkMode(v=>!v)} title={darkMode?"Режим День":"Режим Ніч"} style={{ padding:"6px 8px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.text, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            {darkMode ? <Sun size={14}/> : <Moon size={14}/>}
           </button>
         </div>
       </div>
@@ -2829,8 +2840,8 @@ export default function Dashboard() {
           const st: T = t;
           return (
           <nav className={`orbit-sidebar${sidebarOpen ? " sidebar-open" : ""}`} style={{
-            background: "#0B0B0B",
-            borderRight: "1px solid #2B4559",
+            background: t.bg,
+            borderRight: `1px solid ${t.border}`,
             padding: "14px 8px 36px",
             display:"flex", flexDirection:"column", gap:4,
           }}>
@@ -2838,10 +2849,10 @@ export default function Dashboard() {
             {/* Status indicator */}
             <div style={{
               padding:"9px 12px", borderRadius:4, marginBottom:8,
-              border:"1px solid #2B4559",
+              border:`1px solid ${t.border}`,
             }}>
-              <p style={{ fontSize:11, fontWeight:700, color:"#2B4559", margin:0, fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.06em" }}>● Аналіз активний</p>
-              <p style={{ fontSize:10, color:"#E4E4E4", opacity:0.7, margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
+              <p style={{ fontSize:11, fontWeight:700, color:t.blue, margin:0, fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.06em" }}>● Аналіз активний</p>
+              <p style={{ fontSize:10, color:t.text, opacity:0.7, margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
             </div>
 
             {/* Marketplace — collapsible + 2-col icon grid */}
@@ -2953,7 +2964,7 @@ export default function Dashboard() {
 
           {/* error */}
         {parseError && (
-          <div style={{ ...glass(t,t.red), padding:"12px 16px", display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+          <div style={{ ...glass(t), padding:"12px 16px", display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
             <span style={{ color:t.red, fontSize:13, flex:1 }}>{parseError}</span>
             <button onClick={()=>setParseError(null)} style={{ background:"none", border:"none", cursor:"pointer", color:t.dim }}><X size={12}/></button>
           </div>
@@ -2966,16 +2977,16 @@ export default function Dashboard() {
             onDragLeave={()=>setIsDragging(false)}
             onDrop={handleDrop}
             onClick={()=>fileRef.current?.click()}
-            style={{ border:`1px dashed ${isDragging?"#2B4559":"#2B4559"}`, borderRadius:6, padding:"90px 40px", display:"flex", flexDirection:"column", alignItems:"center", gap:20, cursor:"pointer", transition:"all 0.15s", background:isDragging?"#0B0B0B":"#0B0B0B" }}
+            style={{ border:`1px dashed ${isDragging?t.blue:t.blue}`, borderRadius:6, padding:"90px 40px", display:"flex", flexDirection:"column", alignItems:"center", gap:20, cursor:"pointer", transition:"all 0.15s", background:t.bg }}
           >
-                        <div style={{ width:64, height:64, borderRadius:6, border:"1px solid #2B4559", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <Upload size={26} style={{ color:"#2B4559" }}/>
+                        <div style={{ width:64, height:64, borderRadius:6, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Upload size={26} style={{ color:t.blue }}/>
             </div>
             <div style={{ textAlign:"center" }}>
               <p style={{ color:t.text, fontSize:18, fontWeight:800, margin:0, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажте дані звітності</p>
-              <p style={{ color:"#E4E4E4", fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
+              <p style={{ color:t.text, fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
             </div>
-            <div style={{ padding:"9px 28px", background:"#2B4559", borderRadius:4, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажити дані</div>
+            <div style={{ padding:"9px 28px", background:t.blue, borderRadius:4, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажити дані</div>
           </div>
         )}
 
@@ -2984,21 +2995,21 @@ export default function Dashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
 
             {/* ── TERMINAL HEADER ──────────────────────────────── */}
-            <div className="orbit-fadein" style={{ marginBottom:4, paddingBottom:18, borderBottom:"1px solid #2B4559" }}>
+            <div className="orbit-fadein" style={{ marginBottom:4, paddingBottom:18, borderBottom:`1px solid ${t.border}` }}>
               <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
                 <div>
-                  <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>
+                  <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>
                     Solana Analytics Terminal
                   </p>
                   <h1 style={{ margin:0, fontSize:"clamp(22px, 2.2vw, 32px)", fontWeight:800, letterSpacing:"-0.02em", lineHeight:1.12, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>
-                    A global business, <span style={{ color:"#2B4559" }}>built on data</span>
+                    A global business, <span style={{ color:t.blue }}>built on data</span>
                   </h1>
-                  <p style={{ margin:"6px 0 0", fontSize:12, color:"#E4E4E4", fontWeight:400, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>
+                  <p style={{ margin:"6px 0 0", fontSize:12, color:t.text, fontWeight:400, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>
                     Глобальний бізнес, побудований на даних · {kpi.orders.toLocaleString("uk-UA")} замовлень · {fmt(kpi.grossIncome)} ₴ виручки
                   </p>
                 </div>
                 {/* L I V E indicator */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px", borderRadius:4, border:"1px solid #2B4559", flexShrink:0, alignSelf:"center" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px", borderRadius:4, border:`1px solid ${t.border}`, flexShrink:0, alignSelf:"center" }}>
                   <span style={{ width:7, height:7, borderRadius:"50%", background:"#22C55E", flexShrink:0, animation:"pulse 2s infinite" }}/>
                   <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", letterSpacing:"0.35em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>L I V E</span>
                 </div>
@@ -3029,17 +3040,17 @@ export default function Dashboard() {
                 ? Math.min((hubberProj2026.ytd / hubberProj2026.bestTotal) * 100, 100)
                 : 0;
               return (
-                <div className="orbit-fadein" style={{ ...glassBase, padding:0, animationDelay:"60ms", overflow:"hidden", background:"#0B0B0B", border:"1px solid #2B4559" }}>
+                <div className="orbit-fadein" style={{ ...glassBase, padding:0, animationDelay:"60ms", overflow:"hidden", background:t.bg, border:`1px solid ${t.border}` }}>
                   {/* Panel header */}
-                  <div style={{ padding:"16px 24px 12px", borderBottom:"1px solid #2B4559", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <div style={{ padding:"16px 24px 12px", borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ width:3, height:20, borderRadius:2, background:"#2B4559" }}/>
+                      <div style={{ width:3, height:20, borderRadius:2, background:t.blue }}/>
                       <div>
-                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>Revenue Performance</div>
-                        <div style={{ fontSize:9, color:"#E4E4E4", marginTop:1, fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік · YTD vs Record</div>
+                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>Revenue Performance</div>
+                        <div style={{ fontSize:9, color:t.text, marginTop:1, fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік · YTD vs Record</div>
                       </div>
                     </div>
-                    <div style={{ fontSize:9, padding:"3px 8px", borderRadius:3, background:"#2B455914", color:"#2B4559", fontWeight:700, letterSpacing:"0.06em", fontFamily:"'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize:9, padding:"3px 8px", borderRadius:3, background:"#2B455914", color:t.blue, fontWeight:700, letterSpacing:"0.06em", fontFamily:"'JetBrains Mono', monospace" }}>
                       {hubberProj2026.monthsIn}/12 міс.
                     </div>
                   </div>
@@ -3047,39 +3058,39 @@ export default function Dashboard() {
                   {/* Main metrics row */}
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:0 }}>
                     {/* YTD Fact */}
-                    <div style={{ padding:"16px 24px", borderRight:"1px solid #2B4559" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:"#E4E4E4", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
-                      <div style={{ fontSize:9, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>{hubberProj2026.monthsIn} міс. даних</div>
+                    <div style={{ padding:"16px 24px", borderRight:`1px solid ${t.border}` }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
+                      <div style={{ fontSize:24, fontWeight:800, color:t.text, letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
+                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>{hubberProj2026.monthsIn} міс. даних</div>
                     </div>
                     {/* Projected Year-End */}
-                    <div style={{ padding:"16px 24px", borderRight:"1px solid #2B4559" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>Прогноз до кінця року</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:"#2B4559", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(projectedYearEnd)} ₴</div>
-                      <div style={{ fontSize:9, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
+                    <div style={{ padding:"16px 24px", borderRight:`1px solid ${t.border}` }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>Прогноз до кінця року</div>
+                      <div style={{ fontSize:24, fontWeight:800, color:t.blue, letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(projectedYearEnd)} ₴</div>
+                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
                     </div>
                     {/* vs Record */}
                     <div style={{ padding:"16px 24px" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
-                      <div style={{ fontSize:24, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1, color:vsRec!==null?(vsRec>=0?"#22C55E":t.red):"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
+                      <div style={{ fontSize:24, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1, color:vsRec!==null?(vsRec>=0?"#22C55E":t.red):t.text, fontFamily:"'JetBrains Mono', monospace" }}>
                         {vsRec!==null ? (vsRec>=0?"+":"")+vsRec.toFixed(1)+"%" : "—"}
                       </div>
-                      <div style={{ fontSize:9, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
+                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
                     </div>
                   </div>
 
                   {/* Progress bar: YTD vs Record */}
-                  <div style={{ padding:"12px 24px 16px", borderTop:"1px solid #2B4559" }}>
+                  <div style={{ padding:"12px 24px 16px", borderTop:`1px solid ${t.border}` }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                      <span style={{ fontSize:8, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>YTD vs Record {hubberProj2026.bestYear}</span>
-                      <span style={{ fontSize:10, fontWeight:800, color:progressPct>=100?"#22C55E":"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>{progressPct.toFixed(0)}%</span>
+                      <span style={{ fontSize:8, fontWeight:700, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>YTD vs Record {hubberProj2026.bestYear}</span>
+                      <span style={{ fontSize:10, fontWeight:800, color:progressPct>=100?"#22C55E":t.blue, fontFamily:"'JetBrains Mono', monospace" }}>{progressPct.toFixed(0)}%</span>
                     </div>
-                    <div style={{ position:"relative", height:6, borderRadius:3, background:"#2B4559", overflow:"hidden" }}>
+                    <div style={{ position:"relative", height:6, borderRadius:3, background:t.blue, overflow:"hidden" }}>
                       <div style={{ width:`${progressPct}%`, height:"100%", borderRadius:3, background: progressPct>=100 ? "linear-gradient(90deg, #22C55E, #16A34A)" : "linear-gradient(90deg, #2B4559, #2563EB)", transition:"width 0.8s ease" }}/>
                     </div>
                     <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-                      <span style={{ fontSize:8, color:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>0</span>
-                      <span style={{ fontSize:8, color:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
+                      <span style={{ fontSize:8, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>0</span>
+                      <span style={{ fontSize:8, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
                     </div>
                   </div>
                 </div>
@@ -3093,35 +3104,35 @@ export default function Dashboard() {
               const roiVal = kpi.logistics > 0 ? kpi.net / kpi.logistics : null;
               return (
             <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10, animationDelay:"65ms" }}>
-              <div style={{ ...KPI_CARD_BASE, background:"#0B0B0B", border:"1px solid #2B4559", minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:"#E4E4E4" }}>LFL %</div>
-                <div style={{ ...KPI_NUM, color:lflPct!==null?(lflPct>=0?"#22C55E":"#EF4444"):"#E4E4E4", fontSize:28 }}>
+              <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:t.text }}>LFL %</div>
+                <div style={{ ...KPI_NUM, color:lflPct!==null?(lflPct>=0?"#22C55E":"#EF4444"):t.text, fontSize:28 }}>
                   {lflPct!==null ? (lflPct>=0?"+":"")+lflPct.toFixed(1)+"%" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>
+                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>
                   {hubberLfl ? `vs ${hubberLfl.prevYear} · ${hubberLfl.monthName}` : prevKpi ? "vs попер. місяць" : "Немає даних"}
                 </div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"#0B0B0B", border:"1px solid #2B4559", minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:"#E4E4E4" }}>Margin %</div>
-                <div style={{ ...KPI_NUM, color:marginPct!==null?(marginPct>=0?"#2B4559":"#EF4444"):"#E4E4E4", fontSize:28 }}>
+              <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:t.text }}>Margin %</div>
+                <div style={{ ...KPI_NUM, color:marginPct!==null?(marginPct>=0?t.blue:"#EF4444"):t.text, fontSize:28 }}>
                   {marginPct!==null ? marginPct.toFixed(1)+"%" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Чистий дохід / Виручка</div>
+                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Чистий дохід / Виручка</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"#0B0B0B", border:"1px solid #2B4559", minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:kpi.debt>0?"#EF4444":"#0B0B0B" }}>Заборгованість</div>
+              <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:kpi.debt>0?"#EF4444":t.in }}>Заборгованість</div>
                 <div style={{ ...KPI_NUM, color:kpi.debt>0?"#EF4444":"#22C55E", fontSize:28 }}>
                   {kpi.debt > 0 ? "-"+fmtK(kpi.debt) : "0"}
                 </div>
-                <div style={{ fontSize:10, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
+                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"#0B0B0B", border:"1px solid #2B4559", minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:"#E4E4E4" }}>ROI / Sebe</div>
-                <div style={{ ...KPI_NUM, color:roiVal!==null?(roiVal>=0?"#2B4559":"#EF4444"):"#E4E4E4", fontSize:28 }}>
+              <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:t.text }}>ROI / Sebe</div>
+                <div style={{ ...KPI_NUM, color:roiVal!==null?(roiVal>=0?t.blue:"#EF4444"):t.text, fontSize:28 }}>
                   {roiVal!==null ? roiVal.toFixed(2)+"x" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Net / Логістика</div>
+                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Net / Логістика</div>
               </div>
             </div>
               );
@@ -3181,10 +3192,10 @@ export default function Dashboard() {
                         <stop offset="100%" stopColor={t.blue} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="1 0" stroke={"#2B4559"} vertical={false}/>
-                    <XAxis dataKey="label" tick={{ fontSize:11, fill:"#E4E4E4" }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#E4E4E4" }} tickLine={false} axisLine={false} width={96} domain={["auto","auto"]}/>
-                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:"#2B4559", strokeWidth:1 }}/>
+                    <CartesianGrid strokeDasharray="1 0" stroke={t.border} vertical={false}/>
+                    <XAxis dataKey="label" tick={{ fontSize:11, fill:t.text }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
+                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} width={96} domain={["auto","auto"]}/>
+                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:t.blue, strokeWidth:1 }}/>
                     {refLabel && futureCount>0 && (
                       <ReferenceLine x={refLabel} stroke={t.dim} strokeDasharray="5 3" strokeWidth={1.5}
                         label={{ value:"прогноз →", position:"insideTopRight", fontSize:9, fill:t.dim, fontWeight:600 }}/>
@@ -3200,8 +3211,8 @@ export default function Dashboard() {
                       activeDot={{ r:5, fill:t.blue, strokeWidth:0 }}/>
                     {hubberQuick && (
                       <Line isAnimationActive={false} type="monotone" dataKey="prevYear" name="Хаббер мин. рік"
-                        stroke="#E4E4E4" strokeWidth={1.5} strokeDasharray="5 3"
-                        dot={false} activeDot={{ r:3, fill:"#E4E4E4", strokeWidth:0 }} connectNulls/>
+                        stroke={t.text} strokeWidth={1.5} strokeDasharray="5 3"
+                        dot={false} activeDot={{ r:3, fill:t.text, strokeWidth:0 }} connectNulls/>
                     )}
                   </AreaChart>
                 </ResponsiveContainer>
@@ -3232,10 +3243,10 @@ export default function Dashboard() {
                     return (
                       <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={marketplaceBarWithMoM} margin={{ top:showBarTrend?28:18, right:8, left:8, bottom:4 }}>
-                          <CartesianGrid strokeDasharray="1 0" stroke={"#2B4559"} vertical={false}/>
-                          <XAxis dataKey="name" tick={{ fontSize:11, fill:"#E4E4E4" }} tickLine={false} axisLine={false}/>
-                          <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#E4E4E4" }} tickLine={false} axisLine={false} width={90}/>
-                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:"#0B0B0B", border:"1px solid #2B4559", borderRadius:4, fontSize:12 }}/>
+                          <CartesianGrid strokeDasharray="1 0" stroke={t.border} vertical={false}/>
+                          <XAxis dataKey="name" tick={{ fontSize:11, fill:t.text }} tickLine={false} axisLine={false}/>
+                          <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} width={90}/>
+                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.bg, border:`1px solid ${t.border}`, borderRadius:4, fontSize:12 }}/>
                           <Bar isAnimationActive={true} animationDuration={500} animationEasing="ease-out" dataKey="net" name="Дохід" radius={[6,6,0,0]}
                             label={(props: Record<string,unknown>) => {
                               const entry = marketplaceBarWithMoM[props.index as number];
@@ -3270,11 +3281,11 @@ export default function Dashboard() {
                     const totalPos = marketplaceBar.filter(e=>e.net>0).reduce((s,e)=>s+e.net,0)||1;
                     const leaderPct = ((leader.net/totalPos)*100).toFixed(0);
                     return (
-                      <div style={{ marginTop:12, padding:"9px 12px", borderRadius:10, background:"#0B0B0B", border:"1px solid #2B4559", display:"flex", alignItems:"flex-start", gap:7 }}>
+                      <div style={{ marginTop:12, padding:"9px 12px", borderRadius:10, background:t.bg, border:`1px solid ${t.border}`, display:"flex", alignItems:"flex-start", gap:7 }}>
                         <span style={{ fontSize:12, flexShrink:0, marginTop:1 }}>💡</span>
                         <span style={{ fontSize:10, color:t.text, lineHeight:1.55 }}>
-                          <strong style={{ color:"#2B4559" }}>{leader.name}</strong> генерує основний потік готівки ({leaderPct}%).{" "}
-                          {second && <span>Рентабельність на <strong style={{ color:"#2B4559" }}>{second.name}</strong> вища завдяки нижчій вартості логістики.</span>}
+                          <strong style={{ color:t.blue }}>{leader.name}</strong> генерує основний потік готівки ({leaderPct}%).{" "}
+                          {second && <span>Рентабельність на <strong style={{ color:t.blue }}>{second.name}</strong> вища завдяки нижчій вартості логістики.</span>}
                         </span>
                       </div>
                     );
@@ -3309,7 +3320,7 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/donutTotal)*100).toFixed(1)}%)`, name]}
-                          contentStyle={{ background:"#0B0B0B", border:"1px solid #2B4559", borderRadius:4, fontSize:11 }}
+                          contentStyle={{ background:t.bg, border:`1px solid ${t.border}`, borderRadius:4, fontSize:11 }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -3322,9 +3333,9 @@ export default function Dashboard() {
                           <div key={entry.name} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                               <div style={{ width:8, height:8, borderRadius:99, background:clr, flexShrink:0 }}/>
-                              <span style={{ fontSize:11, color:i===0?"#2B4559":t.text, fontWeight:i===0?700:500 }}>{entry.name}</span>
+                              <span style={{ fontSize:11, color:i===0?t.blue:t.text, fontWeight:i===0?700:500 }}>{entry.name}</span>
                             </div>
-                            <span style={{ fontSize:11, fontWeight:700, color:i===0?"#2B4559":"#E4E4E4" }}>{pct}%</span>
+                            <span style={{ fontSize:11, fontWeight:700, color:i===0?t.blue:t.text }}>{pct}%</span>
                           </div>
                         );
                       })}
@@ -3358,7 +3369,7 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/brandTotal)*100).toFixed(1)}%)`, name]}
-                          contentStyle={{ background:"#0B0B0B", border:"1px solid #2B4559", borderRadius:4, fontSize:11 }}
+                          contentStyle={{ background:t.bg, border:`1px solid ${t.border}`, borderRadius:4, fontSize:11 }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -3445,7 +3456,7 @@ export default function Dashboard() {
                       {cityFilter && (
                         <button onClick={()=>setCityFilter(null)} style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:5, border:`1px solid ${t.blue}44`, background:`${t.blue}14`, color:t.blue, cursor:"pointer" }}>✕ {cityFilter}</button>
                       )}
-                      <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4" }}>Топ {cityTop.length}</span>
+                      <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:t.text }}>Топ {cityTop.length}</span>
                     </div>
                   </div>
 
@@ -3480,7 +3491,7 @@ export default function Dashboard() {
                               if (!entry) return <text/>;
                               const cx = props.x as number + (props.width as number) / 2;
                               const cy = props.y as number - 5;
-                              return <text key={props.index as number} x={cx} y={cy} textAnchor="middle" fontSize={9} fontWeight={700} fill={props.index === 0 ? "#004080" : "#E4E4E4"}>{entry.pctLabel}%</text>;
+                              return <text key={props.index as number} x={cx} y={cy} textAnchor="middle" fontSize={9} fontWeight={700} fill={props.index === 0 ? "#004080" : t.text}>{entry.pctLabel}%</text>;
                             }}
                           >
                             {chartData.map((_,i)=>(
@@ -3496,9 +3507,9 @@ export default function Dashboard() {
                   {/* Column headers */}
                   <div style={{ display:"grid", gridTemplateColumns:"22px 1fr 56px 80px", gap:8, marginBottom:6, paddingBottom:6, borderBottom:`1px solid ${t.border}` }}>
                     <span/>
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4" }}>Місто</span>
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4", textAlign:"right" }}>Частка %</span>
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4", textAlign:"right" }}>Сер. чек ₴</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:t.text }}>Місто</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:t.text, textAlign:"right" }}>Частка %</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:t.text, textAlign:"right" }}>Сер. чек ₴</span>
                   </div>
 
                   {/* Clickable bar rows */}
@@ -3524,7 +3535,7 @@ export default function Dashboard() {
                             }}
                           >
                             {/* Rank */}
-                            <span style={{ fontSize:11, fontWeight:700, color:active?"#004080":i===0?"#004080":"#E4E4E4", textAlign:"right" }}>{i+1}</span>
+                            <span style={{ fontSize:11, fontWeight:700, color:active?"#004080":i===0?"#004080":t.text, textAlign:"right" }}>{i+1}</span>
                             {/* City name + bar */}
                             <div>
                               <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:4 }}>
@@ -3537,7 +3548,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                             {/* Sales share % */}
-                            <span style={{ fontSize:13, fontWeight:700, color:active?"#004080":i===0?"#004080":"#E4E4E4", textAlign:"right" }}>{city.salesPct.toFixed(1)}%</span>
+                            <span style={{ fontSize:13, fontWeight:700, color:active?"#004080":i===0?"#004080":t.text, textAlign:"right" }}>{city.salesPct.toFixed(1)}%</span>
                             {/* Avg check */}
                             <div style={{ textAlign:"right" }}>
                               <span style={{ fontSize:12, fontWeight:700, color:isBest?"#004080":t.text }}>{fmtChk(city.avgCheck)} ₴</span>
@@ -3580,7 +3591,7 @@ export default function Dashboard() {
                     </p>
                     {cityFilter && (
                       <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                        <span style={{ fontSize:10, color:"#E4E4E4" }}>Фільтр по місту:</span>
+                        <span style={{ fontSize:10, color:t.text }}>Фільтр по місту:</span>
                         <button
                           onClick={()=>setCityFilter(null)}
                           style={{ fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:4, border:`1px solid ${t.blue}44`, background:`${t.blue}10`, color:t.blue, cursor:"pointer" }}
@@ -3707,7 +3718,7 @@ export default function Dashboard() {
                     <span style={{ fontSize:15 }}>💰</span>
                     <p style={{ color:t.text, fontSize:14, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>Топ товарів за виручкою</p>
                   </div>
-                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4" }}>Топ 3</span>
+                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:t.text }}>Топ 3</span>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {(()=>{
@@ -4156,12 +4167,12 @@ export default function Dashboard() {
             {/* category badge + emoji */}
             <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:7 }}>
               <span style={{ fontSize:14, lineHeight:1 }}>{adv.emoji}</span>
-              <span style={{ fontSize:9, fontWeight:800, letterSpacing:"0.07em", color:"#2B4559", background:"rgba(0,82,255,0.18)", padding:"2px 7px", borderRadius:4 }}>{adv.cat}</span>
+              <span style={{ fontSize:9, fontWeight:800, letterSpacing:"0.07em", color:t.blue, background:"rgba(0,82,255,0.18)", padding:"2px 7px", borderRadius:4 }}>{adv.cat}</span>
             </div>
             {/* reason label */}
             <p style={{ margin:"0 0 6px", fontSize:10, color:"rgba(255,255,255,0.5)", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{rejTooltip.reason}</p>
             {/* advice text */}
-            <p style={{ margin:0, fontSize:11, color:"#E4E4E4", lineHeight:1.55, fontWeight:500 }}>{adv.text}</p>
+            <p style={{ margin:0, fontSize:11, color:t.text, lineHeight:1.55, fontWeight:500 }}>{adv.text}</p>
             {/* pointer arrow */}
             <div style={{
               position:"absolute",
