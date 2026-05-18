@@ -925,7 +925,7 @@ const SidebarFilterBtn = memo(function SidebarFilterBtn({
         borderRadius:6, border:"none",
         borderLeft: active ? `2px solid ${t.blue}` : `2px solid transparent`,
         background: active ? `${t.blue}12` : hovered ? "rgba(0,0,0,0.04)" : "transparent",
-        color: active ? t.blue : (compact ? t.dim : ("rgba(255,255,255,0.8)")),
+        color: active ? t.blue : (compact ? t.dim : t.text),
         fontSize: compact ? 11 : 12,
         fontWeight: active ? 700 : (compact ? 400 : 500),
         cursor:"pointer", textAlign:"left",
@@ -948,8 +948,8 @@ function SidebarSection({ icon, label, open, onToggle, children, st }: {
       <button className="sidebar-section-header" onClick={onToggle}>
         <span style={{ color:st.dim, flexShrink:0, display:"flex", alignItems:"center" }}>{icon}</span>
         <span style={{
-          fontSize:10, fontWeight:700, letterSpacing:"0.08em",
-          textTransform:"uppercase" as const, color:st.sub, flex:1, textAlign:"left" as const,
+          fontSize:11, fontWeight:800, letterSpacing:"0.08em",
+          textTransform:"uppercase" as const, color:st.text, flex:1, textAlign:"left" as const,
         }}>{label}</span>
         <ChevronDown size={12} style={{
           color:st.dim, flexShrink:0,
@@ -2008,7 +2008,7 @@ export default function Dashboard() {
   const [yearFilter,    setYearFilter]    = useState<string>(()=>_fc.yearFilter);
   const [mktOpen,     setMktOpen]     = useState(true);
   const [dateOpen,    setDateOpen]    = useState(true);
-  const [brandsOpen,  setBrandsOpen]  = useState(false);
+  const [brandsOpen,  setBrandsOpen]  = useState(true);
   const [hubberQuick, setHubberQuick] = useState<HubberQuick|null>(readHubberCache);
   const [hubberQYear, setHubberQYear] = useState(()=>_fc.hubberQYear);
   const [rejTooltip,  setRejTooltip]  = useState<{ reason:string; rect:DOMRect } | null>(null);
@@ -2789,9 +2789,7 @@ export default function Dashboard() {
             <span style={{ color:t.blue, fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', monospace" }}>CORE</span>
           </div>
           <div className="ethena-nav-links" style={{ display:"flex", alignItems:"center", gap:2 }}>
-            {["Dashboards","Earn","Swap","Rewards"].map((n,i) => (
-              <button key={n} style={{ padding:"5px 12px", borderRadius:4, background:i===0?t.blue:"transparent", border:"none", color:i===0?t.blue:t.text, fontSize:11, fontWeight:i===0?700:500, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace" }}>{n}</button>
-            ))}
+            <button style={{ padding:"5px 12px", borderRadius:4, background:t.blue, border:"none", color:"#ffffff", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace" }}>Dashboards</button>
           </div>
         </div>
         {/* Right: Actions */}
@@ -2799,10 +2797,6 @@ export default function Dashboard() {
           <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:`1px solid ${t.border}` }}>
             <span style={{ fontSize:9, fontWeight:700, color:t.text, letterSpacing:"0.06em" }}>ВИРУЧКА</span>
             <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace" }}>{kpi ? fmtK(kpi.grossIncome)+" ₴" : "—"}</span>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:`1px solid ${t.border}` }}>
-            <span style={{ fontSize:9, fontWeight:700, color:t.text, letterSpacing:"0.06em" }}>APY</span>
-            <span style={{ fontSize:11, fontWeight:800, color:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>19.3%</span>
           </div>
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
