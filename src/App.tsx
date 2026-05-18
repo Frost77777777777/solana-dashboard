@@ -1140,7 +1140,7 @@ function HubberSidebarPanel({
             <div style={{ fontSize:20, fontWeight:800, color:t.text, letterSpacing:"-0.03em" }}>Дохід за роки (2017–2026)</div>
             <div style={{ fontSize:11, color:t.text, marginTop:2 }}>Аркуш «Дохід» · {data.fileName}</div>
           </div>
-          <button onClick={()=>setModalOpen(false)} style={{ background:t.bg, border:"none", borderRadius:10, cursor:"pointer", color:"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
+          <button onClick={()=>setModalOpen(false)} style={{ background:t.bg, border:"none", borderRadius:10, cursor:"pointer", color:t.text, width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
             <X size={16}/>
           </button>
         </div>
@@ -1202,7 +1202,7 @@ function HubberSidebarPanel({
               <div style={{ display:"flex", gap:6 }}>
                 {[{val:cmpA, set:setCmpA, label:"Рік A"},{val:cmpB, set:setCmpB, label:"Рік B"}].map(({val,set,label})=>(
                   <select key={label} value={val} onChange={e=>set(e.target.value)}
-                    style={{ flex:1, padding:"4px 6px", borderRadius:6, border:`1px solid ${t.border}`, fontSize:11, fontWeight:600, color:t.text, background:"#fff", cursor:"pointer", outline:"none" }}>
+                    style={{ flex:1, padding:"4px 6px", borderRadius:6, border:`1px solid ${t.border}`, fontSize:11, fontWeight:600, color:t.text, background:t.bg, cursor:"pointer", outline:"none" }}>
                     <option value="">{label}</option>
                     {displayYears.map(y=><option key={y} value={y}>{y}</option>)}
                   </select>
@@ -1292,7 +1292,7 @@ function HubberSidebarPanel({
                   <tr key={m} style={{ background: t.bg }}>
                     <td
                       onClick={()=>setDrillMonth(m)}
-                      style={{ padding:"7px 16px", color:t.text, fontWeight:500, borderBottom:"1px solid #0B0B0B", whiteSpace:"nowrap" as const, cursor:"pointer", userSelect:"none" as const }}
+                      style={{ padding:"7px 16px", color:t.text, fontWeight:600, borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap" as const, cursor:"pointer", userSelect:"none" as const }}
                       title="Клікніть для деталей"
                     >
                       <span style={{ borderBottom:"1px dashed #9CA3AF" }}>{m}</span>
@@ -1310,9 +1310,9 @@ function HubberSidebarPanel({
                         : isSel
                           ? (i%2===0?"rgba(0,82,255,0.05)":"rgba(0,82,255,0.09)")
                           : heatBg;
-                      const cellColor = val===0?"#C0C0B8":isSel?hubberYearColor(y, displayYears):isCmpA?hubberYearColor(cmpA, displayYears):isCmpB?hubberYearColor(cmpB, displayYears):isBest?"#8B6914":t.bg;
+                      const cellColor = val===0?"#C0C0B8":isSel?hubberYearColor(y, displayYears):isCmpA?hubberYearColor(cmpA, displayYears):isCmpB?hubberYearColor(cmpB, displayYears):isBest?"#8B6914":t.text;
                       return (
-                        <td key={y} style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #0B0B0B", fontWeight:val>0?(isSel||isBest?700:500):400, color:cellColor, background:cellBg }}>
+                        <td key={y} style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:`1px solid ${t.border}`, fontWeight:val>0?(isSel||isBest?700:600):400, color:cellColor, background:cellBg }}>
                           {val>0 ? fmtK(val) : "—"}
                         </td>
                       );
@@ -1321,9 +1321,9 @@ function HubberSidebarPanel({
                       const prevY = String(+selYear-1);
                       const curr = data.values[selYear]?.[m]??0;
                       const prev = data.values[prevY]?.[m]??0;
-                      if (prev===0) return <td key="lfl" style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #0B0B0B", color:"#C0C0B8" }}>—</td>;
+                      if (prev===0) return <td key="lfl" style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:`1px solid ${t.border}`, color:"#C0C0B8" }}>—</td>;
                       const pct = ((curr-prev)/prev)*100;
-                      return <td key="lfl" style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #0B0B0B", fontWeight:700, color:pct>=0?"#16A34A":"#FF4D4D", background:i%2===0?"rgba(0,82,255,0.02)":"rgba(0,82,255,0.04)" }}>
+                      return <td key="lfl" style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:`1px solid ${t.border}`, fontWeight:700, color:pct>=0?"#16A34A":"#FF4D4D", background:i%2===0?"rgba(0,82,255,0.02)":"rgba(0,82,255,0.04)" }}>
                         {pct>=0?"+":""}{pct.toFixed(0)}%
                       </td>;
                     })()}
@@ -2810,10 +2810,6 @@ export default function Dashboard() {
           )}
           <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:t.blue, color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>
             <Upload size={12} /> Генерація звіту
-          </button>
-          <button style={{ padding:"6px 14px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.blue, fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace", display:"flex", alignItems:"center", gap:5 }}>
-            <span style={{ width:6, height:6, borderRadius:"50%", background:t.blue }}/>
-            Connect Wallet
           </button>
           <button onClick={()=>setDarkMode(v=>!v)} title={darkMode?"Режим День":"Режим Ніч"} style={{ padding:"6px 8px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.text, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
             {darkMode ? <Sun size={14}/> : <Moon size={14}/>}
