@@ -2176,6 +2176,7 @@ export default function Dashboard() {
     if (!fileData?.isMultiSheet) return [];
     const s = new Set<string>();
     fileData.rows.forEach(r=>{ const v=String(r["_sheet_"]??"").trim(); if(v) s.add(v); });
+    s.delete("Склад");
     return Array.from(s).sort();
   },[fileData]);
 
@@ -2223,6 +2224,19 @@ export default function Dashboard() {
     });
   },[fileData, brandFilter, companyFilter, monthFilter]);
 
+  /* ── chartFiltered: same as filtered but IGNORES month filter ──
+     The monthly trend chart must always show the full historical trend,
+     not slice to a single month when a specific month is selected. ── */
+  const chartFiltered = useMemo(()=>{
+    if (!fileData) return [];
+    return fileData.rows.filter(r=>{
+      if (!r._mkt) return false;
+      if (brandFilter!=="All" && r._mkt !== brandFilter) return false;
+      if (companyFilter!=="All" && String(r["_sheet_"]??"").trim()!==companyFilter) return false;
+      return true;
+    });
+  },[fileData, brandFilter, companyFilter]);
+
   /* ── KPIs — pure reduce on pre-stamped fields ── */
   const kpi = useMemo(()=>{
     if (!fileData) return null;
@@ -2263,11 +2277,11 @@ export default function Dashboard() {
      "No Date" rows get a "Без дати" bar at the end.
      Sum of ALL bars MUST equal kpi.net. ─────────────────────── */
   const chartData = useMemo(()=>{
-    if (!filtered.length) return [];
+    if (!chartFiltered.length) return [];
 
-    // Group all filtered rows by _monthKey; "No Date" rows go to "No Date" bucket
+    // Group all chartFiltered rows by _monthKey; "No Date" rows go to "No Date" bucket
     const bucketMap = new Map<string, { net: number; logistics: number; rows: number }>();
-    for (const r of filtered) {
+    for (const r of chartFiltered) {
       const k = String(r._monthKey ?? "No Date");
       if (!bucketMap.has(k)) bucketMap.set(k, { net: 0, logistics: 0, rows: 0 });
       const b = bucketMap.get(k)!;
@@ -2298,14 +2312,16 @@ export default function Dashboard() {
     console.log("Chart total (all bars):", +chartTotal.toFixed(2), "| KPI net:", +(filtered.reduce((s,r)=>s+(r._net as number),0)).toFixed(2));
 
     return buckets;
-  },[filtered, CURRENT_MONTH_KEY]);
+  },[chartFiltered, CURRENT_MONTH_KEY]);
 
-  /* ── Sync Error: chart sum must equal KPI net (The Mismatch Rule) ── */
+  /* ── Sync Error: chart sum must equal KPI net (The Mismatch Rule) ──
+     Only valid when monthFilter is "All" since chart now always shows full trend. ── */
   const syncError = useMemo(()=>{
     if (!kpi || !chartData.length) return false;
+    if (monthFilter !== "All") return false;
     const chartSum = chartData.reduce((s,b) => s + b.netIncome, 0);
-    return Math.abs(chartSum - kpi.net) > 0.5; // tolerance: 50 kopecks
-  },[kpi, chartData]);
+    return Math.abs(chartSum - kpi.net) > 0.5;
+  },[kpi, chartData, monthFilter]);
 
   /* ── top products ── */
   const topProducts = useMemo(()=>{
@@ -2773,8 +2789,8 @@ export default function Dashboard() {
         {/* Right: Actions */}
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2B4559" }}>
-            <span style={{ fontSize:9, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.06em" }}>TVL</span>
-            <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace" }}>$5.4B</span>
+            <span style={{ fontSize:9, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.06em" }}>ВИРУЧКА</span>
+            <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace" }}>{kpi ? fmtK(kpi.grossIncome)+" ₴" : "—"}</span>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2B4559" }}>
             <span style={{ fontSize:9, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.06em" }}>APY</span>
