@@ -10,8 +10,8 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  background: #1A1A1B !important;
-  color: #FFFFFF !important;
+  background: #0B0B0B !important;
+  color: #E4E4E4 !important;
   min-height: 100vh;
   font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }

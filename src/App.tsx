@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback, memo, Component } from "react";
 import { createPortal } from "react-dom";
-import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu } from "lucide-react";
+import { Upload, X, Search, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AreaChart, Area, BarChart, Bar, ComposedChart, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 
@@ -42,7 +42,7 @@ const PRESET_BRANDS = ["Каста", "Розетка", "Хаббер", "Шафа
 
 /* ─── Base Blue design-system palette ───────────────────────── */
 // Index 0 = leader (Deep Navy), index 1 = Electric Blue, rest lighter
-const BASE_BLUE = ["#0052FF","#3376FF","#66A0FF","#99C5FF","#CCE2FF","#6B7280"] as const;
+const BASE_BLUE = ["#2B4559","#3376FF","#66A0FF","#99C5FF","#CCE2FF","#E4E4E4"] as const;
 /* ─── Master Blue neon palette (Digital Bunker aesthetic) ──── */
 const MASTER_BLUE = ["#00E5FF","#2979FF","#651FFF","#00BFA5","#1DE9B6","#40C4FF","#7C4DFF","#18FFFF"] as const;
 // @ts-expect-error kept for future use
@@ -629,34 +629,12 @@ function parseHubberQuick(file: File): Promise<HubberQuick> {
 
 /* ─── theme ──────────────────────────────────────────────────── */
 interface T { bg:string; card:string; nav:string; border:string; text:string; sub:string; dim:string; in:string; blue:string; em:string; red:string; amb:string; dark:boolean }
-const DK: T = { bg:"#1A1A1B", card:"#222223", nav:"#1A1A1B", border:"#2D2D2E", text:"#FFFFFF", sub:"#9CA3AF", dim:"#6B7280", in:"#1E1E1F", blue:"#3B82F6", em:"#22C55E", red:"#EF4444", amb:"#6B7280", dark:true };
-const LT: T = {
-  bg:     "#F8FAFC",
-  card:   "#FFFFFF",
-  nav:    "#FFFFFF",
-  border: "#E5E7EB",
-  text:   "#000000",
-  sub:    "#111111",
-  dim:    "#374151",
-  in:     "#F1F5F9",
-  blue:   "#0052FF",
-  em:     "#16A34A",
-  red:    "#FF4D4D",
-  amb:    "#374151",
-  dark:   false,
-};
+const DK: T = { bg:"#0B0B0B", card:"#0B0B0B", nav:"#0B0B0B", border:"#2B4559", text:"#E4E4E4", sub:"#E4E4E4", dim:"#E4E4E4", in:"#0B0B0B", blue:"#2B4559", em:"#22C55E", red:"#EF4444", amb:"#E4E4E4", dark:true };
 
-function glass(t: T, _glow?: string): React.CSSProperties {
-  if (t.dark) {
-    return {
-      background: "#222223",
-      border: "1px solid #2D2D2E",
-      borderRadius: 6,
-    };
-  }
+function glass(_t: T, _glow?: string): React.CSSProperties {
   return {
-    background: "#FFFFFF",
-    border: "1px solid #E2E8F0",
+    background: "#0B0B0B",
+    border: "1px solid #2B4559",
     borderRadius: 6,
   };
 }
@@ -678,7 +656,7 @@ function LflBadge({ current, previous, fmt: fmtFn, t }: { current: number; previ
   const pct   = (delta / Math.abs(previous)) * 100;
   const up    = delta >= 0;
   const sign  = up ? "+" : "";
-  const subColor = t?.dark ? "rgba(255,255,255,0.35)" : "#9CA3AF";
+  const subColor = t?.dark ? "rgba(255,255,255,0.35)" : "#E4E4E4";
   // Pastel green chip for positive, soft red chip for negative
   const chipBg    = up ? "#DCFCE7" : "rgba(239,68,68,0.08)";
   const chipColor = up ? "#15803D" : "#DC2626";
@@ -780,7 +758,7 @@ const KPI_CARD_BASE: React.CSSProperties = {
 const KPI_LABEL: React.CSSProperties = {
   fontSize:10, fontWeight:700, letterSpacing:"0.12em",
   textTransform:"uppercase" as const,
-  color:"#6B7280",
+  color:"#E4E4E4",
   fontFamily:"'JetBrains Mono', monospace",
 };
 const KPI_NUM: React.CSSProperties = {
@@ -791,7 +769,7 @@ const KPI_NUM: React.CSSProperties = {
 
 const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _filteredCount, syncError, debtCol, t, fmt }: KpiRowProps) {
   const cardBg: React.CSSProperties = {
-    background: t.dark ? "#222223" : "#ffffff",
+    background: "#0B0B0B",
   };
   return (
     <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
@@ -812,25 +790,25 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
           <LflBadge current={kpi.net} previous={prevKpi?.net??null} fmt={fmt} t={t}/>
           {hubberLfl && (
             <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-              <span style={{ fontSize:8, fontWeight:700, letterSpacing:"0.06em", color:"#6B7280", textTransform:"uppercase" as const }}>LFL vs {hubberLfl.prevYear}</span>
+              <span style={{ fontSize:8, fontWeight:700, letterSpacing:"0.06em", color:"#E4E4E4", textTransform:"uppercase" as const }}>LFL vs {hubberLfl.prevYear}</span>
               <span style={{ display:"inline-flex", alignItems:"center", padding:"2px 7px", borderRadius:4, background:hubberLfl.pct>=0?"#DCFCE7":"rgba(239,68,68,0.08)", fontSize:11, fontWeight:700, color:hubberLfl.pct>=0?"#15803D":"#DC2626", letterSpacing:"-0.01em" }}>
                 {hubberLfl.pct>=0?"↑":"↓"} {hubberLfl.pct>=0?"+":""}{hubberLfl.pct.toFixed(1)}%
               </span>
-              <span style={{ fontSize:9, color:"#9CA3AF" }}>{hubberLfl.monthName}</span>
+              <span style={{ fontSize:9, color:"#E4E4E4" }}>{hubberLfl.monthName}</span>
             </div>
           )}
         </div>
         {/* Margin % + Net ROI */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:8, color:"#6B7280", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Margin %</span>
-            <strong style={{ fontSize:14, fontWeight:800, color:kpi.grossIncome>0?(kpi.net/kpi.grossIncome*100)>=0?t.em:t.red:"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Margin %</span>
+            <strong style={{ fontSize:14, fontWeight:800, color:kpi.grossIncome>0?(kpi.net/kpi.grossIncome*100)>=0?t.em:t.red:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>
               {kpi.grossIncome>0 ? (kpi.net/kpi.grossIncome*100).toFixed(1)+"%" : "—"}
             </strong>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:8, color:"#6B7280", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Net ROI</span>
-            <strong style={{ fontSize:14, fontWeight:800, color:kpi.logistics>0?(kpi.net/kpi.logistics)>=0?t.em:t.red:"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Net ROI</span>
+            <strong style={{ fontSize:14, fontWeight:800, color:kpi.logistics>0?(kpi.net/kpi.logistics)>=0?t.em:t.red:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>
               {kpi.logistics>0 ? (kpi.net/kpi.logistics).toFixed(2)+"x" : "—"}
             </strong>
           </div>
@@ -838,15 +816,15 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* Sub-metrics row */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:4, paddingTop:8, borderTop:`1px solid ${t.border}`, marginTop:8 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:"#6B7280", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>лог</span>
+            <span style={{ fontSize:7, color:"#E4E4E4", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>лог</span>
             <strong style={{ fontSize:10, fontWeight:700, color:t.amb }}>{fmt(kpi.logistics)}</strong>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:"#6B7280", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>дост</span>
+            <span style={{ fontSize:7, color:"#E4E4E4", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>дост</span>
             <strong style={{ fontSize:10, fontWeight:700, color:t.red }}>{fmt(kpi.del)}</strong>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:"#6B7280", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>кому</span>
+            <span style={{ fontSize:7, color:"#E4E4E4", letterSpacing:"0.04em", textTransform:"uppercase" as const }}>кому</span>
             <strong style={{ fontSize:10, fontWeight:700, color:t.amb }}>{fmt(kpi.com)}</strong>
           </div>
         </div>
@@ -856,16 +834,16 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
       <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${t.border}` }}>
         <div>
           <span style={{ ...KPI_LABEL }}>Відмови %</span>
-          <div style={{ ...KPI_NUM, color:kpi.returnRate>0?t.red:"#374151" }}><AnimNum value={kpi.returnRate} fmt={v=>v.toFixed(1)+"%"}/></div>
+          <div style={{ ...KPI_NUM, color:kpi.returnRate>0?t.red:"#E4E4E4" }}><AnimNum value={kpi.returnRate} fmt={v=>v.toFixed(1)+"%"}/></div>
           {kpi.orders>0 && kpi.returnRate>0 && (
-            <div style={{ position:"relative", height:4, borderRadius:99, background:t.dark?"rgba(255,255,255,0.08)":"rgba(255,77,77,0.10)", overflow:"hidden", marginTop:8 }}>
+            <div style={{ position:"relative", height:4, borderRadius:99, background:"rgba(255,255,255,0.08)", overflow:"hidden", marginTop:8 }}>
               <div style={{ width:`${Math.min(kpi.returnRate,100)}%`, height:"100%", borderRadius:99, background:t.red, transition:"width 0.5s ease" }}/>
             </div>
           )}
         </div>
         <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10, display:"flex", alignItems:"center", gap:6 }}>
-          <span style={{ fontSize:10, fontWeight:700, color:kpi.refs>0?t.red:"#9CA3AF" }}>{kpi.refs}</span>
-          <span style={{ fontSize:10, color:"#9CA3AF" }}>замовлень відмовлено</span>
+          <span style={{ fontSize:10, fontWeight:700, color:kpi.refs>0?t.red:"#E4E4E4" }}>{kpi.refs}</span>
+          <span style={{ fontSize:10, color:"#E4E4E4" }}>замовлень відмовлено</span>
         </div>
       </div>
 
@@ -879,12 +857,12 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* Average Check */}
         <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
-            <span style={{ fontSize:8, color:"#6B7280", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Середній чек</span>
-            <strong style={{ fontSize:16, fontWeight:800, color:"#3B82F6", fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Середній чек</span>
+            <strong style={{ fontSize:16, fontWeight:800, color:"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>
               {kpi.orders>0 ? fmt(kpi.grossIncome/kpi.orders)+" ₴" : "—"}
             </strong>
           </div>
-          <span style={{ fontSize:10, color:"#9CA3AF" }}>Успішних: <strong style={{ color:t.em }}>{kpi.successOrders.toLocaleString()}</strong></span>
+          <span style={{ fontSize:10, color:"#E4E4E4" }}>Успішних: <strong style={{ color:t.em }}>{kpi.successOrders.toLocaleString()}</strong></span>
         </div>
       </div>
 
@@ -895,10 +873,10 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
           <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${hasDebt ? t.red+"44" : t.border}`, borderLeft: hasDebt ? `3px solid ${t.red}` : `1px solid ${t.border}` }}>
             <div>
               <span style={{ ...KPI_LABEL, color: hasDebt ? t.red : undefined }}>Дебіторка{hasDebt ? " ⚠" : ""}</span>
-              <div style={{ ...KPI_NUM, color: hasDebt ? t.red : kpi.debt===0 ? "#374151" : t.text, fontWeight:900 }}><AnimNum value={kpi.debt} fmt={fmt}/></div>
+              <div style={{ ...KPI_NUM, color: hasDebt ? t.red : kpi.debt===0 ? "#E4E4E4" : t.text, fontWeight:900 }}><AnimNum value={kpi.debt} fmt={fmt}/></div>
             </div>
             <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
-              <span style={{ fontSize:10, color: hasDebt ? t.red : "#9CA3AF" }}>
+              <span style={{ fontSize:10, color: hasDebt ? t.red : "#E4E4E4" }}>
                 {debtCol ? (hasDebt ? "Загальна дебіторська заборгованість" : "Заборгованість відсутня") : "Дані відсутні"}
               </span>
             </div>
@@ -916,12 +894,12 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* % of Revenue */}
         <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
-            <span style={{ fontSize:8, color:"#6B7280", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>% від виручки</span>
-            <strong style={{ fontSize:16, fontWeight:800, color:kpi.grossIncome>0&&(kpi.logistics/kpi.grossIncome*100)>15?t.red:"#3B82F6", fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>% від виручки</span>
+            <strong style={{ fontSize:16, fontWeight:800, color:kpi.grossIncome>0&&(kpi.logistics/kpi.grossIncome*100)>15?t.red:"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>
               {kpi.grossIncome>0 ? (kpi.logistics/kpi.grossIncome*100).toFixed(1)+"%" : "—"}
             </strong>
           </div>
-          <span style={{ fontSize:10, color:"#9CA3AF" }}>Доставка + Комісія</span>
+          <span style={{ fontSize:10, color:"#E4E4E4" }}>Доставка + Комісія</span>
         </div>
       </div>
 
@@ -947,7 +925,7 @@ const SidebarFilterBtn = memo(function SidebarFilterBtn({
         borderRadius:6, border:"none",
         borderLeft: active ? `2px solid ${t.blue}` : `2px solid transparent`,
         background: active ? `${t.blue}12` : hovered ? "rgba(0,0,0,0.04)" : "transparent",
-        color: active ? t.blue : (compact ? t.dim : (t.dark ? "rgba(255,255,255,0.8)" : "#111111")),
+        color: active ? t.blue : (compact ? t.dim : ("rgba(255,255,255,0.8)")),
         fontSize: compact ? 11 : 12,
         fontWeight: active ? 700 : (compact ? 400 : 500),
         cursor:"pointer", textAlign:"left",
@@ -1038,7 +1016,7 @@ function BrandGridCell({ brand, active, onClick, t, logo, isTop, trend }: { bran
       {trend && trend.sparkData.length >= 2 && (
         <MiniSparkline
           data={trend.sparkData}
-          color={trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":"#9CA3AF"}
+          color={trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":"#E4E4E4"}
         />
       )}
       {trend && trend.badge !== "none" && (
@@ -1046,7 +1024,7 @@ function BrandGridCell({ brand, active, onClick, t, logo, isTop, trend }: { bran
           fontSize:7.5, fontWeight:700, letterSpacing:"0.03em",
           padding:"1px 5px", borderRadius:3, lineHeight:1.6,
           background:trend.badge==="rising"?"rgba(22,163,74,0.12)":trend.badge==="risk"?"rgba(255,77,77,0.1)":"rgba(156,163,175,0.12)",
-          color:trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":"#6B7280",
+          color:trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":"#E4E4E4",
         }}>
           {trend.badge==="rising"?`↑ +${trend.pct!.toFixed(0)}%`:trend.badge==="risk"?`↓ Ризик`:`→ Стаб.`}
         </span>
@@ -1087,8 +1065,8 @@ function HubberSidebarPanel({
   }
 
   /* ── derived stats ── */
-  const cardBg = t.dark ? "rgba(255,255,255,0.04)" : "rgba(0,82,255,0.03)";
-  const cardBorder = t.dark ? "rgba(255,255,255,0.1)" : "#DCDCD2";
+  const cardBg = "rgba(255,255,255,0.04)";
+  const cardBorder = "rgba(255,255,255,0.1)";
   const yearTotal = data ? (data.yearTotals[selYear] ?? Object.values(data.values[selYear]??{}).reduce((a,b)=>a+b,0)) : 0;
   const prevTotal = data ? (data.yearTotals[String(+selYear-1)] ?? 0) : 0;
   const delta = prevTotal > 0 ? ((yearTotal - prevTotal) / prevTotal * 100) : null;
@@ -1154,41 +1132,41 @@ function HubberSidebarPanel({
       onClick={e=>{ if(e.target===e.currentTarget) setModalOpen(false); }}
       style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(5,5,20,0.6)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vh 3vw" }}
     >
-      <div style={{ background:"#F0F0E8", borderRadius:16, width:"80vw", height:"80vh", display:"flex", flexDirection:"column", boxShadow:"0 40px 100px rgba(0,0,0,0.35)", overflow:"hidden" }}>
+      <div style={{ background:"#0B0B0B", borderRadius:16, width:"80vw", height:"80vh", display:"flex", flexDirection:"column", boxShadow:"0 40px 100px rgba(0,0,0,0.35)", overflow:"hidden" }}>
 
         {/* ── Header ── */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 28px 14px", borderBottom:"1px solid #DCDCD2", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 28px 14px", borderBottom:"1px solid #2B4559", flexShrink:0 }}>
           <div>
-            <div style={{ fontSize:20, fontWeight:800, color:"#0A0A0A", letterSpacing:"-0.03em" }}>Дохід за роки (2017–2026)</div>
-            <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>Аркуш «Дохід» · {data.fileName}</div>
+            <div style={{ fontSize:20, fontWeight:800, color:"#E4E4E4", letterSpacing:"-0.03em" }}>Дохід за роки (2017–2026)</div>
+            <div style={{ fontSize:11, color:"#E4E4E4", marginTop:2 }}>Аркуш «Дохід» · {data.fileName}</div>
           </div>
-          <button onClick={()=>setModalOpen(false)} style={{ background:"#0A0A0A", border:"none", borderRadius:10, cursor:"pointer", color:"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
+          <button onClick={()=>setModalOpen(false)} style={{ background:"#0B0B0B", border:"none", borderRadius:10, cursor:"pointer", color:"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
             <X size={16}/>
           </button>
         </div>
 
         {/* ── Stats bar ── */}
-        <div style={{ display:"flex", gap:0, borderBottom:"1px solid #DCDCD2", flexShrink:0, background:"#FFFFFF" }}>
+        <div style={{ display:"flex", gap:0, borderBottom:"1px solid #2B4559", flexShrink:0, background:"#0B0B0B" }}>
           {[
-            { label:"Загальний дохід", value:fmt(grandTotal), color:"#0052FF" },
+            { label:"Загальний дохід", value:fmt(grandTotal), color:"#2B4559" },
             { label:"🏆 Рекорд", value:`${bestYear} · ${fmtK(data.yearTotals[bestYear]??0)}`, color:"#B8860B" },
-            { label:"🌱 Старт", value:`${worstYear} · ${fmtK(data.yearTotals[worstYear]??0)}`, color:"#6B7280" },
+            { label:"🌱 Старт", value:`${worstYear} · ${fmtK(data.yearTotals[worstYear]??0)}`, color:"#E4E4E4" },
           ].map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"10px 20px", borderRight:"1px solid #DCDCD2" }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:"#9CA3AF", marginBottom:3 }}>{s.label}</div>
+            <div key={i} style={{ flex:1, padding:"10px 20px", borderRight:"1px solid #2B4559" }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:3 }}>{s.label}</div>
               <div style={{ fontSize:14, fontWeight:800, color:s.color, letterSpacing:"-0.02em" }}>{s.value}</div>
             </div>
           ))}
           {/* Marketplace contribution column */}
           {mktBreakdown && mktBreakdown.length > 0 && (
-            <div style={{ minWidth:200, padding:"10px 20px", borderLeft:"1px solid #DCDCD2" }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:"#9CA3AF", marginBottom:6 }}>🛒 Маркетплейси (усього)</div>
+            <div style={{ minWidth:200, padding:"10px 20px", borderLeft:"1px solid #2B4559" }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:6 }}>🛒 Маркетплейси (усього)</div>
               <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                 {mktBreakdown.slice(0,4).map((m,i)=>(
                   <div key={m.name} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <div style={{ width:`${Math.max(4,m.pct*0.9)}px`, height:5, borderRadius:2, background:i===0?"#0052FF":i===1?"#3376FF":i===2?"#F59E0B":"#9CA3AF", flexShrink:0 }}/>
-                    <span style={{ fontSize:10, fontWeight:i===0?700:500, color:i===0?"#0052FF":"#374151" }}>{m.name}</span>
-                    <span style={{ marginLeft:"auto", fontSize:10, fontWeight:700, color:"#374151" }}>{m.pct.toFixed(0)}%</span>
+                    <div style={{ width:`${Math.max(4,m.pct*0.9)}px`, height:5, borderRadius:2, background:i===0?"#2B4559":i===1?"#3376FF":i===2?"#F59E0B":"#E4E4E4", flexShrink:0 }}/>
+                    <span style={{ fontSize:10, fontWeight:i===0?700:500, color:i===0?"#2B4559":"#E4E4E4" }}>{m.name}</span>
+                    <span style={{ marginLeft:"auto", fontSize:10, fontWeight:700, color:"#E4E4E4" }}>{m.pct.toFixed(0)}%</span>
                   </div>
                 ))}
               </div>
@@ -1197,12 +1175,12 @@ function HubberSidebarPanel({
         </div>
 
         {/* ── Year pills row + selected total ── */}
-        <div style={{ display:"flex", alignItems:"center", gap:5, padding:"10px 20px 9px", borderBottom:"1px solid #DCDCD2", flexShrink:0, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:5, padding:"10px 20px 9px", borderBottom:"1px solid #2B4559", flexShrink:0, flexWrap:"wrap" }}>
           {displayYears.map(y=>(
             <button key={y} onClick={()=>setSelYear(y)} style={{
               padding:"3px 11px", borderRadius:12, border:"none", cursor:"pointer", fontSize:11, fontWeight:700,
-              background: selYear===y ? hubberYearColor(y, displayYears) : "#FFFFFF",
-              color: selYear===y ? "#fff" : "#374151",
+              background: selYear===y ? hubberYearColor(y, displayYears) : "#0B0B0B",
+              color: selYear===y ? "#fff" : "#E4E4E4",
               boxShadow: selYear===y ? `0 2px 8px ${hubberYearColor(y, displayYears)}50` : "0 1px 3px rgba(0,0,0,0.07)",
               transition:"all 0.14s ease",
             }}>{y}</button>
@@ -1217,14 +1195,14 @@ function HubberSidebarPanel({
         <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
 
           {/* Chart panel */}
-          <div style={{ width:310, flexShrink:0, borderRight:"1px solid #DCDCD2", padding:"14px 12px 14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ width:310, flexShrink:0, borderRight:"1px solid #2B4559", padding:"14px 12px 14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
             {/* Compare dropdowns */}
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-              <div style={{ fontSize:10, fontWeight:700, color:"#374151", letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Порівняти роки</div>
+              <div style={{ fontSize:10, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Порівняти роки</div>
               <div style={{ display:"flex", gap:6 }}>
                 {[{val:cmpA, set:setCmpA, label:"Рік A"},{val:cmpB, set:setCmpB, label:"Рік B"}].map(({val,set,label})=>(
                   <select key={label} value={val} onChange={e=>set(e.target.value)}
-                    style={{ flex:1, padding:"4px 6px", borderRadius:6, border:"1px solid #DCDCD2", fontSize:11, fontWeight:600, color:"#374151", background:"#fff", cursor:"pointer", outline:"none" }}>
+                    style={{ flex:1, padding:"4px 6px", borderRadius:6, border:"1px solid #2B4559", fontSize:11, fontWeight:600, color:"#E4E4E4", background:"#fff", cursor:"pointer", outline:"none" }}>
                     <option value="">{label}</option>
                     {displayYears.map(y=><option key={y} value={y}>{y}</option>)}
                   </select>
@@ -1234,7 +1212,7 @@ function HubberSidebarPanel({
                 <div style={{ display:"flex", gap:12, alignItems:"center" }}>
                   <span style={{ fontSize:10, color:hubberYearColor(cmpA, displayYears), fontWeight:700 }}>━ {cmpA}</span>
                   <span style={{ fontSize:10, color:hubberYearColor(cmpB, displayYears), fontWeight:700 }}>━ {cmpB}</span>
-                  <span style={{ fontSize:10, color:"#9CA3AF" }}>
+                  <span style={{ fontSize:10, color:"#E4E4E4" }}>
                     Δ {(((data.yearTotals[cmpB]??0)-(data.yearTotals[cmpA]??0))/(data.yearTotals[cmpA]??1)*100).toFixed(0)}%
                   </span>
                 </div>
@@ -1247,9 +1225,9 @@ function HubberSidebarPanel({
                 {isComparing ? (
                   <LineChart data={cmpData} margin={{ top:4, right:8, left:-12, bottom:0 }}>
                     <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
-                    <XAxis dataKey="m" tick={{ fontSize:9, fill:"#6B7280" }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
-                    <Tooltip contentStyle={{ background:"#fff", border:"1px solid #DCDCD2", borderRadius:8, fontSize:11 }} formatter={(v:number,name:string)=>[fmtK(v), name===`a`?cmpA:cmpB]}/>
+                    <XAxis dataKey="m" tick={{ fontSize:9, fill:"#E4E4E4" }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fontSize:9, fill:"#E4E4E4" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
+                    <Tooltip contentStyle={{ background:"#fff", border:"1px solid #2B4559", borderRadius:8, fontSize:11 }} formatter={(v:number,name:string)=>[fmtK(v), name===`a`?cmpA:cmpB]}/>
                     <Legend formatter={(value:string)=>value===`a`?cmpA:cmpB} wrapperStyle={{ fontSize:11 }}/>
                     <Line type="monotone" dataKey="a" name="a" stroke={hubberYearColor(cmpA, displayYears)} strokeWidth={2.5} dot={{ r:3, fill:hubberYearColor(cmpA, displayYears), strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
                     <Line type="monotone" dataKey="b" name="b" stroke={hubberYearColor(cmpB, displayYears)} strokeWidth={2.5} dot={{ r:3, fill:hubberYearColor(cmpB, displayYears), strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
@@ -1257,9 +1235,9 @@ function HubberSidebarPanel({
                 ) : (
                   <BarChart data={yearBarData} margin={{ top:4, right:8, left:-12, bottom:0 }}>
                     <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
-                    <XAxis dataKey="year" tick={{ fontSize:9, fill:"#6B7280" }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
-                    <Tooltip contentStyle={{ background:"#fff", border:"1px solid #DCDCD2", borderRadius:8, fontSize:11 }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
+                    <XAxis dataKey="year" tick={{ fontSize:9, fill:"#E4E4E4" }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fontSize:9, fill:"#E4E4E4" }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
+                    <Tooltip contentStyle={{ background:"#fff", border:"1px solid #2B4559", borderRadius:8, fontSize:11 }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
                     <Bar dataKey="total" radius={[4,4,0,0]} isAnimationActive={true} animationDuration={600}>
                       {yearBarData.map((entry, _idx) => (
                         <Cell key={entry.year} fill={hubberYearColor(entry.year, displayYears)} />
@@ -1274,7 +1252,7 @@ function HubberSidebarPanel({
                   {yearBarData.map(d=>(
                     <div key={d.year} style={{ display:"flex", alignItems:"center", gap:3 }}>
                       <div style={{ width:8, height:8, borderRadius:2, background:hubberYearColor(d.year, displayYears), flexShrink:0 }}/>
-                      <span style={{ fontSize:9, fontWeight:600, color:"#6B7280" }}>{d.year}</span>
+                      <span style={{ fontSize:9, fontWeight:600, color:"#E4E4E4" }}>{d.year}</span>
                     </div>
                   ))}
                 </div>
@@ -1286,15 +1264,15 @@ function HubberSidebarPanel({
           <div style={{ flex:1, overflowY:"auto", overflowX:"auto" }}>
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11.5 }}>
               <thead style={{ position:"sticky", top:0, zIndex:2 }}>
-                <tr style={{ background:"#F0F0E8" }}>
-                  <th style={{ textAlign:"left", padding:"9px 16px", borderBottom:"2px solid #DCDCD2", color:"#374151", fontWeight:700, minWidth:80, whiteSpace:"nowrap" as const }}>Місяць</th>
+                <tr style={{ background:"#0B0B0B" }}>
+                  <th style={{ textAlign:"left", padding:"9px 16px", borderBottom:"2px solid #2B4559", color:"#E4E4E4", fontWeight:700, minWidth:80, whiteSpace:"nowrap" as const }}>Місяць</th>
                   {displayYears.map(y=>{
                     const isBest = y===bestYear;
                     const isSel = y===selYear;
                     return (
                       <th key={y} onClick={()=>setSelYear(y)} style={{
-                        padding:"9px 11px", borderBottom:"2px solid #DCDCD2",
-                        color: isSel?hubberYearColor(y, displayYears):isBest?"#B8860B":"#374151",
+                        padding:"9px 11px", borderBottom:"2px solid #2B4559",
+                        color: isSel?hubberYearColor(y, displayYears):isBest?"#B8860B":"#E4E4E4",
                         fontWeight: isSel||isBest?800:600,
                         textAlign:"right" as const, minWidth:72, cursor:"pointer",
                         background: isBest?"rgba(184,134,11,0.07)":"transparent",
@@ -1304,17 +1282,17 @@ function HubberSidebarPanel({
                       </th>
                     );
                   })}
-                  <th style={{ padding:"9px 11px", borderBottom:"2px solid #DCDCD2", color:"#0052FF", fontWeight:700, textAlign:"right" as const, minWidth:72, whiteSpace:"nowrap" as const }}>
-                    LFL %<br/><span style={{ fontSize:9, fontWeight:400, color:"#6B7280" }}>{selYear} / {String(+selYear-1)}</span>
+                  <th style={{ padding:"9px 11px", borderBottom:"2px solid #2B4559", color:"#2B4559", fontWeight:700, textAlign:"right" as const, minWidth:72, whiteSpace:"nowrap" as const }}>
+                    LFL %<br/><span style={{ fontSize:9, fontWeight:400, color:"#E4E4E4" }}>{selYear} / {String(+selYear-1)}</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {data.months.map((m,i)=>(
-                  <tr key={m} style={{ background: i%2===0?"#FFFFFF":"#F9F9F4" }}>
+                  <tr key={m} style={{ background: i%2===0?"#0B0B0B":"#0B0B0B" }}>
                     <td
                       onClick={()=>setDrillMonth(m)}
-                      style={{ padding:"7px 16px", color:"#374151", fontWeight:500, borderBottom:"1px solid #F0F0E8", whiteSpace:"nowrap" as const, cursor:"pointer", userSelect:"none" as const }}
+                      style={{ padding:"7px 16px", color:"#E4E4E4", fontWeight:500, borderBottom:"1px solid #0B0B0B", whiteSpace:"nowrap" as const, cursor:"pointer", userSelect:"none" as const }}
                       title="Клікніть для деталей"
                     >
                       <span style={{ borderBottom:"1px dashed #9CA3AF" }}>{m}</span>
@@ -1332,9 +1310,9 @@ function HubberSidebarPanel({
                         : isSel
                           ? (i%2===0?"rgba(0,82,255,0.05)":"rgba(0,82,255,0.09)")
                           : heatBg;
-                      const cellColor = val===0?"#C0C0B8":isSel?hubberYearColor(y, displayYears):isCmpA?hubberYearColor(cmpA, displayYears):isCmpB?hubberYearColor(cmpB, displayYears):isBest?"#8B6914":"#0A0A0A";
+                      const cellColor = val===0?"#C0C0B8":isSel?hubberYearColor(y, displayYears):isCmpA?hubberYearColor(cmpA, displayYears):isCmpB?hubberYearColor(cmpB, displayYears):isBest?"#8B6914":"#0B0B0B";
                       return (
-                        <td key={y} style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #F0F0E8", fontWeight:val>0?(isSel||isBest?700:500):400, color:cellColor, background:cellBg }}>
+                        <td key={y} style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #0B0B0B", fontWeight:val>0?(isSel||isBest?700:500):400, color:cellColor, background:cellBg }}>
                           {val>0 ? fmtK(val) : "—"}
                         </td>
                       );
@@ -1343,9 +1321,9 @@ function HubberSidebarPanel({
                       const prevY = String(+selYear-1);
                       const curr = data.values[selYear]?.[m]??0;
                       const prev = data.values[prevY]?.[m]??0;
-                      if (prev===0) return <td key="lfl" style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #F0F0E8", color:"#C0C0B8" }}>—</td>;
+                      if (prev===0) return <td key="lfl" style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #0B0B0B", color:"#C0C0B8" }}>—</td>;
                       const pct = ((curr-prev)/prev)*100;
-                      return <td key="lfl" style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #F0F0E8", fontWeight:700, color:pct>=0?"#16A34A":"#FF4D4D", background:i%2===0?"rgba(0,82,255,0.02)":"rgba(0,82,255,0.04)" }}>
+                      return <td key="lfl" style={{ padding:"7px 11px", textAlign:"right" as const, borderBottom:"1px solid #0B0B0B", fontWeight:700, color:pct>=0?"#16A34A":"#FF4D4D", background:i%2===0?"rgba(0,82,255,0.02)":"rgba(0,82,255,0.04)" }}>
                         {pct>=0?"+":""}{pct.toFixed(0)}%
                       </td>;
                     })()}
@@ -1353,14 +1331,14 @@ function HubberSidebarPanel({
                 ))}
               </tbody>
               <tfoot>
-                <tr style={{ background:"#F0F0E8", borderTop:"2px solid #DCDCD2" }}>
-                  <td style={{ padding:"9px 16px", fontWeight:800, color:"#0052FF", fontSize:12, whiteSpace:"nowrap" as const }}>Всього</td>
+                <tr style={{ background:"#0B0B0B", borderTop:"2px solid #2B4559" }}>
+                  <td style={{ padding:"9px 16px", fontWeight:800, color:"#2B4559", fontSize:12, whiteSpace:"nowrap" as const }}>Всього</td>
                   {displayYears.map(y=>{
                     const total = data.yearTotals[y]??Object.values(data.values[y]??{}).reduce((a,b)=>a+b,0);
                     const isBest = y===bestYear;
                     const isSel = y===selYear;
                     return (
-                      <td key={y} style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:isBest?"#B8860B":isSel?"#0052FF":"#374151", background:isBest?"rgba(184,134,11,0.1)":isSel?"rgba(0,82,255,0.08)":"transparent" }}>
+                      <td key={y} style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:isBest?"#B8860B":isSel?"#2B4559":"#E4E4E4", background:isBest?"rgba(184,134,11,0.1)":isSel?"rgba(0,82,255,0.08)":"transparent" }}>
                         {total>0?fmtK(total):"—"}
                       </td>
                     );
@@ -1369,7 +1347,7 @@ function HubberSidebarPanel({
                     const prevY = String(+selYear-1);
                     const curr = data.yearTotals[selYear]??Object.values(data.values[selYear]??{}).reduce((a,b)=>a+b,0);
                     const prev = data.yearTotals[prevY]??Object.values(data.values[prevY]??{}).reduce((a,b)=>a+b,0);
-                    if (prev===0) return <td key="lfl" style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:"#9CA3AF" }}>—</td>;
+                    if (prev===0) return <td key="lfl" style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:"#E4E4E4" }}>—</td>;
                     const pct = ((curr-prev)/prev)*100;
                     return <td key="lfl" style={{ padding:"9px 11px", textAlign:"right" as const, fontWeight:800, fontSize:12, color:pct>=0?"#16A34A":"#FF4D4D" }}>
                       {pct>=0?"+":""}{pct.toFixed(0)}%
@@ -1392,14 +1370,14 @@ function HubberSidebarPanel({
       onClick={e=>{ if(e.target===e.currentTarget) setDrillMonth(null); }}
       style={{ position:"fixed", inset:0, zIndex:999999, background:"rgba(5,5,20,0.5)", backdropFilter:"blur(4px)", WebkitBackdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"4vh 4vw" }}
     >
-      <div style={{ background:"#F0F0E8", borderRadius:14, width:"min(560px,90vw)", maxHeight:"70vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,0.32)", overflow:"hidden" }}>
+      <div style={{ background:"#0B0B0B", borderRadius:14, width:"min(560px,90vw)", maxHeight:"70vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,0.32)", overflow:"hidden" }}>
         {/* header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 22px 12px", borderBottom:"1px solid #DCDCD2", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 22px 12px", borderBottom:"1px solid #2B4559", flexShrink:0 }}>
           <div>
-            <div style={{ fontSize:17, fontWeight:800, color:"#0A0A0A", letterSpacing:"-0.03em" }}>📅 {drillMonth} — усі роки</div>
-            <div style={{ fontSize:10, color:"#6B7280", marginTop:2 }}>Порівняння цього місяця за роками</div>
+            <div style={{ fontSize:17, fontWeight:800, color:"#E4E4E4", letterSpacing:"-0.03em" }}>📅 {drillMonth} — усі роки</div>
+            <div style={{ fontSize:10, color:"#E4E4E4", marginTop:2 }}>Порівняння цього місяця за роками</div>
           </div>
-          <button onClick={()=>setDrillMonth(null)} style={{ background:"#0A0A0A", border:"none", borderRadius:8, cursor:"pointer", color:"#fff", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <button onClick={()=>setDrillMonth(null)} style={{ background:"#0B0B0B", border:"none", borderRadius:8, cursor:"pointer", color:"#fff", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center" }}>
             <X size={13}/>
           </button>
         </div>
@@ -1408,7 +1386,7 @@ function HubberSidebarPanel({
           {(() => {
             const rows = displayYears.map(y=>({ y, v:data.values[y]?.[drillMonth]??0 })).filter(r=>r.v>0);
             const maxV = rows.reduce((m,r)=>Math.max(m,r.v),0)||1;
-            if (rows.length===0) return <div style={{ color:"#9CA3AF", fontSize:13, textAlign:"center", padding:"24px 0" }}>Немає даних за цей місяць</div>;
+            if (rows.length===0) return <div style={{ color:"#E4E4E4", fontSize:13, textAlign:"center", padding:"24px 0" }}>Немає даних за цей місяць</div>;
             return (
               <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
                 {rows.map(({y,v})=>{
@@ -1460,13 +1438,13 @@ function HubberSidebarPanel({
 
         {!data ? (
           <>
-            {err && <div style={{ fontSize:9, color:t.dark?"#E29578":"#FF4D4D", marginBottom:6 }}>{err}</div>}
+            {err && <div style={{ fontSize:9, color:"#E29578", marginBottom:6 }}>{err}</div>}
             <button
               onClick={()=>inputRef.current?.click()}
               disabled={loading}
               style={{
                 width:"100%", padding:"5px 8px", borderRadius:6,
-                background:"transparent", border:`1px solid ${t.dark?"rgba(255,255,255,0.15)":t.border}`,
+                background:"transparent", border:`1px solid ${"rgba(255,255,255,0.15)"}`,
                 color:t.sub, fontSize:10, fontWeight:600, cursor:loading?"wait":"pointer",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:5,
                 transition:"background 0.15s ease",
@@ -1509,7 +1487,7 @@ function HubberSidebarPanel({
               title="Замінити збережені дані новим файлом"
               style={{
                 width:"100%", marginTop:5, padding:"4px 8px", borderRadius:5,
-                background:"transparent", border:`1px solid ${t.dark?"rgba(255,255,255,0.1)":t.border}`,
+                background:"transparent", border:`1px solid ${"rgba(255,255,255,0.1)"}`,
                 color:t.dim, fontSize:9, fontWeight:600, cursor:loading?"wait":"pointer",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:4,
                 opacity:0.75, transition:"opacity 0.15s ease",
@@ -1544,7 +1522,7 @@ function detectWarehouseBrand(productName: string): string {
 interface SkladItem { product: string; qty: number; price: number; brand: string }
 
 /* ─── InventorySkladPanel — СКЛАД sidebar button + portal modal ─ */
-function InventorySkladPanel({ t }: { t: T }) {
+function InventorySkladPanel({ t: _t }: { t: T }) { void _t;
   const [open, setOpen] = React.useState(false);
   const [skladItems, setSkladItems] = React.useState<SkladItem[]>([]);
   const [searchQ, setSearchQ] = React.useState("");
@@ -1602,13 +1580,13 @@ function InventorySkladPanel({ t }: { t: T }) {
       onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}
       style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(0,10,30,0.7)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"3vh 3vw" }}
     >
-      <div style={{ background:t.dark?"#1A1A1B":"#F0F0E8", borderRadius:6, width:"90vw", maxWidth:1100, maxHeight:"88vh", display:"flex", flexDirection:"column", overflow:"hidden", border:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}` }}>
+      <div style={{ background:"#0B0B0B", borderRadius:6, width:"90vw", maxWidth:1100, maxHeight:"88vh", display:"flex", flexDirection:"column", overflow:"hidden", border:`1px solid ${"#2B4559"}` }}>
 
         {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 28px 16px", borderBottom:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}`, flexShrink:0, background:t.dark?"#222223":"#fff" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 28px 16px", borderBottom:`1px solid ${"#2B4559"}`, flexShrink:0, background:"#0B0B0B" }}>
           <div>
             <div style={{ fontSize:20, fontWeight:800, color:"#EF4444", letterSpacing:"-0.03em" }}>📦 СКЛАД — Залишки товарів</div>
-            <div style={{ fontSize:11, color:t.dark?"#6B8FA3":"#6B7280", marginTop:2 }}>Інвентаризація по брендах та товарах</div>
+            <div style={{ fontSize:11, color:"#6B8FA3", marginTop:2 }}>Інвентаризація по брендах та товарах</div>
           </div>
           <button onClick={()=>setOpen(false)} style={{ background:"#EF4444", border:"none", borderRadius:4, cursor:"pointer", color:"#fff", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }} title="Закрити">
             <X size={16}/>
@@ -1616,28 +1594,28 @@ function InventorySkladPanel({ t }: { t: T }) {
         </div>
 
         {/* Stats bar */}
-        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}`, flexShrink:0, background:t.dark?"#1E1E1F":"#FFFFFF" }}>
+        <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${"#2B4559"}`, flexShrink:0, background:"#0B0B0B" }}>
           {[
             { label:"Всього одиниць", value:totalItems.toLocaleString("uk-UA"), color:"#EF4444" },
             { label:"Брендів", value:String(brands.length), color:"#FF4444" },
             { label:"Позицій товарів", value:String(totalPositions), color:"#FF6666" },
             { label:"Загальна вартість", value:`${totalValue.toLocaleString("uk-UA")} ₴`, color:"#EF4444" },
           ].map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"12px 20px", borderRight:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}` }}>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:t.dark?"#6B8FA3":"#9CA3AF", marginBottom:3 }}>{s.label}</div>
+            <div key={i} style={{ flex:1, padding:"12px 20px", borderRight:`1px solid ${"#2B4559"}` }}>
+              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase" as const, color:"#6B8FA3", marginBottom:3 }}>{s.label}</div>
               <div style={{ fontSize:16, fontWeight:800, color:s.color, letterSpacing:"-0.02em" }}>{s.value}</div>
             </div>
           ))}
         </div>
 
         {/* Search + upload */}
-        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 20px 8px", borderBottom:`1px solid ${t.dark?"#2D2D2E":"#DCDCD2"}`, flexShrink:0 }}>
-          <div style={{ flex:1, display:"flex", alignItems:"center", gap:6, background:t.dark?"rgba(255,255,255,0.05)":"#fff", borderRadius:8, padding:"4px 10px", border:`1px solid ${t.dark?"rgba(255,255,255,0.08)":"#E5E7EB"}` }}>
-            <Search size={12} style={{ color:t.dark?"#6B8FA3":"#9CA3AF", flexShrink:0 }}/>
+        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 20px 8px", borderBottom:`1px solid ${"#2B4559"}`, flexShrink:0 }}>
+          <div style={{ flex:1, display:"flex", alignItems:"center", gap:6, background:"rgba(255,255,255,0.05)", borderRadius:8, padding:"4px 10px", border:`1px solid ${"rgba(255,255,255,0.08)"}` }}>
+            <Search size={12} style={{ color:"#6B8FA3", flexShrink:0 }}/>
             <input
               value={searchQ} onChange={e=>setSearchQ(e.target.value)}
               placeholder="Пошук за назвою або брендом..."
-              style={{ border:"none", outline:"none", background:"transparent", color:t.dark?"#fff":"#111827", fontSize:12, width:"100%", fontFamily:"inherit" }}
+              style={{ border:"none", outline:"none", background:"transparent", color:"#fff", fontSize:12, width:"100%", fontFamily:"inherit" }}
             />
           </div>
           <input ref={skladRef} type="file" accept=".csv,.xlsx,.xls" style={{ display:"none" }} onChange={e=>{ const f=e.target.files?.[0]; if(f) handleSkladFile(f); if(skladRef.current) skladRef.current.value=""; }}/>
@@ -1649,19 +1627,19 @@ function InventorySkladPanel({ t }: { t: T }) {
         {/* Content */}
         <div style={{ flex:1, overflow:"auto", padding:"16px 20px" }}>
           {skladItems.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"60px 20px", color:t.dark?"#6B8FA3":"#9CA3AF" }}>
+            <div style={{ textAlign:"center", padding:"60px 20px", color:"#6B8FA3" }}>
               <HardDrive size={40} style={{ marginBottom:12, opacity:0.4 }}/>
-              <div style={{ fontSize:14, fontWeight:700, marginBottom:6, color:t.dark?"#fff":"#111827" }}>Немає даних складу</div>
+              <div style={{ fontSize:14, fontWeight:700, marginBottom:6, color:"#fff" }}>Немає даних складу</div>
               <div style={{ fontSize:12, marginBottom:16 }}>Завантажте файл Склад.csv або .xlsx (Колонка A — товар, B — кількість, D — ціна)</div>
               <button onClick={()=>skladRef.current?.click()} style={{ padding:"8px 20px", borderRadius:8, border:"none", background:"#EF4444", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                 <Upload size={12} style={{ marginRight:6, verticalAlign:"middle" }}/> Обрати файл
               </button>
             </div>
           ) : (
-            <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${t.dark?"#2D2D2E":"#E5E7EB"}` }}>
+            <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${"#2B4559"}` }}>
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                 <thead>
-                  <tr style={{ background:t.dark?"#222223":"#F9FAFB" }}>
+                  <tr style={{ background:"#0B0B0B" }}>
                     <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Бренд</th>
                     <th style={{ textAlign:"left", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Товар / SKU</th>
                     <th style={{ textAlign:"right", padding:"10px 14px", fontWeight:700, color:"#EF4444", fontSize:10, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Кількість</th>
@@ -1676,20 +1654,20 @@ function InventorySkladPanel({ t }: { t: T }) {
                       const bi = WAREHOUSE_BRANDS.indexOf(item.brand as typeof WAREHOUSE_BRANDS[number]);
                       const clr = MASTER_BLUE[bi >= 0 ? bi % MASTER_BLUE.length : 5];
                       return (
-                        <tr key={`${item.brand}-${item.product}-${i}`} style={{ borderTop:`1px solid ${t.dark?"rgba(255,255,255,0.04)":"#F3F4F6"}`, background:i%2===0?"transparent":t.dark?"rgba(255,255,255,0.01)":"#FAFAFA" }}>
+                        <tr key={`${item.brand}-${item.product}-${i}`} style={{ borderTop:`1px solid ${"rgba(255,255,255,0.04)"}`, background:i%2===0?"transparent":"rgba(255,255,255,0.01)" }}>
                           <td style={{ padding:"8px 14px" }}>
                             <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, background:`${clr}18`, color:clr }}>{item.brand}</span>
                           </td>
-                          <td style={{ padding:"8px 14px", color:t.dark?"#E5E7EB":"#111827", fontWeight:500, maxWidth:340, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{item.product}</td>
-                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:t.dark?"#fff":"#111827" }}>{item.qty.toLocaleString("uk-UA")}</td>
-                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:600, color:t.dark?"#D1D5DB":"#374151" }}>{item.price.toLocaleString("uk-UA")}</td>
+                          <td style={{ padding:"8px 14px", color:"#E5E7EB", fontWeight:500, maxWidth:340, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{item.product}</td>
+                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:"#fff" }}>{item.qty.toLocaleString("uk-UA")}</td>
+                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:600, color:"#D1D5DB" }}>{item.price.toLocaleString("uk-UA")}</td>
                           <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:"#EF4444" }}>{(item.qty * item.price).toLocaleString("uk-UA")}</td>
                         </tr>
                       );
                     })}
                 </tbody>
                 <tfoot>
-                  <tr style={{ borderTop:`2px solid ${t.dark?"#2D2D2E":"#E5E7EB"}`, background:t.dark?"#222223":"#FEF2F2" }}>
+                  <tr style={{ borderTop:`2px solid ${"#2B4559"}`, background:"#0B0B0B" }}>
                     <td colSpan={2} style={{ padding:"12px 14px", fontWeight:800, fontSize:13, color:"#EF4444", letterSpacing:"0.02em" }}>РАЗОМ НА СКЛАДІ</td>
                     <td style={{ padding:"12px 14px", textAlign:"right", fontWeight:800, fontSize:13, color:"#EF4444" }}>{totalItems.toLocaleString("uk-UA")}</td>
                     <td style={{ padding:"12px 14px" }}/>
@@ -1769,7 +1747,7 @@ function MktLogo({ brand, size = 16 }: { brand: string; size?: number }) {
     </svg>
   );
   return (
-    <div style={{ width:s, height:s, borderRadius:"50%", background:"#0052FF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:Math.round(s*0.55), fontWeight:700, color:"#ffffff", flexShrink:0 }}>
+    <div style={{ width:s, height:s, borderRadius:"50%", background:"#2B4559", display:"flex", alignItems:"center", justifyContent:"center", fontSize:Math.round(s*0.55), fontWeight:700, color:"#ffffff", flexShrink:0 }}>
       {brand.charAt(0)}
     </div>
   );
@@ -1921,9 +1899,9 @@ function Chip({ label, active, onClick, t, variant = "default", logo }: {
 }) {
   const [hovered, setHovered] = useState(false);
 
-  const metaInactiveColor  = t.dark ? "rgba(100,160,255,0.10)" : "rgba(30,100,220,0.07)";
-  const metaBorderInactive = t.dark ? "rgba(100,160,255,0.22)" : "rgba(30,100,220,0.20)";
-  const metaTextInactive   = t.dark ? "#7ab4ff" : "#3a7bd5";
+  const metaInactiveColor  = "rgba(100,160,255,0.10)";
+  const metaBorderInactive = "rgba(100,160,255,0.22)";
+  const metaTextInactive   = "#7ab4ff";
 
   let bg: string, border: string, color: string, shadow: string;
   if (active) {
@@ -1938,9 +1916,9 @@ function Chip({ label, active, onClick, t, variant = "default", logo }: {
     shadow = "none";
   } else {
     bg     = hovered
-      ? (t.dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)")
+      ? ("rgba(255,255,255,0.07)")
       : "transparent";
-    border = t.dark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.14)";
+    border = "rgba(255,255,255,0.16)";
     color  = t.sub;
     shadow = "none";
   }
@@ -1979,7 +1957,7 @@ function Chip({ label, active, onClick, t, variant = "default", logo }: {
 function TipBox({ active, payload, label, t }: { active?:boolean; payload?:{value:number;name:string;color:string}[]; label?:string; t:T }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background:t.dark?"rgba(4,6,14,0.97)":"#fff", border:`1px solid ${t.border}`, borderRadius:10, padding:"10px 16px" }}>
+    <div style={{ background:"rgba(4,6,14,0.97)", border:`1px solid ${t.border}`, borderRadius:10, padding:"10px 16px" }}>
       <p style={{ color:t.dim, fontSize:11, marginBottom:6 }}>{label}</p>
       {payload.map((p,i)=><p key={i} style={{ color:p.color, fontSize:13, fontWeight:600, margin:"2px 0" }}>{p.name}: {fmt(p.value)}</p>)}
     </div>
@@ -2000,12 +1978,12 @@ function getReasonAdvice(reason: string) {
 }
 
 /* ─── Persistence helpers ──────────────────────────────────────── */
-function readFiltersCache(): { brandFilter:string; monthFilter:string; companyFilter:string; yearFilter:string; hubberQYear:string; darkMode:boolean } {
+function readFiltersCache(): { brandFilter:string; monthFilter:string; companyFilter:string; yearFilter:string; hubberQYear:string } {
   try {
     const s = localStorage.getItem(FILTERS_KEY);
-    if (s) return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:true, ...JSON.parse(s) };
+    if (s) return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", ...JSON.parse(s) };
   } catch {}
-  return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:true };
+  return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025" };
 }
 function readHubberCache(): HubberQuick|null {
   try {
@@ -2033,12 +2011,11 @@ export default function Dashboard() {
   const [brandsOpen,  setBrandsOpen]  = useState(false);
   const [hubberQuick, setHubberQuick] = useState<HubberQuick|null>(readHubberCache);
   const [hubberQYear, setHubberQYear] = useState(()=>_fc.hubberQYear);
-  const [darkMode,    setDarkMode]    = useState(()=>_fc.darkMode);
   const [rejTooltip,  setRejTooltip]  = useState<{ reason:string; rect:DOMRect } | null>(null);
   const [cityFilter,  setCityFilter]  = useState<string|null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const t = darkMode ? DK : LT;
+  const t = DK;
 
   /* ── Memoize the glass base style — only recomputes when theme changes ── */
   const glassBase = useMemo(() => glass(t), [t]);
@@ -2076,9 +2053,9 @@ export default function Dashboard() {
   /* ── localStorage save — filters & prefs ── */
   useEffect(() => {
     try {
-      localStorage.setItem(FILTERS_KEY, JSON.stringify({ brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear, darkMode }));
+      localStorage.setItem(FILTERS_KEY, JSON.stringify({ brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear }));
     } catch { /* ignore */ }
-  }, [brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear, darkMode]);
+  }, [brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear]);
 
   /* ── file processing ── */
   function processFile(file: File) {
@@ -2774,7 +2751,7 @@ export default function Dashboard() {
     <div style={{ background:t.bg, minHeight:"100vh", fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
 
       {/* ── Professional Trading Terminal navbar ─────────────────── */}
-      <div style={{ background:"#1A1A1B", borderBottom:"1px solid #2D2D2E", padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100 }}>
+      <div style={{ background:"#0B0B0B", borderBottom:"1px solid #2B4559", padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100 }}>
         {/* Left: Brand + Nav */}
         <div style={{ display:"flex", alignItems:"center", gap:20 }}>
           {fileData && (
@@ -2783,44 +2760,41 @@ export default function Dashboard() {
             </button>
           )}
           <div style={{ display:"flex", alignItems:"baseline", gap:5 }}>
-            <span style={{ color:"#FFFFFF", fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', monospace" }}>SOLANA</span>
-            <span style={{ color:"#2D2D2E", fontSize:13, fontWeight:400 }}>|</span>
-            <span style={{ color:"#3B82F6", fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', monospace" }}>CORE</span>
+            <span style={{ color:"#E4E4E4", fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', monospace" }}>SOLANA</span>
+            <span style={{ color:"#2B4559", fontSize:13, fontWeight:400 }}>|</span>
+            <span style={{ color:"#2B4559", fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', monospace" }}>CORE</span>
           </div>
           <div className="ethena-nav-links" style={{ display:"flex", alignItems:"center", gap:2 }}>
             {["Dashboards","Earn","Swap","Rewards"].map((n,i) => (
-              <button key={n} style={{ padding:"5px 12px", borderRadius:4, background:i===0?"#2D2D2E":"transparent", border:"none", color:i===0?"#3B82F6":"#6B7280", fontSize:11, fontWeight:i===0?700:500, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace" }}>{n}</button>
+              <button key={n} style={{ padding:"5px 12px", borderRadius:4, background:i===0?"#2B4559":"transparent", border:"none", color:i===0?"#2B4559":"#E4E4E4", fontSize:11, fontWeight:i===0?700:500, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace" }}>{n}</button>
             ))}
           </div>
         </div>
         {/* Right: Actions */}
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2D2D2E" }}>
-            <span style={{ fontSize:9, fontWeight:700, color:"#6B7280", letterSpacing:"0.06em" }}>TVL</span>
+          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2B4559" }}>
+            <span style={{ fontSize:9, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.06em" }}>TVL</span>
             <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace" }}>$5.4B</span>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2D2D2E" }}>
-            <span style={{ fontSize:9, fontWeight:700, color:"#6B7280", letterSpacing:"0.06em" }}>APY</span>
-            <span style={{ fontSize:11, fontWeight:800, color:"#3B82F6", fontFamily:"'JetBrains Mono', monospace" }}>19.3%</span>
+          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:"1px solid #2B4559" }}>
+            <span style={{ fontSize:9, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.06em" }}>APY</span>
+            <span style={{ fontSize:11, fontWeight:800, color:"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>19.3%</span>
           </div>
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
-              style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 9px", borderRadius:4, border:"1px solid #2D2D2E" }}>
+              style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 9px", borderRadius:4, border:"1px solid #2B4559" }}>
               <HardDrive size={11} style={{ color:"#22C55E" }}/>
               <span style={{ fontSize:10, fontWeight:700, color:"#22C55E", letterSpacing:"0.03em" }}>Збережено</span>
             </div>
           )}
           {fileData && (
-            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:4, background:"transparent", border:"1px solid #2D2D2E", color:"#6B7280", fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', monospace" }}><X size={11} /> Скинути</button>
+            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:4, background:"transparent", border:"1px solid #2B4559", color:"#E4E4E4", fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', monospace" }}><X size={11} /> Скинути</button>
           )}
-          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:"#3B82F6", color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>
+          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:"#2B4559", color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>
             <Upload size={12} /> Генерація звіту
           </button>
-          <button onClick={()=>setDarkMode(!darkMode)} style={{ width:32, height:32, borderRadius:4, background:"transparent", border:"1px solid #2D2D2E", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#6B7280" }}>
-            {darkMode?<Sun size={13}/>:<Moon size={13}/>}
-          </button>
-          <button style={{ padding:"6px 14px", borderRadius:4, background:"transparent", border:"1px solid #2D2D2E", color:"#3B82F6", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace", display:"flex", alignItems:"center", gap:5 }}>
-            <span style={{ width:6, height:6, borderRadius:"50%", background:"#3B82F6" }}/>
+          <button style={{ padding:"6px 14px", borderRadius:4, background:"transparent", border:"1px solid #2B4559", color:"#2B4559", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace", display:"flex", alignItems:"center", gap:5 }}>
+            <span style={{ width:6, height:6, borderRadius:"50%", background:"#2B4559" }}/>
             Connect Wallet
           </button>
         </div>
@@ -2839,8 +2813,8 @@ export default function Dashboard() {
           const st: T = t;
           return (
           <nav className={`orbit-sidebar${sidebarOpen ? " sidebar-open" : ""}`} style={{
-            background: t.dark ? "#1A1A1B" : "#FFFFFF",
-            borderRight: `1px solid ${t.dark ? "#2D2D2E" : "#E2E8F0"}`,
+            background: "#0B0B0B",
+            borderRight: "1px solid #2B4559",
             padding: "14px 8px 36px",
             display:"flex", flexDirection:"column", gap:4,
           }}>
@@ -2848,10 +2822,10 @@ export default function Dashboard() {
             {/* Status indicator */}
             <div style={{
               padding:"9px 12px", borderRadius:4, marginBottom:8,
-              border:`1px solid ${t.dark ? "#2D2D2E" : "#E2E8F0"}`,
+              border:"1px solid #2B4559",
             }}>
-              <p style={{ fontSize:11, fontWeight:700, color:"#3B82F6", margin:0, fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.06em" }}>● Аналіз активний</p>
-              <p style={{ fontSize:10, color:t.dark ? st.dim : "#1A1A1B", margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
+              <p style={{ fontSize:11, fontWeight:700, color:"#2B4559", margin:0, fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.06em" }}>● Аналіз активний</p>
+              <p style={{ fontSize:10, color:"#E4E4E4", opacity:0.7, margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
             </div>
 
             {/* Marketplace — collapsible + 2-col icon grid */}
@@ -2976,16 +2950,16 @@ export default function Dashboard() {
             onDragLeave={()=>setIsDragging(false)}
             onDrop={handleDrop}
             onClick={()=>fileRef.current?.click()}
-            style={{ border:`1px dashed ${isDragging?"#3B82F6":"#2D2D2E"}`, borderRadius:6, padding:"90px 40px", display:"flex", flexDirection:"column", alignItems:"center", gap:20, cursor:"pointer", transition:"all 0.15s", background:isDragging?"#1E1E1F":"#222223" }}
+            style={{ border:`1px dashed ${isDragging?"#2B4559":"#2B4559"}`, borderRadius:6, padding:"90px 40px", display:"flex", flexDirection:"column", alignItems:"center", gap:20, cursor:"pointer", transition:"all 0.15s", background:isDragging?"#0B0B0B":"#0B0B0B" }}
           >
-                        <div style={{ width:64, height:64, borderRadius:6, border:"1px solid #2D2D2E", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <Upload size={26} style={{ color:"#3B82F6" }}/>
+                        <div style={{ width:64, height:64, borderRadius:6, border:"1px solid #2B4559", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Upload size={26} style={{ color:"#2B4559" }}/>
             </div>
             <div style={{ textAlign:"center" }}>
               <p style={{ color:t.text, fontSize:18, fontWeight:800, margin:0, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажте дані звітності</p>
-              <p style={{ color:"#6B7280", fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
+              <p style={{ color:"#E4E4E4", fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
             </div>
-            <div style={{ padding:"9px 28px", background:"#3B82F6", borderRadius:4, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажити дані</div>
+            <div style={{ padding:"9px 28px", background:"#2B4559", borderRadius:4, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажити дані</div>
           </div>
         )}
 
@@ -2994,21 +2968,21 @@ export default function Dashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
 
             {/* ── TERMINAL HEADER ──────────────────────────────── */}
-            <div className="orbit-fadein" style={{ marginBottom:4, paddingBottom:18, borderBottom:"1px solid #2D2D2E" }}>
+            <div className="orbit-fadein" style={{ marginBottom:4, paddingBottom:18, borderBottom:"1px solid #2B4559" }}>
               <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
                 <div>
-                  <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:"#3B82F6", fontFamily:"'JetBrains Mono', monospace" }}>
+                  <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>
                     Solana Analytics Terminal
                   </p>
                   <h1 style={{ margin:0, fontSize:"clamp(22px, 2.2vw, 32px)", fontWeight:800, letterSpacing:"-0.02em", lineHeight:1.12, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>
-                    A global business, <span style={{ color:"#3B82F6" }}>built on data</span>
+                    A global business, <span style={{ color:"#2B4559" }}>built on data</span>
                   </h1>
-                  <p style={{ margin:"6px 0 0", fontSize:12, color:"#6B7280", fontWeight:400, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>
+                  <p style={{ margin:"6px 0 0", fontSize:12, color:"#E4E4E4", fontWeight:400, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>
                     Глобальний бізнес, побудований на даних · {kpi.orders.toLocaleString("uk-UA")} замовлень · {fmt(kpi.grossIncome)} ₴ виручки
                   </p>
                 </div>
                 {/* L I V E indicator */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px", borderRadius:4, border:"1px solid #2D2D2E", flexShrink:0, alignSelf:"center" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px", borderRadius:4, border:"1px solid #2B4559", flexShrink:0, alignSelf:"center" }}>
                   <span style={{ width:7, height:7, borderRadius:"50%", background:"#22C55E", flexShrink:0, animation:"pulse 2s infinite" }}/>
                   <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", letterSpacing:"0.35em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>L I V E</span>
                 </div>
@@ -3039,17 +3013,17 @@ export default function Dashboard() {
                 ? Math.min((hubberProj2026.ytd / hubberProj2026.bestTotal) * 100, 100)
                 : 0;
               return (
-                <div className="orbit-fadein" style={{ ...glassBase, padding:0, animationDelay:"60ms", overflow:"hidden", background:"#FFFFFF", border:"1px solid #E2E8F0" }}>
+                <div className="orbit-fadein" style={{ ...glassBase, padding:0, animationDelay:"60ms", overflow:"hidden", background:"#0B0B0B", border:"1px solid #2B4559" }}>
                   {/* Panel header */}
-                  <div style={{ padding:"16px 24px 12px", borderBottom:"1px solid #E2E8F0", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <div style={{ padding:"16px 24px 12px", borderBottom:"1px solid #2B4559", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ width:3, height:20, borderRadius:2, background:"#3B82F6" }}/>
+                      <div style={{ width:3, height:20, borderRadius:2, background:"#2B4559" }}/>
                       <div>
-                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:"#1A1A1B", fontFamily:"'JetBrains Mono', monospace" }}>Revenue Performance</div>
-                        <div style={{ fontSize:9, color:"#1A1A1B", marginTop:1, fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік · YTD vs Record</div>
+                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>Revenue Performance</div>
+                        <div style={{ fontSize:9, color:"#E4E4E4", marginTop:1, fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік · YTD vs Record</div>
                       </div>
                     </div>
-                    <div style={{ fontSize:9, padding:"3px 8px", borderRadius:3, background:"#3B82F614", color:"#3B82F6", fontWeight:700, letterSpacing:"0.06em", fontFamily:"'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize:9, padding:"3px 8px", borderRadius:3, background:"#2B455914", color:"#2B4559", fontWeight:700, letterSpacing:"0.06em", fontFamily:"'JetBrains Mono', monospace" }}>
                       {hubberProj2026.monthsIn}/12 міс.
                     </div>
                   </div>
@@ -3057,39 +3031,39 @@ export default function Dashboard() {
                   {/* Main metrics row */}
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:0 }}>
                     {/* YTD Fact */}
-                    <div style={{ padding:"16px 24px", borderRight:"1px solid #E2E8F0" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#1A1A1B", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:"#1A1A1B", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
-                      <div style={{ fontSize:9, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>{hubberProj2026.monthsIn} міс. даних</div>
+                    <div style={{ padding:"16px 24px", borderRight:"1px solid #2B4559" }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
+                      <div style={{ fontSize:24, fontWeight:800, color:"#E4E4E4", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
+                      <div style={{ fontSize:9, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>{hubberProj2026.monthsIn} міс. даних</div>
                     </div>
                     {/* Projected Year-End */}
-                    <div style={{ padding:"16px 24px", borderRight:"1px solid #E2E8F0" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#1A1A1B", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>Прогноз до кінця року</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:"#3B82F6", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(projectedYearEnd)} ₴</div>
-                      <div style={{ fontSize:9, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
+                    <div style={{ padding:"16px 24px", borderRight:"1px solid #2B4559" }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>Прогноз до кінця року</div>
+                      <div style={{ fontSize:24, fontWeight:800, color:"#2B4559", letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(projectedYearEnd)} ₴</div>
+                      <div style={{ fontSize:9, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
                     </div>
                     {/* vs Record */}
                     <div style={{ padding:"16px 24px" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#1A1A1B", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
-                      <div style={{ fontSize:24, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1, color:vsRec!==null?(vsRec>=0?"#22C55E":t.red):"#6B7280", fontFamily:"'JetBrains Mono', monospace" }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:"#E4E4E4", marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
+                      <div style={{ fontSize:24, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1, color:vsRec!==null?(vsRec>=0?"#22C55E":t.red):"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>
                         {vsRec!==null ? (vsRec>=0?"+":"")+vsRec.toFixed(1)+"%" : "—"}
                       </div>
-                      <div style={{ fontSize:9, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
+                      <div style={{ fontSize:9, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
                     </div>
                   </div>
 
                   {/* Progress bar: YTD vs Record */}
-                  <div style={{ padding:"12px 24px 16px", borderTop:"1px solid #E2E8F0" }}>
+                  <div style={{ padding:"12px 24px 16px", borderTop:"1px solid #2B4559" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                      <span style={{ fontSize:8, fontWeight:700, color:"#1A1A1B", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>YTD vs Record {hubberProj2026.bestYear}</span>
-                      <span style={{ fontSize:10, fontWeight:800, color:progressPct>=100?"#22C55E":"#3B82F6", fontFamily:"'JetBrains Mono', monospace" }}>{progressPct.toFixed(0)}%</span>
+                      <span style={{ fontSize:8, fontWeight:700, color:"#E4E4E4", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>YTD vs Record {hubberProj2026.bestYear}</span>
+                      <span style={{ fontSize:10, fontWeight:800, color:progressPct>=100?"#22C55E":"#2B4559", fontFamily:"'JetBrains Mono', monospace" }}>{progressPct.toFixed(0)}%</span>
                     </div>
-                    <div style={{ position:"relative", height:6, borderRadius:3, background:"#E2E8F0", overflow:"hidden" }}>
-                      <div style={{ width:`${progressPct}%`, height:"100%", borderRadius:3, background: progressPct>=100 ? "linear-gradient(90deg, #22C55E, #16A34A)" : "linear-gradient(90deg, #3B82F6, #2563EB)", transition:"width 0.8s ease" }}/>
+                    <div style={{ position:"relative", height:6, borderRadius:3, background:"#2B4559", overflow:"hidden" }}>
+                      <div style={{ width:`${progressPct}%`, height:"100%", borderRadius:3, background: progressPct>=100 ? "linear-gradient(90deg, #22C55E, #16A34A)" : "linear-gradient(90deg, #2B4559, #2563EB)", transition:"width 0.8s ease" }}/>
                     </div>
                     <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-                      <span style={{ fontSize:8, color:"#1A1A1B", fontFamily:"'JetBrains Mono', monospace" }}>0</span>
-                      <span style={{ fontSize:8, color:"#1A1A1B", fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
+                      <span style={{ fontSize:8, color:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>0</span>
+                      <span style={{ fontSize:8, color:"#E4E4E4", fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
                     </div>
                   </div>
                 </div>
@@ -3103,35 +3077,35 @@ export default function Dashboard() {
               const roiVal = kpi.logistics > 0 ? kpi.net / kpi.logistics : null;
               return (
             <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10, animationDelay:"65ms" }}>
-              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:"#1A1A1B" }}>LFL %</div>
-                <div style={{ ...KPI_NUM, color:lflPct!==null?(lflPct>=0?"#22C55E":"#EF4444"):"#6B7280", fontSize:28 }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#0B0B0B", border:"1px solid #2B4559", minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:"#E4E4E4" }}>LFL %</div>
+                <div style={{ ...KPI_NUM, color:lflPct!==null?(lflPct>=0?"#22C55E":"#EF4444"):"#E4E4E4", fontSize:28 }}>
                   {lflPct!==null ? (lflPct>=0?"+":"")+lflPct.toFixed(1)+"%" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>
+                <div style={{ fontSize:10, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>
                   {hubberLfl ? `vs ${hubberLfl.prevYear} · ${hubberLfl.monthName}` : prevKpi ? "vs попер. місяць" : "Немає даних"}
                 </div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:"#1A1A1B" }}>Margin %</div>
-                <div style={{ ...KPI_NUM, color:marginPct!==null?(marginPct>=0?"#3B82F6":"#EF4444"):"#6B7280", fontSize:28 }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#0B0B0B", border:"1px solid #2B4559", minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:"#E4E4E4" }}>Margin %</div>
+                <div style={{ ...KPI_NUM, color:marginPct!==null?(marginPct>=0?"#2B4559":"#EF4444"):"#E4E4E4", fontSize:28 }}>
                   {marginPct!==null ? marginPct.toFixed(1)+"%" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Чистий дохід / Виручка</div>
+                <div style={{ fontSize:10, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Чистий дохід / Виручка</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:kpi.debt>0?"#EF4444":"#1A1A1B" }}>Заборгованість</div>
+              <div style={{ ...KPI_CARD_BASE, background:"#0B0B0B", border:"1px solid #2B4559", minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:kpi.debt>0?"#EF4444":"#0B0B0B" }}>Заборгованість</div>
                 <div style={{ ...KPI_NUM, color:kpi.debt>0?"#EF4444":"#22C55E", fontSize:28 }}>
                   {kpi.debt > 0 ? "-"+fmtK(kpi.debt) : "0"}
                 </div>
-                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
+                <div style={{ fontSize:10, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
               </div>
-              <div style={{ ...KPI_CARD_BASE, background:"#FFFFFF", border:"1px solid #E2E8F0", minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:"#1A1A1B" }}>ROI / Sebe</div>
-                <div style={{ ...KPI_NUM, color:roiVal!==null?(roiVal>=0?"#3B82F6":"#EF4444"):"#6B7280", fontSize:28 }}>
+              <div style={{ ...KPI_CARD_BASE, background:"#0B0B0B", border:"1px solid #2B4559", minHeight:120 }}>
+                <div style={{ ...KPI_LABEL, color:"#E4E4E4" }}>ROI / Sebe</div>
+                <div style={{ ...KPI_NUM, color:roiVal!==null?(roiVal>=0?"#2B4559":"#EF4444"):"#E4E4E4", fontSize:28 }}>
                   {roiVal!==null ? roiVal.toFixed(2)+"x" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:"#1A1A1B", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Net / Логістика</div>
+                <div style={{ fontSize:10, color:"#E4E4E4", marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Net / Логістика</div>
               </div>
             </div>
               );
@@ -3183,18 +3157,18 @@ export default function Dashboard() {
                   <AreaChart data={chartDataWithPrevYear} margin={{ top:4, right:8, left:8, bottom:4 }}>
                     <defs>
                       <linearGradient id="gE" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={t.em} stopOpacity={t.dark?0.22:0.16}/>
+                        <stop offset="0%" stopColor={t.em} stopOpacity={0.22}/>
                         <stop offset="100%" stopColor={t.em} stopOpacity={0}/>
                       </linearGradient>
                       <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={t.blue} stopOpacity={t.dark?0.18:0.12}/>
+                        <stop offset="0%" stopColor={t.blue} stopOpacity={0.18}/>
                         <stop offset="100%" stopColor={t.blue} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"#2D2D2E":"rgba(0,0,0,0.05)"} vertical={false}/>
-                    <XAxis dataKey="label" tick={{ fontSize:11, fill:"#6B7280" }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#6B7280" }} tickLine={false} axisLine={false} width={96} domain={["auto","auto"]}/>
-                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:t.dark?"#2D2D2E":"rgba(0,0,0,0.06)", strokeWidth:1 }}/>
+                    <CartesianGrid strokeDasharray="1 0" stroke={"#2B4559"} vertical={false}/>
+                    <XAxis dataKey="label" tick={{ fontSize:11, fill:"#E4E4E4" }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
+                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#E4E4E4" }} tickLine={false} axisLine={false} width={96} domain={["auto","auto"]}/>
+                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:"#2B4559", strokeWidth:1 }}/>
                     {refLabel && futureCount>0 && (
                       <ReferenceLine x={refLabel} stroke={t.dim} strokeDasharray="5 3" strokeWidth={1.5}
                         label={{ value:"прогноз →", position:"insideTopRight", fontSize:9, fill:t.dim, fontWeight:600 }}/>
@@ -3210,8 +3184,8 @@ export default function Dashboard() {
                       activeDot={{ r:5, fill:t.blue, strokeWidth:0 }}/>
                     {hubberQuick && (
                       <Line isAnimationActive={false} type="monotone" dataKey="prevYear" name="Хаббер мин. рік"
-                        stroke="#9CA3AF" strokeWidth={1.5} strokeDasharray="5 3"
-                        dot={false} activeDot={{ r:3, fill:"#9CA3AF", strokeWidth:0 }} connectNulls/>
+                        stroke="#E4E4E4" strokeWidth={1.5} strokeDasharray="5 3"
+                        dot={false} activeDot={{ r:3, fill:"#E4E4E4", strokeWidth:0 }} connectNulls/>
                     )}
                   </AreaChart>
                 </ResponsiveContainer>
@@ -3242,10 +3216,10 @@ export default function Dashboard() {
                     return (
                       <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={marketplaceBarWithMoM} margin={{ top:showBarTrend?28:18, right:8, left:8, bottom:4 }}>
-                          <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"#2D2D2E":"rgba(0,0,0,0.05)"} vertical={false}/>
-                          <XAxis dataKey="name" tick={{ fontSize:11, fill:"#6B7280" }} tickLine={false} axisLine={false}/>
-                          <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#6B7280" }} tickLine={false} axisLine={false} width={90}/>
-                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"#222223":"#fff", border:"1px solid #2D2D2E", borderRadius:4, fontSize:12 }}/>
+                          <CartesianGrid strokeDasharray="1 0" stroke={"#2B4559"} vertical={false}/>
+                          <XAxis dataKey="name" tick={{ fontSize:11, fill:"#E4E4E4" }} tickLine={false} axisLine={false}/>
+                          <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:"#E4E4E4" }} tickLine={false} axisLine={false} width={90}/>
+                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:"#0B0B0B", border:"1px solid #2B4559", borderRadius:4, fontSize:12 }}/>
                           <Bar isAnimationActive={true} animationDuration={500} animationEasing="ease-out" dataKey="net" name="Дохід" radius={[6,6,0,0]}
                             label={(props: Record<string,unknown>) => {
                               const entry = marketplaceBarWithMoM[props.index as number];
@@ -3280,11 +3254,11 @@ export default function Dashboard() {
                     const totalPos = marketplaceBar.filter(e=>e.net>0).reduce((s,e)=>s+e.net,0)||1;
                     const leaderPct = ((leader.net/totalPos)*100).toFixed(0);
                     return (
-                      <div style={{ marginTop:12, padding:"9px 12px", borderRadius:10, background:"#1E1E1F", border:"1px solid #2D2D2E", display:"flex", alignItems:"flex-start", gap:7 }}>
+                      <div style={{ marginTop:12, padding:"9px 12px", borderRadius:10, background:"#0B0B0B", border:"1px solid #2B4559", display:"flex", alignItems:"flex-start", gap:7 }}>
                         <span style={{ fontSize:12, flexShrink:0, marginTop:1 }}>💡</span>
                         <span style={{ fontSize:10, color:t.text, lineHeight:1.55 }}>
-                          <strong style={{ color:"#3B82F6" }}>{leader.name}</strong> генерує основний потік готівки ({leaderPct}%).{" "}
-                          {second && <span>Рентабельність на <strong style={{ color:"#3B82F6" }}>{second.name}</strong> вища завдяки нижчій вартості логістики.</span>}
+                          <strong style={{ color:"#2B4559" }}>{leader.name}</strong> генерує основний потік готівки ({leaderPct}%).{" "}
+                          {second && <span>Рентабельність на <strong style={{ color:"#2B4559" }}>{second.name}</strong> вища завдяки нижчій вартості логістики.</span>}
                         </span>
                       </div>
                     );
@@ -3319,7 +3293,7 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/donutTotal)*100).toFixed(1)}%)`, name]}
-                          contentStyle={{ background:t.dark?"#222223":"#fff", border:"1px solid #2D2D2E", borderRadius:4, fontSize:11 }}
+                          contentStyle={{ background:"#0B0B0B", border:"1px solid #2B4559", borderRadius:4, fontSize:11 }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -3332,9 +3306,9 @@ export default function Dashboard() {
                           <div key={entry.name} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                               <div style={{ width:8, height:8, borderRadius:99, background:clr, flexShrink:0 }}/>
-                              <span style={{ fontSize:11, color:i===0?"#3B82F6":t.text, fontWeight:i===0?700:500 }}>{entry.name}</span>
+                              <span style={{ fontSize:11, color:i===0?"#2B4559":t.text, fontWeight:i===0?700:500 }}>{entry.name}</span>
                             </div>
-                            <span style={{ fontSize:11, fontWeight:700, color:i===0?"#3B82F6":"#6B7280" }}>{pct}%</span>
+                            <span style={{ fontSize:11, fontWeight:700, color:i===0?"#2B4559":"#E4E4E4" }}>{pct}%</span>
                           </div>
                         );
                       })}
@@ -3368,7 +3342,7 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/brandTotal)*100).toFixed(1)}%)`, name]}
-                          contentStyle={{ background:t.dark?"#222223":"#fff", border:"1px solid #2D2D2E", borderRadius:4, fontSize:11 }}
+                          contentStyle={{ background:"#0B0B0B", border:"1px solid #2B4559", borderRadius:4, fontSize:11 }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -3406,7 +3380,7 @@ export default function Dashboard() {
                       <Cell fill={t.em}/>
                       <Cell fill={t.red}/>
                     </Pie>
-                    <Tooltip formatter={(v:number,n:string)=>[v,n]} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#fff", border:`1px solid ${t.border}`, borderRadius:8, fontSize:12 }}/>
+                    <Tooltip formatter={(v:number,n:string)=>[v,n]} contentStyle={{ background:"rgba(4,6,14,0.97)", border:`1px solid ${t.border}`, borderRadius:8, fontSize:12 }}/>
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:12, color:t.sub }}/>
                   </PieChart>
                   </ResponsiveContainer>
@@ -3455,7 +3429,7 @@ export default function Dashboard() {
                       {cityFilter && (
                         <button onClick={()=>setCityFilter(null)} style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:5, border:`1px solid ${t.blue}44`, background:`${t.blue}14`, color:t.blue, cursor:"pointer" }}>✕ {cityFilter}</button>
                       )}
-                      <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#9CA3AF" }}>Топ {cityTop.length}</span>
+                      <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4" }}>Топ {cityTop.length}</span>
                     </div>
                   </div>
 
@@ -3472,12 +3446,12 @@ export default function Dashboard() {
                     return (
                       <ResponsiveContainer width="100%" height={155}>
                         <ComposedChart data={chartData} margin={{ top:18, right:12, left:-10, bottom:2 }}>
-                          <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(255,255,255,0.04)":"rgba(0,0,0,0.05)"} vertical={false}/>
+                          <CartesianGrid strokeDasharray="1 0" stroke={"rgba(255,255,255,0.04)"} vertical={false}/>
                           <XAxis dataKey="name" tick={{ fontSize:10, fill:t.sub }} tickLine={false} axisLine={false}/>
                           <YAxis yAxisId="left"  tick={{ fontSize:9, fill:t.dim }} tickLine={false} axisLine={false} width={30} tickFormatter={(v:number)=>String(v)}/>
                           <YAxis yAxisId="right" orientation="right" tick={{ fontSize:9, fill:"#1E90FF" }} tickLine={false} axisLine={false} width={50} domain={[0, maxAvgLine*1.35]} tickFormatter={(v:number)=>v>0?`${Math.round(v/100)*100} ₴`:""} />
                           <Tooltip
-                            contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#fff", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11 }}
+                            contentStyle={{ background:"rgba(4,6,14,0.97)", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11 }}
                             formatter={(v:number, name:string) =>
                               name==="замовлень"
                                 ? [`${v} зам. (${((v/totalOrds)*100).toFixed(1)}%)`, "Замовлення"]
@@ -3490,7 +3464,7 @@ export default function Dashboard() {
                               if (!entry) return <text/>;
                               const cx = props.x as number + (props.width as number) / 2;
                               const cy = props.y as number - 5;
-                              return <text key={props.index as number} x={cx} y={cy} textAnchor="middle" fontSize={9} fontWeight={700} fill={props.index === 0 ? "#004080" : "#6B7280"}>{entry.pctLabel}%</text>;
+                              return <text key={props.index as number} x={cx} y={cy} textAnchor="middle" fontSize={9} fontWeight={700} fill={props.index === 0 ? "#004080" : "#E4E4E4"}>{entry.pctLabel}%</text>;
                             }}
                           >
                             {chartData.map((_,i)=>(
@@ -3506,9 +3480,9 @@ export default function Dashboard() {
                   {/* Column headers */}
                   <div style={{ display:"grid", gridTemplateColumns:"22px 1fr 56px 80px", gap:8, marginBottom:6, paddingBottom:6, borderBottom:`1px solid ${t.border}` }}>
                     <span/>
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#9CA3AF" }}>Місто</span>
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#9CA3AF", textAlign:"right" }}>Частка %</span>
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#9CA3AF", textAlign:"right" }}>Сер. чек ₴</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4" }}>Місто</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4", textAlign:"right" }}>Частка %</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4", textAlign:"right" }}>Сер. чек ₴</span>
                   </div>
 
                   {/* Clickable bar rows */}
@@ -3528,13 +3502,13 @@ export default function Dashboard() {
                             style={{
                               display:"grid", gridTemplateColumns:"22px 1fr 56px 80px", alignItems:"center", gap:8,
                               cursor:"pointer", borderRadius:8, padding:"8px 8px", margin:"0 -8px",
-                              background: active ? (t.dark?"rgba(0,64,128,0.18)":"rgba(0,64,128,0.06)") : "transparent",
+                              background: active ? ("rgba(0,64,128,0.18)") : "transparent",
                               border: active ? "1px solid rgba(0,64,128,0.25)" : "1px solid transparent",
                               transition:"background 0.14s, border-color 0.14s",
                             }}
                           >
                             {/* Rank */}
-                            <span style={{ fontSize:11, fontWeight:700, color:active?"#004080":i===0?"#004080":"#9CA3AF", textAlign:"right" }}>{i+1}</span>
+                            <span style={{ fontSize:11, fontWeight:700, color:active?"#004080":i===0?"#004080":"#E4E4E4", textAlign:"right" }}>{i+1}</span>
                             {/* City name + bar */}
                             <div>
                               <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:4 }}>
@@ -3542,12 +3516,12 @@ export default function Dashboard() {
                                 {isKyiv && kyivPct>30 && <span style={{ fontSize:8, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"#DBEAFE", color:"#1E40AF" }}>Хаб</span>}
                                 {active && <span style={{ fontSize:8, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(0,64,128,0.10)", color:"#004080" }}>↓ Повернення</span>}
                               </div>
-                              <div style={{ height:3, borderRadius:99, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,64,128,0.08)", overflow:"hidden" }}>
+                              <div style={{ height:3, borderRadius:99, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
                                 <div style={{ width:`${barW}%`, height:"100%", borderRadius:99, background: BASE_BLUE[i] ?? BASE_BLUE[BASE_BLUE.length-1], transition:"width 0.6s ease", opacity: active ? 1 : 0.85 }}/>
                               </div>
                             </div>
                             {/* Sales share % */}
-                            <span style={{ fontSize:13, fontWeight:700, color:active?"#004080":i===0?"#004080":"#6B7280", textAlign:"right" }}>{city.salesPct.toFixed(1)}%</span>
+                            <span style={{ fontSize:13, fontWeight:700, color:active?"#004080":i===0?"#004080":"#E4E4E4", textAlign:"right" }}>{city.salesPct.toFixed(1)}%</span>
                             {/* Avg check */}
                             <div style={{ textAlign:"right" }}>
                               <span style={{ fontSize:12, fontWeight:700, color:isBest?"#004080":t.text }}>{fmtChk(city.avgCheck)} ₴</span>
@@ -3560,7 +3534,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Insight + city filter hint */}
-                  <div style={{ marginTop:14, padding:"10px 14px", borderRadius:8, background:t.dark?"rgba(0,64,128,0.12)":"rgba(0,64,128,0.04)", border:"1px solid rgba(0,64,128,0.14)", display:"flex", alignItems:"flex-start", gap:8 }}>
+                  <div style={{ marginTop:14, padding:"10px 14px", borderRadius:8, background:"rgba(0,64,128,0.12)", border:"1px solid rgba(0,64,128,0.14)", display:"flex", alignItems:"flex-start", gap:8 }}>
                     <span style={{ fontSize:13, flexShrink:0, marginTop:1 }}>💡</span>
                     <span style={{ fontSize:11, color:t.text, lineHeight:1.55 }}>
                       {top2pct >= 40
@@ -3569,7 +3543,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   {cityFilter && (
-                    <div style={{ marginTop:8, padding:"8px 12px", borderRadius:7, background:t.dark?"rgba(0,82,255,0.10)":"rgba(0,82,255,0.06)", border:`1px solid ${t.blue}33`, display:"flex", alignItems:"center", gap:6 }}>
+                    <div style={{ marginTop:8, padding:"8px 12px", borderRadius:7, background:"rgba(0,82,255,0.10)", border:`1px solid ${t.blue}33`, display:"flex", alignItems:"center", gap:6 }}>
                       <span style={{ fontSize:11 }}>🔍</span>
                       <span style={{ fontSize:11, color:t.blue, fontWeight:600 }}>Топ причин повернень для <strong>{cityFilter}</strong> — дивіться нижче</span>
                     </div>
@@ -3590,7 +3564,7 @@ export default function Dashboard() {
                     </p>
                     {cityFilter && (
                       <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                        <span style={{ fontSize:10, color:"#9CA3AF" }}>Фільтр по місту:</span>
+                        <span style={{ fontSize:10, color:"#E4E4E4" }}>Фільтр по місту:</span>
                         <button
                           onClick={()=>setCityFilter(null)}
                           style={{ fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:4, border:`1px solid ${t.blue}44`, background:`${t.blue}10`, color:t.blue, cursor:"pointer" }}
@@ -3611,7 +3585,7 @@ export default function Dashboard() {
                     return (
                       <div
                         key={i}
-                        style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", borderRadius:6, padding:"3px 4px", margin:"-3px -4px", transition:"background 0.12s ease", background: isHovered?(t.dark?"rgba(0,82,255,0.1)":"rgba(0,82,255,0.05)"):"transparent" }}
+                        style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", borderRadius:6, padding:"3px 4px", margin:"-3px -4px", transition:"background 0.12s ease", background: isHovered?("rgba(0,82,255,0.1)"):"transparent" }}
                         onMouseEnter={e => setRejTooltip({ reason:item.reason, rect:e.currentTarget.getBoundingClientRect() })}
                         onMouseLeave={() => setRejTooltip(null)}
                       >
@@ -3621,7 +3595,7 @@ export default function Dashboard() {
                             <span style={{ fontSize:11, color: isHovered?t.blue:t.text, fontWeight: isHovered?700:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70%", transition:"color 0.12s" }}>{item.reason}</span>
                             <span style={{ fontSize:11, fontWeight:700, color:t.red, flexShrink:0, marginLeft:8 }}>{item.count} <span style={{ fontSize:9, color:t.dim, fontWeight:400 }}>({ofTotal.toFixed(0)}%)</span></span>
                           </div>
-                          <div style={{ height:6, borderRadius:3, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.07)", overflow:"hidden" }}>
+                          <div style={{ height:6, borderRadius:3, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
                             <div style={{
                               height:"100%", borderRadius:3,
                               width:`${pct}%`,
@@ -3638,22 +3612,22 @@ export default function Dashboard() {
 
               {/* 💡 Порада щодо оптимізації — advice card, right column */}
               {rejectionReasons.length > 0 && (
-                <div style={{ ...glassBase, padding:"18px 18px 16px", display:"flex", flexDirection:"column", gap:11, background: t.dark?"rgba(234,179,8,0.07)":"#FEFCE8", border:`1px solid ${t.dark?"rgba(234,179,8,0.22)":"#FDE68A"}` }}>
+                <div style={{ ...glassBase, padding:"18px 18px 16px", display:"flex", flexDirection:"column", gap:11, background: "rgba(234,179,8,0.07)", border:`1px solid ${"rgba(234,179,8,0.22)"}` }}>
                   <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:2 }}>
                     <span style={{ fontSize:15 }}>💡</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:t.dark?"#FDE68A":"#1C1917", letterSpacing:"-0.02em" }}>Порада щодо оптимізації</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:"#FDE68A", letterSpacing:"-0.02em" }}>Порада щодо оптимізації</span>
                   </div>
 
                   {returnAdvice.length > 0 ? returnAdvice.map((adv,i)=>(
-                    <div key={i} style={{ borderRadius:8, padding:"10px 12px", background:t.dark?"rgba(234,179,8,0.1)":"rgba(253,230,138,0.45)", border:`1px solid ${t.dark?"rgba(234,179,8,0.18)":"#FCD34D"}` }}>
+                    <div key={i} style={{ borderRadius:8, padding:"10px 12px", background:"rgba(234,179,8,0.1)", border:`1px solid ${"rgba(234,179,8,0.18)"}` }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:5 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                           <span style={{ fontSize:12 }}>{adv.icon}</span>
-                          <span style={{ fontSize:11, fontWeight:800, color:t.dark?"#FDE68A":"#92400E" }}>{adv.title}</span>
+                          <span style={{ fontSize:11, fontWeight:800, color:"#FDE68A" }}>{adv.title}</span>
                         </div>
-                        <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, background:t.dark?"rgba(234,179,8,0.2)":"#FEF08A", color:t.dark?"#FDE68A":"#78350F", flexShrink:0, marginLeft:6 }}>{adv.badge}</span>
+                        <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, background:"rgba(234,179,8,0.2)", color:"#FDE68A", flexShrink:0, marginLeft:6 }}>{adv.badge}</span>
                       </div>
-                      <p style={{ margin:0, fontSize:10, color:t.dark?"rgba(253,230,138,0.82)":"#44403C", lineHeight:1.55 }}>{adv.msg}</p>
+                      <p style={{ margin:0, fontSize:10, color:"rgba(253,230,138,0.82)", lineHeight:1.55 }}>{adv.msg}</p>
                     </div>
                   )) : (
                     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flex:1, gap:8, padding:"18px 0" }}>
@@ -3680,14 +3654,14 @@ export default function Dashboard() {
                   <AreaChart data={dailyTrend} margin={{ top:4, right:8, left:8, bottom:4 }}>
                     <defs>
                       <linearGradient id="gDay" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={t.blue} stopOpacity={t.dark?0.2:0.12}/>
+                        <stop offset="0%" stopColor={t.blue} stopOpacity={0.2}/>
                         <stop offset="100%" stopColor={t.blue} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(255,255,255,0.04)":"rgba(0,0,0,0.05)"} vertical={false}/>
+                    <CartesianGrid strokeDasharray="1 0" stroke={"rgba(255,255,255,0.04)"} vertical={false}/>
                     <XAxis dataKey="day" tick={{ fontSize:10, fill:t.sub }} tickLine={false} axisLine={false} label={{ value:"День місяця", position:"insideBottom", offset:-2, fill:t.dim, fontSize:9 }}/>
                     <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.dim }} tickLine={false} axisLine={false} width={90}/>
-                    <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"rgba(255,255,255,0.97)", border:`1px solid ${t.border}`, borderRadius:10, fontSize:12, boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}/>
+                    <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:"rgba(4,6,14,0.97)", border:`1px solid ${t.border}`, borderRadius:10, fontSize:12, boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}/>
                     <Area isAnimationActive={true} animationDuration={500} animationEasing="ease-out" type="monotone" dataKey="net" name="Дохід" stroke={t.blue} strokeWidth={2.5} fill="url(#gDay)" dot={{ r:3, fill:t.blue, strokeWidth:0 }} activeDot={{ r:5, fill:t.blue, strokeWidth:0 }}/>
                   </AreaChart>
                 </ResponsiveContainer>
@@ -3717,7 +3691,7 @@ export default function Dashboard() {
                     <span style={{ fontSize:15 }}>💰</span>
                     <p style={{ color:t.text, fontSize:14, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>Топ товарів за виручкою</p>
                   </div>
-                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#9CA3AF" }}>Топ 3</span>
+                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:"#E4E4E4" }}>Топ 3</span>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {(()=>{
@@ -3732,7 +3706,7 @@ export default function Dashboard() {
                             <span style={{ fontSize:12, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</span>
                             <span style={{ fontSize:13, fontWeight:700, color:i===0?"#004080":t.text, flexShrink:0 }}>{fmtRev(p.rev)} ₴</span>
                           </div>
-                          <div style={{ height:4, borderRadius:99, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,64,128,0.08)", overflow:"hidden" }}>
+                          <div style={{ height:4, borderRadius:99, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
                             <div style={{ width:`${(p.rev/maxRev)*100}%`, height:"100%", borderRadius:99, background: BASE_BLUE[i] ?? BASE_BLUE[BASE_BLUE.length-1], transition:"width 0.6s ease" }}/>
                           </div>
                         </div>
@@ -3753,13 +3727,13 @@ export default function Dashboard() {
                 {topProducts.length>0 ? (
                   <div style={{ overflowX:"auto" }}>
                     <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                      <thead><tr style={{ background:t.dark?"rgba(4,6,14,0.9)":t.in }}>
+                      <thead><tr style={{ background:"rgba(4,6,14,0.9)" }}>
                         {["#","Назва, Модель","К-сть","Дохід ₴"].map(h=>(
                           <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}` }}>{h}</th>
                         ))}
                       </tr></thead>
                       <tbody>{topProducts.map((p,i)=>(
-                        <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":"rgba(0,0,0,0.04)"}`, background:i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)") }}>
+                        <tr key={i} style={{ borderBottom:`1px solid ${"rgba(255,255,255,0.035)"}`, background:i%2===0?"transparent":("rgba(255,255,255,0.015)") }}>
                           <td style={{ padding:"8px 14px", color:t.dim, fontWeight:700, verticalAlign:"top" }}>{i+1}</td>
                           <td title={p.name} style={{ padding:"8px 14px", color:t.text, fontWeight:500, maxWidth:200, wordBreak:"break-word", whiteSpace:"normal", lineHeight:1.4 }}>{p.name}</td>
                           <td style={{ padding:"8px 14px", color:t.sub, verticalAlign:"top", whiteSpace:"nowrap" }}>{p.qty%1===0?p.qty.toFixed(0):p.qty.toFixed(1)}</td>
@@ -3781,7 +3755,7 @@ export default function Dashboard() {
                 {topCustomers.length>0 ? (
                   <div style={{ overflowX:"auto", maxHeight:340, overflowY:"auto" }}>
                     <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                      <thead style={{ position:"sticky", top:0, background:t.dark?"rgba(4,6,14,0.98)":t.in }}>
+                      <thead style={{ position:"sticky", top:0, background:"rgba(4,6,14,0.98)" }}>
                         <tr>
                           {["#","ПІБ / Телефон","Замовлень","Витрачено ₴"].map(h=>(
                             <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}` }}>{h}</th>
@@ -3789,7 +3763,7 @@ export default function Dashboard() {
                         </tr>
                       </thead>
                       <tbody>{topCustomers.map((c,i)=>(
-                        <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":"rgba(0,0,0,0.04)"}`, background:i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)") }}>
+                        <tr key={i} style={{ borderBottom:`1px solid ${"rgba(255,255,255,0.035)"}`, background:i%2===0?"transparent":("rgba(255,255,255,0.015)") }}>
                           <td style={{ padding:"8px 14px", color:t.dim, fontWeight:700, verticalAlign:"top" }}>{i+1}</td>
                           <td title={c.name} style={{ padding:"8px 14px", color:t.text, fontWeight:500, maxWidth:180, wordBreak:"break-word", whiteSpace:"normal", lineHeight:1.4 }}>{c.name}</td>
                           <td style={{ padding:"8px 14px", color:t.sub, verticalAlign:"top" }}>{c.orders}</td>
@@ -3856,7 +3830,7 @@ export default function Dashboard() {
                   {allProducts.length>0 ? (
                     <div style={{ overflowX:"auto", maxHeight:440, overflowY:"auto" }}>
                       <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                        <thead style={{ position:"sticky", top:0, zIndex:10, background:t.dark?"rgba(4,6,14,0.98)":t.in }}>
+                        <thead style={{ position:"sticky", top:0, zIndex:10, background:"rgba(4,6,14,0.98)" }}>
                           <tr>
                             <th style={{ padding:"9px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap", width:36 }}>#</th>
                             <SortTh col="name" label="Назва, Модель"/>
@@ -3873,7 +3847,7 @@ export default function Dashboard() {
                             const refRate  = p.rows > 0 ? (p.refs / p.rows) * 100 : 0;
                             const highRef  = refRate > 30 && p.refs > 0;
                             return (
-                              <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.04)"}`, background: highRef ? (t.dark?"rgba(226,149,120,0.05)":"rgba(226,149,120,0.04)") : i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.012)") }}>
+                              <tr key={i} style={{ borderBottom:`1px solid ${"rgba(255,255,255,0.03)"}`, background: highRef ? ("rgba(226,149,120,0.05)") : i%2===0?"transparent":("rgba(255,255,255,0.015)") }}>
                                 <td style={{ padding:"8px 14px", color:t.dim, fontSize:10, fontWeight:600 }}>{i+1}</td>
                                 <td style={{ padding:"8px 14px", minWidth:160 }}>
                                   <div style={{ display:"flex", alignItems:"flex-start", gap:5, flexWrap:"wrap" }}>
@@ -3892,7 +3866,7 @@ export default function Dashboard() {
                                 </td>
                                 <td style={{ padding:"8px 14px 8px 10px" }}>
                                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                    <div style={{ flex:1, height:5, borderRadius:3, background:t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.07)", overflow:"hidden" }}>
+                                    <div style={{ flex:1, height:5, borderRadius:3, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
                                       <div style={{ width:`${barPct}%`, height:"100%", borderRadius:3, background:barCol, transition:"width 0.3s ease" }}/>
                                     </div>
                                   </div>
@@ -3961,9 +3935,9 @@ export default function Dashboard() {
                             {((customerInsights.newC/customerInsights.total)*100).toFixed(0)}% нових
                           </span>
                         </div>
-                        <div style={{ height:6, borderRadius:3, background:t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.07)", overflow:"hidden", display:"flex" }}>
+                        <div style={{ height:6, borderRadius:3, background:"rgba(255,255,255,0.07)", overflow:"hidden", display:"flex" }}>
                           <div style={{ width:`${(customerInsights.returning/customerInsights.total)*100}%`, background:t.em, borderRadius:"3px 0 0 3px", transition:"width 0.4s ease" }}/>
-                          <div style={{ flex:1, background:t.dark?"rgba(255,255,255,0.12)":"rgba(0,0,0,0.1)" }}/>
+                          <div style={{ flex:1, background:"rgba(255,255,255,0.12)" }}/>
                         </div>
                       </div>
                     )}
@@ -3996,7 +3970,7 @@ export default function Dashboard() {
                                 <span style={{ fontSize:11, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{String(item.city || item)}</span>
                                 <span style={{ fontSize:11, fontWeight:700, color:t.blue, flexShrink:0, marginLeft:6 }}>{item.count}</span>
                               </div>
-                              <div style={{ height:4, borderRadius:2, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.07)", overflow:"hidden" }}>
+                              <div style={{ height:4, borderRadius:2, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
                                 <div style={{ width:`${(item.count/maxC)*100}%`, height:"100%", borderRadius:2, background:t.blue }}/>
                               </div>
                             </div>
@@ -4023,7 +3997,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ overflowX:"auto", maxHeight:360, overflowY:"auto" }}>
                       <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                        <thead style={{ position:"sticky", top:0, background:t.dark?"rgba(4,6,14,0.98)":t.in }}>
+                        <thead style={{ position:"sticky", top:0, background:"rgba(4,6,14,0.98)" }}>
                           <tr>
                             {["#","ПІБ / Ключ","Телефон","Замовлень","Сума ₴","Тип"].map((h,hi)=>(
                               <th key={h} style={{ padding:"8px 14px", textAlign: hi>=3?"right":"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap" }}>{h}</th>
@@ -4036,7 +4010,7 @@ export default function Dashboard() {
                             const displayPhone = c.phone ? maskPhone(c.phone) : (isPhoneString(c.key) ? maskPhone(c.key) : "—");
                             const displayName  = c.displayName || (isPhoneString(c.key) ? "—" : c.key);
                             return (
-                              <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":"rgba(0,0,0,0.04)"}`, background: i===0 ? (t.dark?"rgba(255,215,0,0.04)":"rgba(255,215,0,0.06)") : i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)") }}>
+                              <tr key={i} style={{ borderBottom:`1px solid ${"rgba(255,255,255,0.035)"}`, background: i===0 ? ("rgba(255,215,0,0.04)") : i%2===0?"transparent":("rgba(255,255,255,0.015)") }}>
                                 <td style={{ padding:"8px 14px", color: i===0?t.em:t.dim, fontWeight:700, fontSize:10 }}>
                                   {i===0 ? "👑" : i+1}
                                 </td>
@@ -4085,7 +4059,7 @@ export default function Dashboard() {
               <div style={{ overflowX:"auto", maxHeight:380, overflowY:"auto" }}>
                 <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
                   <thead style={{ position:"sticky", top:0, zIndex:10 }}>
-                    <tr style={{ background:t.dark?"rgba(4,6,14,0.98)":t.in }}>
+                    <tr style={{ background:"rgba(4,6,14,0.98)" }}>
                       {fileData.columns.map(col=>{
                         const isFin=[fileData.cols.revenue,fileData.cols.delivery,fileData.cols.commission,fileData.cols.debt].includes(col);
                         return <th key={col} style={{ padding:"8px 13px", textAlign:"left", fontWeight:600, whiteSpace:"nowrap", color:isFin?t.blue:t.dim, borderBottom:`1px solid ${t.border}`, letterSpacing:"0.04em", fontSize:9, textTransform:"uppercase" }}>{col}</th>;
@@ -4096,7 +4070,7 @@ export default function Dashboard() {
                     {tableRows.map((row,i)=>{
                       const ref=isRefusal(row,fileData.cols);
                       return (
-                        <tr key={i} style={{ background:ref?(t.dark?"rgba(244,63,94,0.04)":"rgba(220,38,38,0.03)"):i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)"), borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":"rgba(0,0,0,0.04)"}` }}>
+                        <tr key={i} style={{ background:ref?("rgba(244,63,94,0.04)"):i%2===0?"transparent":("rgba(255,255,255,0.015)"), borderBottom:`1px solid ${"rgba(255,255,255,0.035)"}` }}>
                           {fileData.columns.map(col=>{
                             const v=row[col];
                             const isFin=[fileData.cols.revenue,fileData.cols.delivery,fileData.cols.commission,fileData.cols.debt].includes(col);
@@ -4157,7 +4131,7 @@ export default function Dashboard() {
               pointerEvents:"none",
               borderRadius:12,
               background:"#1C1917",
-              border:"1.5px solid #0052FF",
+              border:"1.5px solid #2B4559",
               boxShadow:"0 8px 32px rgba(0,0,0,0.38), 0 0 0 1px rgba(0,82,255,0.12)",
               padding:"13px 15px 12px",
               fontFamily:"'Inter',-apple-system,sans-serif",
@@ -4166,12 +4140,12 @@ export default function Dashboard() {
             {/* category badge + emoji */}
             <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:7 }}>
               <span style={{ fontSize:14, lineHeight:1 }}>{adv.emoji}</span>
-              <span style={{ fontSize:9, fontWeight:800, letterSpacing:"0.07em", color:"#0052FF", background:"rgba(0,82,255,0.18)", padding:"2px 7px", borderRadius:4 }}>{adv.cat}</span>
+              <span style={{ fontSize:9, fontWeight:800, letterSpacing:"0.07em", color:"#2B4559", background:"rgba(0,82,255,0.18)", padding:"2px 7px", borderRadius:4 }}>{adv.cat}</span>
             </div>
             {/* reason label */}
             <p style={{ margin:"0 0 6px", fontSize:10, color:"rgba(255,255,255,0.5)", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{rejTooltip.reason}</p>
             {/* advice text */}
-            <p style={{ margin:0, fontSize:11, color:"#FFFFFF", lineHeight:1.55, fontWeight:500 }}>{adv.text}</p>
+            <p style={{ margin:0, fontSize:11, color:"#E4E4E4", lineHeight:1.55, fontWeight:500 }}>{adv.text}</p>
             {/* pointer arrow */}
             <div style={{
               position:"absolute",
@@ -4181,7 +4155,7 @@ export default function Dashboard() {
               width:0, height:0,
               borderTop:"6px solid transparent",
               borderBottom:"6px solid transparent",
-              [flipLeft ? "borderLeft" : "borderRight"]:"7px solid #0052FF",
+              [flipLeft ? "borderLeft" : "borderRight"]:"7px solid #2B4559",
             }}/>
           </div>
         );
