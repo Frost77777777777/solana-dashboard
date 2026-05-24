@@ -2858,6 +2858,20 @@ export default function Dashboard() {
               <p style={{ fontSize:10, color:t.text, opacity:0.7, margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
             </div>
 
+            {/* Головний дашборд — primary active nav button */}
+            <button className="sidebar-dash-btn" style={{
+              width:"100%", padding:"10px 12px", borderRadius:6,
+              background:`${t.blue}14`, border:`1.5px solid ${t.blue}`,
+              color:t.blue, fontSize:12, fontWeight:700, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:8,
+              fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.04em",
+              marginBottom:6,
+              transition:"transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
+            }}>
+              <span style={{ width:7, height:7, borderRadius:"50%", background:t.blue, flexShrink:0 }}/>
+              Головний дашборд
+            </button>
+
             {/* Marketplace — collapsible + 2-col icon grid */}
             {brandChips.length>0 && (
               <SidebarSection
@@ -3191,7 +3205,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="1 0" stroke={t.border} vertical={false}/>
                     <XAxis dataKey="label" tick={{ fontSize:11, fill:t.text }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
                     <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} width={96} domain={["auto","auto"]}/>
-                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:t.blue, strokeWidth:1 }}/>
+                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:t.blue, strokeWidth:1, fill:"transparent" }}/>
                     {refLabel && futureCount>0 && (
                       <ReferenceLine x={refLabel} stroke={t.dim} strokeDasharray="5 3" strokeWidth={1.5}
                         label={{ value:"прогноз →", position:"insideTopRight", fontSize:9, fill:t.dim, fontWeight:600 }}/>
@@ -3242,7 +3256,7 @@ export default function Dashboard() {
                           <CartesianGrid strokeDasharray="1 0" stroke={t.border} vertical={false}/>
                           <XAxis dataKey="name" tick={{ fontSize:11, fill:t.text }} tickLine={false} axisLine={false}/>
                           <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} width={90}/>
-                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:4, fontSize:12, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}/>
+                          <Tooltip cursor={{ fill:"transparent" }} formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:4, fontSize:12, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}/>
                           <Bar isAnimationActive={true} animationDuration={500} animationEasing="ease-out" dataKey="net" name="Дохід" radius={[6,6,0,0]}
                             label={(props: Record<string,unknown>) => {
                               const entry = marketplaceBarWithMoM[props.index as number];
@@ -3476,6 +3490,7 @@ export default function Dashboard() {
                           <YAxis yAxisId="left"  tick={{ fontSize:9, fill:t.dim }} tickLine={false} axisLine={false} width={30} tickFormatter={(v:number)=>String(v)}/>
                           <YAxis yAxisId="right" orientation="right" tick={{ fontSize:9, fill:"#1E90FF" }} tickLine={false} axisLine={false} width={50} domain={[0, maxAvgLine*1.35]} tickFormatter={(v:number)=>v>0?`${Math.round(v/100)*100} ₴`:""} />
                           <Tooltip
+                            cursor={{ fill:"transparent" }}
                             contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }}
                             itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}
                             formatter={(v:number, name:string) =>
@@ -3687,7 +3702,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(255,255,255,0.04)":t.border} vertical={false}/>
                     <XAxis dataKey="day" tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} label={{ value:"День місяця", position:"insideBottom", offset:-2, fill:t.dim, fontSize:9 }}/>
                     <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} width={90}/>
-                    <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:10, fontSize:12, color:t.text, boxShadow:t.dark?"0 4px 24px rgba(0,0,0,0.08)":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}/>
+                    <Tooltip cursor={{ stroke:t.blue, strokeWidth:1, fill:"transparent" }} formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:10, fontSize:12, color:t.text, boxShadow:t.dark?"0 4px 24px rgba(0,0,0,0.08)":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}/>
                     <Area isAnimationActive={true} animationDuration={500} animationEasing="ease-out" type="monotone" dataKey="net" name="Дохід" stroke={t.blue} strokeWidth={2.5} fill="url(#gDay)" dot={{ r:3, fill:t.blue, strokeWidth:0 }} activeDot={{ r:5, fill:t.blue, strokeWidth:0 }}/>
                   </AreaChart>
                 </ResponsiveContainer>
