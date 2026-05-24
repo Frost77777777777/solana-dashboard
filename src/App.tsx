@@ -2816,7 +2816,7 @@ export default function Dashboard() {
         <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 16px", borderRadius:6, border:`2px solid ${t.blue}`, background:`${t.blue}0A` }}>
             <span style={{ fontSize:11, fontWeight:800, color:t.blue, letterSpacing:"0.08em" }}>ВИРУЧКА</span>
-            <span style={{ fontSize:16, fontWeight:900, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace", letterSpacing:"-0.02em" }}>{kpi ? fmtK(kpi.grossIncome)+" ₴" : "—"}</span>
+            <span style={{ fontSize:16, fontWeight:900, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace", letterSpacing:"-0.02em" }}>{kpi ? fmt(kpi.grossIncome) : "—"}</span>
           </div>
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
@@ -2865,19 +2865,6 @@ export default function Dashboard() {
               <p style={{ fontSize:10, color:t.text, opacity:0.7, margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
             </div>
 
-            {/* Головний дашборд — primary active nav button */}
-            <button className="sidebar-dash-btn" style={{
-              width:"100%", padding:"10px 12px", borderRadius:6,
-              background:`${t.blue}14`, border:`1.5px solid ${t.blue}`,
-              color:t.blue, fontSize:12, fontWeight:700, cursor:"pointer",
-              display:"flex", alignItems:"center", gap:8,
-              fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.04em",
-              marginBottom:6,
-              transition:"transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
-            }}>
-              <span style={{ width:7, height:7, borderRadius:"50%", background:t.blue, flexShrink:0 }}/>
-              Головний дашборд
-            </button>
 
             {/* Marketplace — collapsible + 2-col icon grid */}
             {brandChips.length>0 && (
@@ -3024,12 +3011,6 @@ export default function Dashboard() {
                 <div>
                   <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>
                     Solana Analytics Terminal
-                  </p>
-                  <h1 style={{ margin:0, fontSize:"clamp(22px, 2.2vw, 32px)", fontWeight:800, letterSpacing:"-0.02em", lineHeight:1.12, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>
-                    A global business, <span style={{ color:t.blue }}>built on data</span>
-                  </h1>
-                  <p style={{ margin:"6px 0 0", fontSize:12, color:t.text, fontWeight:400, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>
-                    Глобальний бізнес, побудований на даних · {kpi.orders.toLocaleString("uk-UA")} замовлень · {fmt(kpi.grossIncome)} ₴ виручки
                   </p>
                 </div>
                 {/* L I V E indicator */}
@@ -3775,9 +3756,9 @@ export default function Dashboard() {
                 {topProducts.length>0 ? (
                   <div style={{ overflowX:"auto" }}>
                     <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                      <thead><tr style={{ background:t.dark?"rgba(4,6,14,0.9)":t.bg }}>
-                        {["#","Назва, Модель","К-сть","Дохід ₴"].map(h=>(
-                          <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}` }}>{h}</th>
+                                            <thead><tr style={{ background:t.blue }}>
+                                              {["#","Назва, Модель","К-сть","Дохід ₴"].map(h=>(
+                                                <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:"#FFFFFF", borderBottom:`1px solid ${t.border}` }}>{h}</th>
                         ))}
                       </tr></thead>
                       <tbody>{topProducts.map((p,i)=>(
@@ -3835,7 +3816,7 @@ export default function Dashboard() {
                 const active = productSort.col===col;
                 const toggle = ()=>setProductSort(s=>s.col===col?{col,dir:s.dir==="desc"?"asc":"desc"}:{col,dir:"desc"});
                 return (
-                  <th onClick={toggle} style={{ padding:"9px 14px", textAlign:align as "left"|"right", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:active?t.blue:t.dim, borderBottom:`1px solid ${t.border}`, cursor:"pointer", whiteSpace:"nowrap", userSelect:"none" }}>
+                  <th onClick={toggle} style={{ padding:"9px 14px", textAlign:align as "left"|"right", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:active?"#FFFFFF":"rgba(255,255,255,0.7)", borderBottom:`1px solid ${t.border}`, cursor:"pointer", whiteSpace:"nowrap", userSelect:"none" }}>
                     {label}{active ? (productSort.dir==="desc"?" ↓":" ↑") : " ↕"}
                   </th>
                 );
@@ -3878,9 +3859,9 @@ export default function Dashboard() {
                   {allProducts.length>0 ? (
                     <div style={{ overflowX:"auto", maxHeight:440, overflowY:"auto" }}>
                       <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                        <thead style={{ position:"sticky", top:0, zIndex:10, background:"rgba(4,6,14,0.98)" }}>
+                        <thead style={{ position:"sticky", top:0, zIndex:10, background:t.blue }}>
                           <tr>
-                            <th style={{ padding:"9px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap", width:36 }}>#</th>
+                            <th style={{ padding:"9px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:"#FFFFFF", borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap", width:36 }}>#</th>
                             <SortTh col="name" label="Назва, Модель"/>
                             <SortTh col="qty"  label="Кількість" align="right"/>
                             <SortTh col="net"  label="Чистий дохід" align="right"/>
