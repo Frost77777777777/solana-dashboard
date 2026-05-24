@@ -16,6 +16,12 @@ html, body, #root {
   font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 
+/* v47 — pinned viewport: dashboard feels like a fixed app container */
+body.dashboard-pinned {
+  height: 100vh;
+  overflow: hidden;
+}
+
 /* Pure Black theme overrides */
 * {
   box-sizing: border-box;
@@ -44,6 +50,7 @@ html, body, #root {
   top: 56px; /* below navbar */
   left: 0;
   bottom: 0;
+  height: calc(100vh - 56px);
   width: 252px;
   z-index: 90;
   overflow-y: auto;
@@ -58,6 +65,9 @@ html, body, #root {
 
 .orbit-main-offset {
   margin-left: 252px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Sidebar section animations */
@@ -170,6 +180,21 @@ html, body, #root {
   transform: scale(0.98) !important;
 }
 
+/* v47 — Breathing hover for KPI cards and chart blocks */
+.kpi-card {
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+.kpi-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+.analytics-card {
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+.analytics-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
 
 /* KPI cards responsive */
 @media (max-width: 1200px) {

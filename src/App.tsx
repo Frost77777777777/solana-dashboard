@@ -2069,6 +2069,13 @@ export default function Dashboard() {
     } catch { /* ignore */ }
   }, [brandFilter, monthFilter, companyFilter, yearFilter, hubberQYear, darkMode]);
 
+  /* ── v47: pin viewport when dashboard is loaded ── */
+  useEffect(() => {
+    if (fileData) document.body.classList.add("dashboard-pinned");
+    else document.body.classList.remove("dashboard-pinned");
+    return () => document.body.classList.remove("dashboard-pinned");
+  }, [fileData]);
+
   /* ── sync html background with theme ── */
   useEffect(() => {
     document.documentElement.style.background = t.bg;
@@ -2785,10 +2792,10 @@ export default function Dashboard() {
 
   /* ─── render ──────────────────────────────────────────────── */
   return (
-    <div style={{ background:t.bg, minHeight:"100vh", fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
+    <div style={{ background:t.bg, minHeight:"100vh", height: fileData ? "100vh" : undefined, overflow: fileData ? "hidden" : undefined, fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
 
       {/* ── Professional Trading Terminal navbar ─────────────────── */}
-      <div style={{ background:t.bg, borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100, flexWrap:"nowrap" }}>
+      <div style={{ background:t.bg, borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"fixed", top:0, left:0, right:0, zIndex:100, flexWrap:"nowrap" }}>
         {/* Left: Brand + Nav */}
         <div style={{ display:"flex", alignItems:"center", gap:20, flexShrink:0 }}>
           {fileData && (
@@ -2807,9 +2814,9 @@ export default function Dashboard() {
         </div>
         {/* Right: Actions */}
         <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:`1px solid ${t.border}` }}>
-            <span style={{ fontSize:9, fontWeight:700, color:t.text, letterSpacing:"0.06em" }}>ВИРУЧКА</span>
-            <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace" }}>{kpi ? fmtK(kpi.grossIncome)+" ₴" : "—"}</span>
+          <div style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 16px", borderRadius:6, border:`2px solid ${t.blue}`, background:`${t.blue}0A` }}>
+            <span style={{ fontSize:11, fontWeight:800, color:t.blue, letterSpacing:"0.08em" }}>ВИРУЧКА</span>
+            <span style={{ fontSize:16, fontWeight:900, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace", letterSpacing:"-0.02em" }}>{kpi ? fmtK(kpi.grossIncome)+" ₴" : "—"}</span>
           </div>
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
@@ -2831,7 +2838,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Body: sidebar (fixed) + main content ─────────────── */}
-      <div>
+      <div style={{ paddingTop:56 }}>
 
         {/* Mobile overlay */}
         {fileData && sidebarOpen && (
@@ -3653,20 +3660,20 @@ export default function Dashboard() {
 
               {/* 💡 Порада щодо оптимізації — advice card, right column */}
               {rejectionReasons.length > 0 && (
-                <div style={{ ...glassBase, padding:"18px 18px 16px", display:"flex", flexDirection:"column", gap:11, background: "rgba(234,179,8,0.07)", border:`1px solid ${"rgba(234,179,8,0.22)"}` }}>
+                <div style={{ ...glassBase, padding:"18px 18px 16px", display:"flex", flexDirection:"column", gap:11, background: t.dark?"rgba(234,179,8,0.07)":"#FFFBEB", border:`1px solid ${t.dark?"rgba(234,179,8,0.22)":"#E2E8F0"}` }}>
                   <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:2 }}>
                     <span style={{ fontSize:15 }}>💡</span>
                     <span style={{ fontSize:12, fontWeight:800, color:t.dark?"#FDE68A":"#1A1A1B", letterSpacing:"-0.02em" }}>Порада щодо оптимізації</span>
                   </div>
 
                   {returnAdvice.length > 0 ? returnAdvice.map((adv,i)=>(
-                    <div key={i} style={{ borderRadius:8, padding:"10px 12px", background:"rgba(234,179,8,0.1)", border:`1px solid ${"rgba(234,179,8,0.18)"}` }}>
+                    <div key={i} style={{ borderRadius:8, padding:"10px 12px", background:t.dark?"rgba(234,179,8,0.1)":"#FEF3C7", border:`1px solid ${t.dark?"rgba(234,179,8,0.18)":"#E2E8F0"}` }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:5 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                           <span style={{ fontSize:12 }}>{adv.icon}</span>
                           <span style={{ fontSize:11, fontWeight:800, color:t.dark?"#FDE68A":"#1A1A1B" }}>{adv.title}</span>
                         </div>
-                        <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, background:"rgba(234,179,8,0.2)", color:t.dark?"#FDE68A":"#92400E", flexShrink:0, marginLeft:6 }}>{adv.badge}</span>
+                        <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, background:t.dark?"rgba(234,179,8,0.2)":"#FDE68A", color:t.dark?"#FDE68A":"#92400E", flexShrink:0, marginLeft:6 }}>{adv.badge}</span>
                       </div>
                       <p style={{ margin:0, fontSize:10, color:t.dark?"rgba(253,230,138,0.82)":"#1A1A1B", lineHeight:1.55 }}>{adv.msg}</p>
                     </div>
