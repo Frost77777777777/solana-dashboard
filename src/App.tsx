@@ -773,6 +773,7 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
   };
   return (
     <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
+      <style>{`.kpi-cards-grid > .kpi-card { display:flex; flex-direction:column; justify-content:space-between; min-height:190px; height:100%; }`}</style>
 
       {/* 1 — Net Income */}
       <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${kpi.net<0 ? t.red+"44" : t.border}`, borderLeft: kpi.net<0 ? `3px solid ${t.red}` : kpi.net>0 ? `3px solid ${t.em}` : `1px solid ${t.border}` }}>
@@ -836,7 +837,7 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
           <span style={{ ...KPI_LABEL }}>Відмови %</span>
           <div style={{ ...KPI_NUM, color:kpi.returnRate>0?t.red:t.text }}><AnimNum value={kpi.returnRate} fmt={v=>v.toFixed(1)+"%"}/></div>
           {kpi.orders>0 && kpi.returnRate>0 && (
-            <div style={{ position:"relative", height:4, borderRadius:99, background:"rgba(255,255,255,0.08)", overflow:"hidden", marginTop:8 }}>
+            <div style={{ position:"relative", height:4, borderRadius:99, background:t.dark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.08)", overflow:"hidden", marginTop:8 }}>
               <div style={{ width:`${Math.min(kpi.returnRate,100)}%`, height:"100%", borderRadius:99, background:t.red, transition:"width 0.5s ease" }}/>
             </div>
           )}
@@ -868,16 +869,16 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
 
       {/* 4 — Debt / Receivables */}
       {(()=>{
-        const hasDebt = kpi.debt > 0;
+        const hasDebt = Math.abs(kpi.debt) > 0;
         return (
           <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${hasDebt ? t.red+"44" : t.border}`, borderLeft: hasDebt ? `3px solid ${t.red}` : `1px solid ${t.border}` }}>
             <div>
-              <span style={{ ...KPI_LABEL, color: hasDebt ? t.red : undefined }}>Дебіторка{hasDebt ? " ⚠" : ""}</span>
-              <div style={{ ...KPI_NUM, color: hasDebt ? t.red : kpi.debt===0 ? t.text : t.text, fontWeight:900 }}><AnimNum value={kpi.debt} fmt={fmt}/></div>
+              <span style={{ ...KPI_LABEL, color: hasDebt ? t.red : undefined, fontWeight: hasDebt ? 900 : 700 }}>Дебіторка{hasDebt ? " ⚠" : ""}</span>
+              <div style={{ ...KPI_NUM, color: hasDebt ? t.red : t.text, fontWeight:900 }}><AnimNum value={Math.abs(kpi.debt)} fmt={fmt}/></div>
             </div>
-            <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
-              <span style={{ fontSize:10, color: hasDebt ? t.red : t.text }}>
-                {debtCol ? (hasDebt ? "Загальна дебіторська заборгованість" : "Заборгованість відсутня") : "Дані відсутні"}
+            <div style={{ paddingTop:10, borderTop:`1px solid ${hasDebt ? t.red+"33" : t.border}`, marginTop:10 }}>
+              <span style={{ fontSize: hasDebt ? 11 : 10, fontWeight: hasDebt ? 800 : 400, color: hasDebt ? t.red : t.text }}>
+                {debtCol ? (hasDebt ? "⚠ УВАГА: Заборгованість є!" : "Заборгованість відсутня") : "Дані відсутні"}
               </span>
             </div>
           </div>
@@ -1065,7 +1066,7 @@ function HubberSidebarPanel({
   }
 
   /* ── derived stats ── */
-  const cardBg = "rgba(255,255,255,0.04)";
+  const cardBg = t.dark?"rgba(255,255,255,0.04)":"rgba(0,0,0,0.02)";
   const cardBorder = "rgba(255,255,255,0.1)";
   const yearTotal = data ? (data.yearTotals[selYear] ?? Object.values(data.values[selYear]??{}).reduce((a,b)=>a+b,0)) : 0;
   const prevTotal = data ? (data.yearTotals[String(+selYear-1)] ?? 0) : 0;
@@ -1224,7 +1225,7 @@ function HubberSidebarPanel({
               <ResponsiveContainer width="100%" height="100%">
                 {isComparing ? (
                   <LineChart data={cmpData} margin={{ top:4, right:8, left:-12, bottom:0 }}>
-                    <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
+                    <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(255,255,255,0.04)":"rgba(0,0,0,0.05)"} vertical={false}/>
                     <XAxis dataKey="m" tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false}/>
                     <YAxis tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
                     <Tooltip contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }} formatter={(v:number,name:string)=>[fmtK(v), name===`a`?cmpA:cmpB]}/>
@@ -1234,7 +1235,7 @@ function HubberSidebarPanel({
                   </LineChart>
                 ) : (
                   <BarChart data={yearBarData} margin={{ top:4, right:8, left:-12, bottom:0 }}>
-                    <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
+                    <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(255,255,255,0.04)":"rgba(0,0,0,0.05)"} vertical={false}/>
                     <XAxis dataKey="year" tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false}/>
                     <YAxis tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
                     <Tooltip contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
@@ -1522,11 +1523,21 @@ function detectWarehouseBrand(productName: string): string {
 interface SkladItem { product: string; qty: number; price: number; brand: string }
 
 /* ─── InventorySkladPanel — СКЛАД sidebar button + portal modal ─ */
+const SKLAD_STORAGE_KEY = "solana_sklad_items";
+function readSkladCache(): SkladItem[] {
+  try { const s = localStorage.getItem(SKLAD_STORAGE_KEY); if (s) return JSON.parse(s); } catch {}
+  return [];
+}
+
 function InventorySkladPanel({ t }: { t: T }) {
   const [open, setOpen] = React.useState(false);
-  const [skladItems, setSkladItems] = React.useState<SkladItem[]>([]);
+  const [skladItems, setSkladItems] = React.useState<SkladItem[]>(()=>readSkladCache());
   const [searchQ, setSearchQ] = React.useState("");
   const skladRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(()=>{
+    try { localStorage.setItem(SKLAD_STORAGE_KEY, JSON.stringify(skladItems)); } catch {}
+  },[skladItems]);
 
   function handleSkladFile(file: File) {
     const reader = new FileReader();
@@ -1610,12 +1621,12 @@ function InventorySkladPanel({ t }: { t: T }) {
 
         {/* Search + upload */}
         <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 20px 8px", borderBottom:`1px solid ${t.border}`, flexShrink:0 }}>
-          <div style={{ flex:1, display:"flex", alignItems:"center", gap:6, background:"rgba(255,255,255,0.05)", borderRadius:8, padding:"4px 10px", border:`1px solid ${"rgba(255,255,255,0.08)"}` }}>
+          <div style={{ flex:1, display:"flex", alignItems:"center", gap:6, background:t.dark?"rgba(255,255,255,0.05)":"rgba(0,0,0,0.03)", borderRadius:8, padding:"4px 10px", border:`1px solid ${t.dark?"rgba(255,255,255,0.08)":t.border}` }}>
             <Search size={12} style={{ color:"#6B8FA3", flexShrink:0 }}/>
             <input
               value={searchQ} onChange={e=>setSearchQ(e.target.value)}
               placeholder="Пошук за назвою або брендом..."
-              style={{ border:"none", outline:"none", background:"transparent", color:"#fff", fontSize:12, width:"100%", fontFamily:"inherit" }}
+              style={{ border:"none", outline:"none", background:"transparent", color:t.text, fontSize:12, width:"100%", fontFamily:"inherit" }}
             />
           </div>
           <input ref={skladRef} type="file" accept=".csv,.xlsx,.xls" style={{ display:"none" }} onChange={e=>{ const f=e.target.files?.[0]; if(f) handleSkladFile(f); if(skladRef.current) skladRef.current.value=""; }}/>
@@ -1629,7 +1640,7 @@ function InventorySkladPanel({ t }: { t: T }) {
           {skladItems.length === 0 ? (
             <div style={{ textAlign:"center", padding:"60px 20px", color:"#6B8FA3" }}>
               <HardDrive size={40} style={{ marginBottom:12, opacity:0.4 }}/>
-              <div style={{ fontSize:14, fontWeight:700, marginBottom:6, color:"#fff" }}>Немає даних складу</div>
+              <div style={{ fontSize:14, fontWeight:700, marginBottom:6, color:t.text }}>Немає даних складу</div>
               <div style={{ fontSize:12, marginBottom:16 }}>Завантажте файл Склад.csv або .xlsx (Колонка A — товар, B — кількість, D — ціна)</div>
               <button onClick={()=>skladRef.current?.click()} style={{ padding:"8px 20px", borderRadius:8, border:"none", background:"#EF4444", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                 <Upload size={12} style={{ marginRight:6, verticalAlign:"middle" }}/> Обрати файл
@@ -1654,13 +1665,13 @@ function InventorySkladPanel({ t }: { t: T }) {
                       const bi = WAREHOUSE_BRANDS.indexOf(item.brand as typeof WAREHOUSE_BRANDS[number]);
                       const clr = MASTER_BLUE[bi >= 0 ? bi % MASTER_BLUE.length : 5];
                       return (
-                        <tr key={`${item.brand}-${item.product}-${i}`} style={{ borderTop:`1px solid ${"rgba(255,255,255,0.04)"}`, background:i%2===0?"transparent":"rgba(255,255,255,0.01)" }}>
+                        <tr key={`${item.brand}-${item.product}-${i}`} style={{ borderTop:`1px solid ${t.dark?"rgba(255,255,255,0.04)":t.border}`, background:i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.01)":"rgba(0,0,0,0.015)") }}>
                           <td style={{ padding:"8px 14px" }}>
                             <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, background:`${clr}18`, color:clr }}>{item.brand}</span>
                           </td>
-                          <td style={{ padding:"8px 14px", color:"#E5E7EB", fontWeight:500, maxWidth:340, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{item.product}</td>
-                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:"#fff" }}>{item.qty.toLocaleString("uk-UA")}</td>
-                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:600, color:"#D1D5DB" }}>{item.price.toLocaleString("uk-UA")}</td>
+                          <td style={{ padding:"8px 14px", color:t.text, fontWeight:500, maxWidth:340, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{item.product}</td>
+                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:t.text }}>{item.qty.toLocaleString("uk-UA")}</td>
+                          <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:600, color:t.dim }}>{item.price.toLocaleString("uk-UA")}</td>
                           <td style={{ padding:"8px 14px", textAlign:"right", fontWeight:700, color:"#EF4444" }}>{(item.qty * item.price).toLocaleString("uk-UA")}</td>
                         </tr>
                       );
@@ -2777,9 +2788,9 @@ export default function Dashboard() {
     <div style={{ background:t.bg, minHeight:"100vh", fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
 
       {/* ── Professional Trading Terminal navbar ─────────────────── */}
-      <div style={{ background:t.bg, borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100 }}>
+      <div style={{ background:t.bg, borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky", top:0, zIndex:100, flexWrap:"nowrap" }}>
         {/* Left: Brand + Nav */}
-        <div style={{ display:"flex", alignItems:"center", gap:20 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:20, flexShrink:0 }}>
           {fileData && (
             <button className="sidebar-toggle-btn" onClick={()=>setSidebarOpen(v=>!v)} aria-label="Toggle sidebar">
               <Menu size={18}/>
@@ -2795,7 +2806,7 @@ export default function Dashboard() {
           </div>
         </div>
         {/* Right: Actions */}
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:4, border:`1px solid ${t.border}` }}>
             <span style={{ fontSize:9, fontWeight:700, color:t.text, letterSpacing:"0.06em" }}>ВИРУЧКА</span>
             <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace" }}>{kpi ? fmtK(kpi.grossIncome)+" ₴" : "—"}</span>
@@ -3355,7 +3366,8 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/brandTotal)*100).toFixed(1)}%)`, name]}
-                          contentStyle={{ background:t.bg, border:`1px solid ${t.border}`, borderRadius:4, fontSize:11 }}
+                          contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:4, fontSize:11, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }}
+                          itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -3530,7 +3542,7 @@ export default function Dashboard() {
                                 {isKyiv && kyivPct>30 && <span style={{ fontSize:8, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"#DBEAFE", color:"#1E40AF" }}>Хаб</span>}
                                 {active && <span style={{ fontSize:8, fontWeight:700, padding:"1px 5px", borderRadius:4, background:"rgba(0,64,128,0.10)", color:"#004080" }}>↓ Повернення</span>}
                               </div>
-                              <div style={{ height:3, borderRadius:99, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
+                              <div style={{ height:3, borderRadius:99, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)", overflow:"hidden" }}>
                                 <div style={{ width:`${barW}%`, height:"100%", borderRadius:99, background: BASE_BLUE[i] ?? BASE_BLUE[BASE_BLUE.length-1], transition:"width 0.6s ease", opacity: active ? 1 : 0.85 }}/>
                               </div>
                             </div>
@@ -3720,7 +3732,7 @@ export default function Dashboard() {
                             <span style={{ fontSize:12, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</span>
                             <span style={{ fontSize:13, fontWeight:700, color:i===0?"#004080":t.text, flexShrink:0 }}>{fmtRev(p.rev)} ₴</span>
                           </div>
-                          <div style={{ height:4, borderRadius:99, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
+                          <div style={{ height:4, borderRadius:99, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)", overflow:"hidden" }}>
                             <div style={{ width:`${(p.rev/maxRev)*100}%`, height:"100%", borderRadius:99, background: BASE_BLUE[i] ?? BASE_BLUE[BASE_BLUE.length-1], transition:"width 0.6s ease" }}/>
                           </div>
                         </div>
@@ -3741,13 +3753,13 @@ export default function Dashboard() {
                 {topProducts.length>0 ? (
                   <div style={{ overflowX:"auto" }}>
                     <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                      <thead><tr style={{ background:"rgba(4,6,14,0.9)" }}>
+                      <thead><tr style={{ background:t.dark?"rgba(4,6,14,0.9)":t.bg }}>
                         {["#","Назва, Модель","К-сть","Дохід ₴"].map(h=>(
                           <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}` }}>{h}</th>
                         ))}
                       </tr></thead>
                       <tbody>{topProducts.map((p,i)=>(
-                        <tr key={i} style={{ borderBottom:`1px solid ${"rgba(255,255,255,0.035)"}`, background:i%2===0?"transparent":("rgba(255,255,255,0.015)") }}>
+                        <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":t.border}`, background:i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)") }}>
                           <td style={{ padding:"8px 14px", color:t.dim, fontWeight:700, verticalAlign:"top" }}>{i+1}</td>
                           <td title={p.name} style={{ padding:"8px 14px", color:t.text, fontWeight:500, maxWidth:200, wordBreak:"break-word", whiteSpace:"normal", lineHeight:1.4 }}>{p.name}</td>
                           <td style={{ padding:"8px 14px", color:t.sub, verticalAlign:"top", whiteSpace:"nowrap" }}>{p.qty%1===0?p.qty.toFixed(0):p.qty.toFixed(1)}</td>
@@ -3769,7 +3781,7 @@ export default function Dashboard() {
                 {topCustomers.length>0 ? (
                   <div style={{ overflowX:"auto", maxHeight:340, overflowY:"auto" }}>
                     <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                      <thead style={{ position:"sticky", top:0, background:"rgba(4,6,14,0.98)" }}>
+                      <thead style={{ position:"sticky", top:0, background:t.dark?"rgba(4,6,14,0.98)":t.bg }}>
                         <tr>
                           {["#","ПІБ / Телефон","Замовлень","Витрачено ₴"].map(h=>(
                             <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}` }}>{h}</th>
@@ -3777,7 +3789,7 @@ export default function Dashboard() {
                         </tr>
                       </thead>
                       <tbody>{topCustomers.map((c,i)=>(
-                        <tr key={i} style={{ borderBottom:`1px solid ${"rgba(255,255,255,0.035)"}`, background:i%2===0?"transparent":("rgba(255,255,255,0.015)") }}>
+                        <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":t.border}`, background:i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)") }}>
                           <td style={{ padding:"8px 14px", color:t.dim, fontWeight:700, verticalAlign:"top" }}>{i+1}</td>
                           <td title={c.name} style={{ padding:"8px 14px", color:t.text, fontWeight:500, maxWidth:180, wordBreak:"break-word", whiteSpace:"normal", lineHeight:1.4 }}>{c.name}</td>
                           <td style={{ padding:"8px 14px", color:t.sub, verticalAlign:"top" }}>{c.orders}</td>
@@ -3861,7 +3873,7 @@ export default function Dashboard() {
                             const refRate  = p.rows > 0 ? (p.refs / p.rows) * 100 : 0;
                             const highRef  = refRate > 30 && p.refs > 0;
                             return (
-                              <tr key={i} style={{ borderBottom:`1px solid ${"rgba(255,255,255,0.03)"}`, background: highRef ? ("rgba(226,149,120,0.05)") : i%2===0?"transparent":("rgba(255,255,255,0.015)") }}>
+                              <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.03)":t.border}`, background: highRef ? ("rgba(226,149,120,0.05)") : i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)") }}>
                                 <td style={{ padding:"8px 14px", color:t.dim, fontSize:10, fontWeight:600 }}>{i+1}</td>
                                 <td style={{ padding:"8px 14px", minWidth:160 }}>
                                   <div style={{ display:"flex", alignItems:"flex-start", gap:5, flexWrap:"wrap" }}>
@@ -3880,7 +3892,7 @@ export default function Dashboard() {
                                 </td>
                                 <td style={{ padding:"8px 14px 8px 10px" }}>
                                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                    <div style={{ flex:1, height:5, borderRadius:3, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
+                                    <div style={{ flex:1, height:5, borderRadius:3, background:t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)", overflow:"hidden" }}>
                                       <div style={{ width:`${barPct}%`, height:"100%", borderRadius:3, background:barCol, transition:"width 0.3s ease" }}/>
                                     </div>
                                   </div>
@@ -3949,9 +3961,9 @@ export default function Dashboard() {
                             {((customerInsights.newC/customerInsights.total)*100).toFixed(0)}% нових
                           </span>
                         </div>
-                        <div style={{ height:6, borderRadius:3, background:"rgba(255,255,255,0.07)", overflow:"hidden", display:"flex" }}>
+                        <div style={{ height:6, borderRadius:3, background:t.dark?"rgba(255,255,255,0.07)":"rgba(0,0,0,0.06)", overflow:"hidden", display:"flex" }}>
                           <div style={{ width:`${(customerInsights.returning/customerInsights.total)*100}%`, background:t.em, borderRadius:"3px 0 0 3px", transition:"width 0.4s ease" }}/>
-                          <div style={{ flex:1, background:"rgba(255,255,255,0.12)" }}/>
+                          <div style={{ flex:1, background:t.dark?"rgba(255,255,255,0.12)":"rgba(0,0,0,0.08)" }}/>
                         </div>
                       </div>
                     )}
@@ -3984,7 +3996,7 @@ export default function Dashboard() {
                                 <span style={{ fontSize:11, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{String(item.city || item)}</span>
                                 <span style={{ fontSize:11, fontWeight:700, color:t.blue, flexShrink:0, marginLeft:6 }}>{item.count}</span>
                               </div>
-                              <div style={{ height:4, borderRadius:2, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
+                              <div style={{ height:4, borderRadius:2, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)", overflow:"hidden" }}>
                                 <div style={{ width:`${(item.count/maxC)*100}%`, height:"100%", borderRadius:2, background:t.blue }}/>
                               </div>
                             </div>
@@ -4011,7 +4023,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ overflowX:"auto", maxHeight:360, overflowY:"auto" }}>
                       <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                        <thead style={{ position:"sticky", top:0, background:"rgba(4,6,14,0.98)" }}>
+                        <thead style={{ position:"sticky", top:0, background:t.dark?"rgba(4,6,14,0.98)":t.bg }}>
                           <tr>
                             {["#","ПІБ / Ключ","Телефон","Замовлень","Сума ₴","Тип"].map((h,hi)=>(
                               <th key={h} style={{ padding:"8px 14px", textAlign: hi>=3?"right":"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap" }}>{h}</th>
@@ -4024,7 +4036,7 @@ export default function Dashboard() {
                             const displayPhone = c.phone ? maskPhone(c.phone) : (isPhoneString(c.key) ? maskPhone(c.key) : "—");
                             const displayName  = c.displayName || (isPhoneString(c.key) ? "—" : c.key);
                             return (
-                              <tr key={i} style={{ borderBottom:`1px solid ${"rgba(255,255,255,0.035)"}`, background: i===0 ? ("rgba(255,215,0,0.04)") : i%2===0?"transparent":("rgba(255,255,255,0.015)") }}>
+                              <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":t.border}`, background: i===0 ? ("rgba(255,215,0,0.04)") : i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)") }}>
                                 <td style={{ padding:"8px 14px", color: i===0?t.em:t.dim, fontWeight:700, fontSize:10 }}>
                                   {i===0 ? "👑" : i+1}
                                 </td>
@@ -4073,7 +4085,7 @@ export default function Dashboard() {
               <div style={{ overflowX:"auto", maxHeight:380, overflowY:"auto" }}>
                 <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
                   <thead style={{ position:"sticky", top:0, zIndex:10 }}>
-                    <tr style={{ background:"rgba(4,6,14,0.98)" }}>
+                    <tr style={{ background:t.dark?"rgba(4,6,14,0.98)":t.bg }}>
                       {fileData.columns.map(col=>{
                         const isFin=[fileData.cols.revenue,fileData.cols.delivery,fileData.cols.commission,fileData.cols.debt].includes(col);
                         return <th key={col} style={{ padding:"8px 13px", textAlign:"left", fontWeight:600, whiteSpace:"nowrap", color:isFin?t.blue:t.dim, borderBottom:`1px solid ${t.border}`, letterSpacing:"0.04em", fontSize:9, textTransform:"uppercase" }}>{col}</th>;
@@ -4084,7 +4096,7 @@ export default function Dashboard() {
                     {tableRows.map((row,i)=>{
                       const ref=isRefusal(row,fileData.cols);
                       return (
-                        <tr key={i} style={{ background:ref?("rgba(244,63,94,0.04)"):i%2===0?"transparent":("rgba(255,255,255,0.015)"), borderBottom:`1px solid ${"rgba(255,255,255,0.035)"}` }}>
+                        <tr key={i} style={{ background:ref?("rgba(244,63,94,0.04)"):i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)"), borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":t.border}` }}>
                           {fileData.columns.map(col=>{
                             const v=row[col];
                             const isFin=[fileData.cols.revenue,fileData.cols.delivery,fileData.cols.commission,fileData.cols.debt].includes(col);
