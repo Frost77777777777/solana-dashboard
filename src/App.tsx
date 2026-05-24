@@ -3663,7 +3663,7 @@ export default function Dashboard() {
                 <div style={{ ...glassBase, padding:"18px 18px 16px", display:"flex", flexDirection:"column", gap:11, background: t.dark?"rgba(234,179,8,0.07)":"#FFFBEB", border:`1px solid ${t.dark?"rgba(234,179,8,0.22)":"#E2E8F0"}` }}>
                   <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:2 }}>
                     <span style={{ fontSize:15 }}>💡</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:"#1A1A1B", letterSpacing:"-0.02em" }}>Порада щодо оптимізації</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:t.dark?"#FDE68A":"#1A1A1B", letterSpacing:"-0.02em" }}>Порада щодо оптимізації</span>
                   </div>
 
                   {returnAdvice.length > 0 ? returnAdvice.map((adv,i)=>(
@@ -3671,9 +3671,9 @@ export default function Dashboard() {
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:5 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                           <span style={{ fontSize:12 }}>{adv.icon}</span>
-                          <span style={{ fontSize:11, fontWeight:800, color:"#1A1A1B" }}>{adv.title}</span>
+                          <span style={{ fontSize:11, fontWeight:800, color:t.dark?"#FDE68A":"#1A1A1B" }}>{adv.title}</span>
                         </div>
-                        <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, background:t.dark?"rgba(234,179,8,0.2)":"#FDE68A", color:"#92400E", flexShrink:0, marginLeft:6 }}>{adv.badge}</span>
+                        <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, background:t.dark?"rgba(234,179,8,0.2)":"#FDE68A", color:t.dark?"#FDE68A":"#92400E", flexShrink:0, marginLeft:6 }}>{adv.badge}</span>
                       </div>
                       <p style={{ margin:0, fontSize:10, color:t.dark?"rgba(253,230,138,0.82)":"#1A1A1B", lineHeight:1.55 }}>{adv.msg}</p>
                     </div>
