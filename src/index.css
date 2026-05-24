@@ -161,6 +161,15 @@ html, body, #root {
   50% { opacity: 0.4; }
 }
 
+/* Breathing hover effect for Головний дашборд button */
+.sidebar-dash-btn:hover {
+  transform: scale(1.03) !important;
+  box-shadow: 0 0 12px rgba(0, 82, 255, 0.25), 0 0 24px rgba(0, 82, 255, 0.10);
+}
+.sidebar-dash-btn:active {
+  transform: scale(0.98) !important;
+}
+
 
 /* KPI cards responsive */
 @media (max-width: 1200px) {
