@@ -213,14 +213,14 @@ const COLORS_UA = new Set([
 const HUBBER_NEON_COLORS = [
   "#14F195", // Solana Green
   "#9945FF", // Cyber Purple
-  "#00C2FF", // Electric Blue
-  "#FFD700", // Gold
+  "#0066FF", // Vivid Blue
+  "#FFB800", // Amber Gold
   "#FF0040", // Ruby
   "#FF6B00", // Neon Orange
-  "#00FFD1", // Mint
+  "#00D4AA", // Teal
   "#FF69B4", // Hot Pink
-  "#7B68EE", // Slate Blue
-  "#ADFF2F", // Lime
+  "#5B5BFF", // Indigo
+  "#66CC00", // Vivid Lime
 ];
 function hubberYearColor(year: string, years: string[]): string {
   const idx = years.indexOf(year);
@@ -1227,7 +1227,7 @@ function HubberSidebarPanel({
                     <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
                     <XAxis dataKey="m" tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false}/>
                     <YAxis tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
-                    <Tooltip contentStyle={{ background:"#fff", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11 }} formatter={(v:number,name:string)=>[fmtK(v), name===`a`?cmpA:cmpB]}/>
+                    <Tooltip contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }} formatter={(v:number,name:string)=>[fmtK(v), name===`a`?cmpA:cmpB]}/>
                     <Legend formatter={(value:string)=>value===`a`?cmpA:cmpB} wrapperStyle={{ fontSize:11 }}/>
                     <Line type="monotone" dataKey="a" name="a" stroke={hubberYearColor(cmpA, displayYears)} strokeWidth={2.5} dot={{ r:3, fill:hubberYearColor(cmpA, displayYears), strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
                     <Line type="monotone" dataKey="b" name="b" stroke={hubberYearColor(cmpB, displayYears)} strokeWidth={2.5} dot={{ r:3, fill:hubberYearColor(cmpB, displayYears), strokeWidth:0 }} activeDot={{ r:5 }} isAnimationActive={true} animationDuration={500}/>
@@ -1237,7 +1237,7 @@ function HubberSidebarPanel({
                     <CartesianGrid strokeDasharray="1 0" stroke="rgba(0,0,0,0.05)" vertical={false}/>
                     <XAxis dataKey="year" tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false}/>
                     <YAxis tick={{ fontSize:9, fill:t.text }} axisLine={false} tickLine={false} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/>
-                    <Tooltip contentStyle={{ background:"#fff", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11 }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
+                    <Tooltip contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }} formatter={(v:number)=>[fmtK(v),"Дохід"]} labelFormatter={(l:string)=>`${l} рік`}/>
                     <Bar dataKey="total" radius={[4,4,0,0]} isAnimationActive={true} animationDuration={600}>
                       {yearBarData.map((entry, _idx) => (
                         <Cell key={entry.year} fill={hubberYearColor(entry.year, displayYears)} />
@@ -1957,8 +1957,8 @@ function Chip({ label, active, onClick, t, variant = "default", logo }: {
 function TipBox({ active, payload, label, t }: { active?:boolean; payload?:{value:number;name:string;color:string}[]; label?:string; t:T }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background:"rgba(4,6,14,0.97)", border:`1px solid ${t.border}`, borderRadius:10, padding:"10px 16px" }}>
-      <p style={{ color:t.dim, fontSize:11, marginBottom:6 }}>{label}</p>
+    <div style={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:10, padding:"10px 16px", boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }}>
+      <p style={{ color:t.dark?t.dim:"#1A1A1B", fontSize:11, fontWeight:600, marginBottom:6 }}>{label}</p>
       {payload.map((p,i)=><p key={i} style={{ color:p.color, fontSize:13, fontWeight:600, margin:"2px 0" }}>{p.name}: {fmt(p.value)}</p>)}
     </div>
   );
@@ -2208,6 +2208,8 @@ export default function Dashboard() {
   const years = useMemo(()=>{
     const s = new Set<string>();
     months.filter(m=>m!=="No Date").forEach(m=>s.add(m.slice(0,4)));
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y <= currentYear + 2; y++) s.add(String(y));
     return Array.from(s).sort();
   },[months]);
 
@@ -3093,7 +3095,7 @@ export default function Dashboard() {
               const marginPct = kpi.grossIncome > 0 ? (kpi.net / kpi.grossIncome) * 100 : null;
               const roiVal = kpi.logistics > 0 ? kpi.net / kpi.logistics : null;
               return (
-            <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10, animationDelay:"65ms" }}>
+            <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10, animationDelay:"65ms" }}>
               <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
                 <div style={{ ...KPI_LABEL, color:t.text }}>LFL %</div>
                 <div style={{ ...KPI_NUM, color:lflPct!==null?(lflPct>=0?"#22C55E":"#EF4444"):t.text, fontSize:28 }}>
@@ -3109,13 +3111,6 @@ export default function Dashboard() {
                   {marginPct!==null ? marginPct.toFixed(1)+"%" : "—"}
                 </div>
                 <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Чистий дохід / Виручка</div>
-              </div>
-              <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:kpi.debt>0?"#EF4444":t.in }}>Заборгованість</div>
-                <div style={{ ...KPI_NUM, color:kpi.debt>0?"#EF4444":"#22C55E", fontSize:28 }}>
-                  {kpi.debt > 0 ? "-"+fmtK(kpi.debt) : "0"}
-                </div>
-                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Дебіторська заборгованість</div>
               </div>
               <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
                 <div style={{ ...KPI_LABEL, color:t.text }}>ROI / Sebe</div>
@@ -3236,7 +3231,7 @@ export default function Dashboard() {
                           <CartesianGrid strokeDasharray="1 0" stroke={t.border} vertical={false}/>
                           <XAxis dataKey="name" tick={{ fontSize:11, fill:t.text }} tickLine={false} axisLine={false}/>
                           <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} width={90}/>
-                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.bg, border:`1px solid ${t.border}`, borderRadius:4, fontSize:12 }}/>
+                          <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:4, fontSize:12, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}/>
                           <Bar isAnimationActive={true} animationDuration={500} animationEasing="ease-out" dataKey="net" name="Дохід" radius={[6,6,0,0]}
                             label={(props: Record<string,unknown>) => {
                               const entry = marketplaceBarWithMoM[props.index as number];
@@ -3310,7 +3305,8 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           formatter={(v:number, name:string)=>[`${fmt(v)} (${((v/donutTotal)*100).toFixed(1)}%)`, name]}
-                          contentStyle={{ background:t.bg, border:`1px solid ${t.border}`, borderRadius:4, fontSize:11 }}
+                          contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:4, fontSize:11, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }}
+                          itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -3397,7 +3393,7 @@ export default function Dashboard() {
                       <Cell fill={t.em}/>
                       <Cell fill={t.red}/>
                     </Pie>
-                    <Tooltip formatter={(v:number,n:string)=>[v,n]} contentStyle={{ background:"rgba(4,6,14,0.97)", border:`1px solid ${t.border}`, borderRadius:8, fontSize:12 }}/>
+                    <Tooltip formatter={(v:number,n:string)=>[v,n]} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:8, fontSize:12, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}/>
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:12, color:t.sub }}/>
                   </PieChart>
                   </ResponsiveContainer>
@@ -3463,12 +3459,13 @@ export default function Dashboard() {
                     return (
                       <ResponsiveContainer width="100%" height={155}>
                         <ComposedChart data={chartData} margin={{ top:18, right:12, left:-10, bottom:2 }}>
-                          <CartesianGrid strokeDasharray="1 0" stroke={"rgba(255,255,255,0.04)"} vertical={false}/>
-                          <XAxis dataKey="name" tick={{ fontSize:10, fill:t.sub }} tickLine={false} axisLine={false}/>
+                          <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(255,255,255,0.04)":t.border} vertical={false}/>
+                          <XAxis dataKey="name" tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false}/>
                           <YAxis yAxisId="left"  tick={{ fontSize:9, fill:t.dim }} tickLine={false} axisLine={false} width={30} tickFormatter={(v:number)=>String(v)}/>
                           <YAxis yAxisId="right" orientation="right" tick={{ fontSize:9, fill:"#1E90FF" }} tickLine={false} axisLine={false} width={50} domain={[0, maxAvgLine*1.35]} tickFormatter={(v:number)=>v>0?`${Math.round(v/100)*100} ₴`:""} />
                           <Tooltip
-                            contentStyle={{ background:"rgba(4,6,14,0.97)", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11 }}
+                            contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:8, fontSize:11, color:t.text, boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }}
+                            itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}
                             formatter={(v:number, name:string) =>
                               name==="замовлень"
                                 ? [`${v} зам. (${((v/totalOrds)*100).toFixed(1)}%)`, "Замовлення"]
@@ -3612,7 +3609,7 @@ export default function Dashboard() {
                             <span style={{ fontSize:11, color: isHovered?t.blue:t.text, fontWeight: isHovered?700:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70%", transition:"color 0.12s" }}>{item.reason}</span>
                             <span style={{ fontSize:11, fontWeight:700, color:t.red, flexShrink:0, marginLeft:8 }}>{item.count} <span style={{ fontSize:9, color:t.dim, fontWeight:400 }}>({ofTotal.toFixed(0)}%)</span></span>
                           </div>
-                          <div style={{ height:6, borderRadius:3, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
+                          <div style={{ height:6, borderRadius:3, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)", overflow:"hidden" }}>
                             <div style={{
                               height:"100%", borderRadius:3,
                               width:`${pct}%`,
@@ -3632,7 +3629,7 @@ export default function Dashboard() {
                 <div style={{ ...glassBase, padding:"18px 18px 16px", display:"flex", flexDirection:"column", gap:11, background: "rgba(234,179,8,0.07)", border:`1px solid ${"rgba(234,179,8,0.22)"}` }}>
                   <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:2 }}>
                     <span style={{ fontSize:15 }}>💡</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:"#FDE68A", letterSpacing:"-0.02em" }}>Порада щодо оптимізації</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:t.dark?"#FDE68A":"#1A1A1B", letterSpacing:"-0.02em" }}>Порада щодо оптимізації</span>
                   </div>
 
                   {returnAdvice.length > 0 ? returnAdvice.map((adv,i)=>(
@@ -3640,11 +3637,11 @@ export default function Dashboard() {
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:5 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                           <span style={{ fontSize:12 }}>{adv.icon}</span>
-                          <span style={{ fontSize:11, fontWeight:800, color:"#FDE68A" }}>{adv.title}</span>
+                          <span style={{ fontSize:11, fontWeight:800, color:t.dark?"#FDE68A":"#1A1A1B" }}>{adv.title}</span>
                         </div>
-                        <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, background:"rgba(234,179,8,0.2)", color:"#FDE68A", flexShrink:0, marginLeft:6 }}>{adv.badge}</span>
+                        <span style={{ fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, background:"rgba(234,179,8,0.2)", color:t.dark?"#FDE68A":"#92400E", flexShrink:0, marginLeft:6 }}>{adv.badge}</span>
                       </div>
-                      <p style={{ margin:0, fontSize:10, color:"rgba(253,230,138,0.82)", lineHeight:1.55 }}>{adv.msg}</p>
+                      <p style={{ margin:0, fontSize:10, color:t.dark?"rgba(253,230,138,0.82)":"#1A1A1B", lineHeight:1.55 }}>{adv.msg}</p>
                     </div>
                   )) : (
                     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flex:1, gap:8, padding:"18px 0" }}>
@@ -3675,10 +3672,10 @@ export default function Dashboard() {
                         <stop offset="100%" stopColor={t.blue} stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="1 0" stroke={"rgba(255,255,255,0.04)"} vertical={false}/>
-                    <XAxis dataKey="day" tick={{ fontSize:10, fill:t.sub }} tickLine={false} axisLine={false} label={{ value:"День місяця", position:"insideBottom", offset:-2, fill:t.dim, fontSize:9 }}/>
-                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.dim }} tickLine={false} axisLine={false} width={90}/>
-                    <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:"rgba(4,6,14,0.97)", border:`1px solid ${t.border}`, borderRadius:10, fontSize:12, boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}/>
+                    <CartesianGrid strokeDasharray="1 0" stroke={t.dark?"rgba(255,255,255,0.04)":t.border} vertical={false}/>
+                    <XAxis dataKey="day" tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} label={{ value:"День місяця", position:"insideBottom", offset:-2, fill:t.dim, fontSize:9 }}/>
+                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} width={90}/>
+                    <Tooltip formatter={(v:number)=>fmt(v)} contentStyle={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:10, fontSize:12, color:t.text, boxShadow:t.dark?"0 4px 24px rgba(0,0,0,0.08)":"0 4px 16px rgba(0,0,0,0.10)" }} itemStyle={{ color:t.text }} labelStyle={{ color:t.text }}/>
                     <Area isAnimationActive={true} animationDuration={500} animationEasing="ease-out" type="monotone" dataKey="net" name="Дохід" stroke={t.blue} strokeWidth={2.5} fill="url(#gDay)" dot={{ r:3, fill:t.blue, strokeWidth:0 }} activeDot={{ r:5, fill:t.blue, strokeWidth:0 }}/>
                   </AreaChart>
                 </ResponsiveContainer>
@@ -4147,9 +4144,9 @@ export default function Dashboard() {
               zIndex:999999,
               pointerEvents:"none",
               borderRadius:12,
-              background:"#1C1917",
-              border:"1.5px solid #2B4559",
-              boxShadow:"0 8px 32px rgba(0,0,0,0.38), 0 0 0 1px rgba(0,82,255,0.12)",
+              background:t.dark?"#1C1917":"#FFFFFF",
+              border:`1.5px solid ${t.border}`,
+              boxShadow:t.dark?"0 8px 32px rgba(0,0,0,0.38), 0 0 0 1px rgba(0,82,255,0.12)":"0 8px 32px rgba(0,0,0,0.12)",
               padding:"13px 15px 12px",
               fontFamily:"'Inter',-apple-system,sans-serif",
             }}
@@ -4160,7 +4157,7 @@ export default function Dashboard() {
               <span style={{ fontSize:9, fontWeight:800, letterSpacing:"0.07em", color:t.blue, background:"rgba(0,82,255,0.18)", padding:"2px 7px", borderRadius:4 }}>{adv.cat}</span>
             </div>
             {/* reason label */}
-            <p style={{ margin:"0 0 6px", fontSize:10, color:"rgba(255,255,255,0.5)", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{rejTooltip.reason}</p>
+            <p style={{ margin:"0 0 6px", fontSize:10, color:t.dark?"rgba(255,255,255,0.5)":"#6B7280", fontStyle:"italic", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{rejTooltip.reason}</p>
             {/* advice text */}
             <p style={{ margin:0, fontSize:11, color:t.text, lineHeight:1.55, fontWeight:500 }}>{adv.text}</p>
             {/* pointer arrow */}
