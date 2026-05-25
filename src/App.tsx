@@ -36,7 +36,7 @@ interface FileData {
   cacheVersion: string;    // must equal STORAGE_KEY — prevents stale HMR data from polluting cache
 }
 
-const STORAGE_KEY   = "orbit_analytics_v24";
+const STORAGE_KEY   = "orbit_analytics_v25";
 const HUBBER_KEY    = "orbit_hubber_v1";
 const FILTERS_KEY   = "orbit_filters_v1";
 const PRESET_BRANDS = ["Каста", "Розетка", "Хаббер", "Шафа"];
@@ -81,7 +81,7 @@ const parseNum = toNum;
 // Keywords are checked in PRIORITY ORDER — the first keyword that has a matching
 // column wins, regardless of which column appears first in the array.
 function findCol(cols: string[], ...kw: string[]): string | null {
-  const lc = cols.map(c => c.toLowerCase().trim());
+  const lc = cols.map(c => c.replace(/\uFEFF/g, "").toLowerCase().trim());
   // Phase 1: exact match, keyword priority
   for (const k of kw) {
     const idx = lc.findIndex(c => c === k.toLowerCase());
@@ -2054,6 +2054,8 @@ export default function Dashboard() {
         const parsed: FileData = JSON.parse(saved);
         // Reject any cache saved by a different code version (e.g. HMR contamination)
         if (parsed.cacheVersion !== STORAGE_KEY) return;
+        // Re-detect columns to pick up newly added detections (e.g. paymentMethod)
+        parsed.cols = detectCols(parsed.columns, parsed.rows);
         stampRows(parsed.rows, parsed.cols);
         setFileData(parsed);
       }
@@ -2293,16 +2295,23 @@ export default function Dashboard() {
       if (isRefusal(r, c)) refs++;
       // Money in Transit logic
       if (c.paymentMethod) {
-        const pm = String(r[c.paymentMethod] ?? "").toLowerCase().trim();
-        const st = c.status ? String(r[c.status] ?? "").toLowerCase().trim() : "";
+        const pm = String(r[c.paymentMethod] ?? "").replace(/\uFEFF/g, "").toLowerCase().trim();
+        const st = c.status ? String(r[c.status] ?? "").replace(/\uFEFF/g, "").toLowerCase().trim() : "";
         const rev = r._gross as number;
-        const isNalozhka = pm.includes("наложка") || pm.includes("налож") || pm.includes("cod") || pm.includes("cash on delivery");
-        const isRozetka  = pm.includes("оплачено розетка") || pm.includes("розетка");
-        const isInTransit = st.includes("в дорозі") || st.includes("відправлен") || st.includes("transit") || st.includes("прямує");
-        const isDelivered = st.includes("отриман") || st.includes("виконан") || st.includes("доставлен") || st.includes("успіш") || st.includes("delivered") || st.includes("completed");
-        if (isNalozhka && isInTransit && rev > 0) { moneyInTransit += rev; transitOrders++; }
+        const isNalozhka = pm.includes("наложка") || pm.includes("налож") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладений платіж");
+        const isRozetka  = pm.includes("оплачено розетка") || pm.includes("розетка") || pm.includes("rozetka");
+        const isInTransit = st.includes("в дорозі") || st.includes("відправлен") || st.includes("transit") || st.includes("прямує") || st.includes("в пути") || st.includes("в обробці");
+        const isDelivered = st.includes("отриман") || st.includes("виконан") || st.includes("доставлен") || st.includes("успіш") || st.includes("delivered") || st.includes("completed") || st.includes("завершен") || st.includes("виплач");
+        const isRefused = st.includes("відмова") || st.includes("повернен") || st.includes("refus") || st.includes("скасов");
+        if (isRefused) { /* skip refusals */ }
+        else if (isNalozhka && isInTransit && rev > 0) { moneyInTransit += rev; transitOrders++; }
         else if ((isNalozhka || isRozetka) && isDelivered && rev > 0) { moneyInTransit += rev; transitOrders++; }
       }
+    }
+    console.log("[KPI] paymentMethod col:", c.paymentMethod, "| status col:", c.status, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
+    if (c.paymentMethod && filtered.length > 0) {
+      const pmSample = filtered.slice(0, 5).map(r => String(r[c.paymentMethod!] ?? "").trim());
+      console.log("[KPI] Payment method sample values:", pmSample);
     }
     return { net, del, com, debt, grossIncome, logistics:del+com, orders:filtered.length, refs, successOrders:filtered.length-refs, returnRate:filtered.length>0?(refs/filtered.length)*100:0, moneyInTransit, transitOrders };
   },[filtered, fileData]);
