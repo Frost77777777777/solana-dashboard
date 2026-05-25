@@ -2291,25 +2291,52 @@ export default function Dashboard() {
       com         += r._fee   as number;
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
-      // Money in Transit logic
-      if (c.paymentMethod) {
-        const pm = String(r[c.paymentMethod] ?? "").replace(/\uFEFF/g, "").toLowerCase().trim();
-        const st = c.status ? String(r[c.status] ?? "").replace(/\uFEFF/g, "").toLowerCase().trim() : "";
+      // Money in Transit logic — bulletproof matching
+      if (c.paymentMethod || c.status) {
+        const rawPm = c.paymentMethod ? String(r[c.paymentMethod] ?? "") : "";
+        const rawSt = c.status ? String(r[c.status] ?? "") : "";
+        const pm = rawPm.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
+        const st = rawSt.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
         const rev = r._gross as number;
-        const isNalozhka = pm.includes("наложка") || pm.includes("налож") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладений платіж");
-        const isRozetka  = pm.includes("оплачено розетка") || pm.includes("розетка") || pm.includes("rozetka");
-        const isInTransit = st.includes("в дорозі") || st.includes("відправлен") || st.includes("transit") || st.includes("прямує") || st.includes("в пути") || st.includes("в обробці");
-        const isDelivered = st.includes("отриман") || st.includes("виконан") || st.includes("доставлен") || st.includes("успіш") || st.includes("delivered") || st.includes("completed") || st.includes("завершен") || st.includes("виплач");
-        const isRefused = st.includes("відмова") || st.includes("повернен") || st.includes("refus") || st.includes("скасов");
+        // COD detection: partial match on short stems
+        const isCOD = pm.includes("налож") || pm.includes("наклад") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладен");
+        // Rozetka payment detection: partial match
+        const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
+        // Condition A — Red / Pending / In Transit
+        const isPending = st.includes("в дорозі") || st.includes("відправлен") || st.includes("очікує в укрпошт") || st.includes("очікує в новій пошт") || st.includes("в обробці") || st.includes("transit") || st.includes("прямує") || st.includes("в пути") || st.includes("очікує");
+        // Condition B — Green / Delivered but unpaid
+        const isDeliveredUnpaid = st.includes("доставлен") || st.includes("очікує видачі") || st.includes("завершен") || st.includes("видано") || st.includes("отриман") || st.includes("виконан") || st.includes("успіш") || st.includes("delivered") || st.includes("completed");
+        // Refusal / cancellation — skip
+        const isRefused = st.includes("відмова") || st.includes("повернен") || st.includes("refus") || st.includes("скасов") || st.includes("cancel");
         if (isRefused) { /* skip refusals */ }
-        else if (isNalozhka && isInTransit && rev > 0) { moneyInTransit += rev; transitOrders++; }
-        else if ((isNalozhka || isRozetka) && isDelivered && rev > 0) { moneyInTransit += rev; transitOrders++; }
+        else if (isCOD && isPending && rev > 0) {
+          moneyInTransit += rev; transitOrders++;
+          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim(), ", Price:", rev);
+        }
+        else if ((isCOD || isRozetka) && isDeliveredUnpaid && rev > 0) {
+          moneyInTransit += rev; transitOrders++;
+          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim(), ", Price:", rev);
+        }
       }
     }
     console.log("[KPI] paymentMethod col:", c.paymentMethod, "| status col:", c.status, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
-    if (c.paymentMethod && filtered.length > 0) {
-      const pmSample = filtered.slice(0, 5).map(r => String(r[c.paymentMethod!] ?? "").trim());
-      console.log("[KPI] Payment method sample values:", pmSample);
+    if (filtered.length > 0) {
+      const pmCol = c.paymentMethod;
+      const stCol = c.status;
+      const sampleRows = filtered.slice(0, 10);
+      console.log("[KPI] Sample payment/status values:", sampleRows.map(r => ({
+        pm: pmCol ? String(r[pmCol] ?? "").trim() : "(no col)",
+        st: stCol ? String(r[stCol] ?? "").trim() : "(no col)",
+      })));
+      // Show unique payment method values
+      if (pmCol) {
+        const uniquePm = [...new Set(filtered.map(r => String(r[pmCol] ?? "").trim()))].filter(Boolean);
+        console.log("[KPI] All unique payment methods:", uniquePm);
+      }
+      if (stCol) {
+        const uniqueSt = [...new Set(filtered.map(r => String(r[stCol] ?? "").trim()))].filter(Boolean);
+        console.log("[KPI] All unique statuses:", uniqueSt);
+      }
     }
     return { net, del, com, debt, grossIncome, logistics:del+com, orders:filtered.length, refs, successOrders:filtered.length-refs, returnRate:filtered.length>0?(refs/filtered.length)*100:0, moneyInTransit, transitOrders };
   },[filtered, fileData]);
