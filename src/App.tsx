@@ -101,11 +101,11 @@ function detectCols(columns: string[], rows: Row[]): Cols {
   // The old fallback scanned row VALUES and matched "причина" (cancellation reasons column) — wrong.
   const statusExclude = ["причина", "comment", "reason", "коментар", "відмов", "повернен"];
   const status =
-    findCol(columns, "статус замовлення", "статус доставки", "статус", "status") ??
+    findCol(columns, "статус замовлення", "статус доставки", "статус", "status", "стан замовлення", "стан", "етап", "state", "lifecycle", "current_status") ??
     columns.find(c => {
       const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
       if (statusExclude.some(ex => cl.includes(ex))) return false;
-      return cl.includes("статус") || cl.includes("status") || cl.includes("стан");
+      return cl.includes("статус") || cl.includes("status") || cl.includes("стан") || cl.includes("етап") || cl.includes("state") || cl.includes("lifecycle");
     }) ??
     columns.find(c => {
       const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
@@ -2154,7 +2154,9 @@ export default function Dashboard() {
 
         if (!allRows.length) { setParseError("Файл порожній або не вдалося зчитати рядки."); return; }
         const columns = Array.from(colSet);
+        console.log("--- ALL DETECTED COLUMNS IN FILE: ---", columns);
         const cols = detectCols(columns, allRows);
+        console.log("--- DETECTED COLUMN MAPPING: ---", JSON.stringify(cols, null, 2));
 
         // ── PRE-STAMP every row with calculated fields ──────────────────
         stampRows(allRows, cols);
