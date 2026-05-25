@@ -23,6 +23,7 @@ interface Cols {
   customer:    string | null;
   quantity:    string | null;
   orderId:     string | null; // TTN / order number — for cross-sheet deduplication
+  paymentMethod: string | null; // Спосіб оплати — for Money in Transit
 }
 
 interface FileData {
@@ -156,6 +157,7 @@ function detectCols(columns: string[], rows: Row[]): Cols {
     city:        cityFromDelivery
                  ?? findCol(columns, "місто", "місто отримувача", "місто одержувача", "населений пункт", "city", "регіон", "область", "region", "district"),
     brand, date, status, refusalDate,
+    paymentMethod: findCol(columns, "спосіб оплати", "оплата", "payment method", "payment", "тип оплати"),
   };
 }
 
@@ -740,7 +742,7 @@ function AnimNum({ value, fmt: fmtFn }: { value: number; fmt: (v: number) => str
 
 /* ─── memoized KPI row ──────────────────────────────────────── */
 interface KpiRowProps {
-  kpi: { net:number; returnRate:number; refs:number; orders:number; successOrders:number; debt:number; logistics:number; del:number; com:number; grossIncome:number; };
+  kpi: { net:number; returnRate:number; refs:number; orders:number; successOrders:number; debt:number; logistics:number; del:number; com:number; grossIncome:number; moneyInTransit:number; transitOrders:number; };
   prevKpi: { net:number; orders:number; logistics:number; } | null;
   hubberLfl: { curr:number; prev:number; pct:number; year:string; prevYear:string; monthName:string } | null;
   filteredCount: number;
@@ -881,6 +883,18 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
                 {debtCol ? (hasDebt ? "⚠ УВАГА: Заборгованість є!" : "Заборгованість відсутня") : "Дані відсутні"}
               </span>
             </div>
+            {/* Money in Transit sub-metric */}
+            {kpi.moneyInTransit > 0 && (
+              <div style={{ paddingTop:8, borderTop:`1px solid ${t.border}`, marginTop:8 }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                  <span style={{ fontSize:8, color:"#E29578", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontWeight:700, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Гроші в дорозі 📦</span>
+                  <strong style={{ fontSize:16, fontWeight:800, color:"#E29578", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
+                    <AnimNum value={kpi.moneyInTransit} fmt={fmt}/> ₴
+                  </strong>
+                  <span style={{ fontSize:9, color:t.dim }}>{kpi.transitOrders} замовлень</span>
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -2269,7 +2283,7 @@ export default function Dashboard() {
   const kpi = useMemo(()=>{
     if (!fileData) return null;
     const c = fileData.cols;
-    let net=0, del=0, com=0, debt=0, refs=0, grossIncome=0;
+    let net=0, del=0, com=0, debt=0, refs=0, grossIncome=0, moneyInTransit=0, transitOrders=0;
     for (const r of filtered) {
       net         += r._net   as number;
       grossIncome += r._gross as number;
@@ -2277,8 +2291,20 @@ export default function Dashboard() {
       com         += r._fee   as number;
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
+      // Money in Transit logic
+      if (c.paymentMethod) {
+        const pm = String(r[c.paymentMethod] ?? "").toLowerCase().trim();
+        const st = c.status ? String(r[c.status] ?? "").toLowerCase().trim() : "";
+        const rev = r._gross as number;
+        const isNalozhka = pm.includes("наложка") || pm.includes("налож") || pm.includes("cod") || pm.includes("cash on delivery");
+        const isRozetka  = pm.includes("оплачено розетка") || pm.includes("розетка");
+        const isInTransit = st.includes("в дорозі") || st.includes("відправлен") || st.includes("transit") || st.includes("прямує");
+        const isDelivered = st.includes("отриман") || st.includes("виконан") || st.includes("доставлен") || st.includes("успіш") || st.includes("delivered") || st.includes("completed");
+        if (isNalozhka && isInTransit && rev > 0) { moneyInTransit += rev; transitOrders++; }
+        else if ((isNalozhka || isRozetka) && isDelivered && rev > 0) { moneyInTransit += rev; transitOrders++; }
+      }
     }
-    return { net, del, com, debt, grossIncome, logistics:del+com, orders:filtered.length, refs, successOrders:filtered.length-refs, returnRate:filtered.length>0?(refs/filtered.length)*100:0 };
+    return { net, del, com, debt, grossIncome, logistics:del+com, orders:filtered.length, refs, successOrders:filtered.length-refs, returnRate:filtered.length>0?(refs/filtered.length)*100:0, moneyInTransit, transitOrders };
   },[filtered, fileData]);
 
   /* ── LFL: prev-month KPI (same brand/company filters, prior month) ── */
