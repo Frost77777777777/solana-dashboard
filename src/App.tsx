@@ -753,8 +753,9 @@ const KPI_CARD_BASE: React.CSSProperties = {
   borderRadius:6,
   padding:"20px 20px 16px",
   display:"flex", flexDirection:"column", justifyContent:"space-between",
-  height:"100%",
-  contain:"layout",
+  height:"auto",
+  minHeight:0,
+  boxSizing:"border-box" as const,
 };
 const KPI_LABEL: React.CSSProperties = {
   fontSize:10, fontWeight:700, letterSpacing:"0.12em",
@@ -773,7 +774,7 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
   };
   return (
     <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
-      <style>{`.kpi-cards-grid > .kpi-card { display:flex; flex-direction:column; justify-content:space-between; height:100%; }`}</style>
+      <style>{`.kpi-cards-grid > .kpi-card { display:flex; flex-direction:column; justify-content:space-between; height:auto; min-height:0; box-sizing:border-box; }`}</style>
 
       {/* 1 — Net Income */}
       <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${kpi.net<0 ? t.red+"44" : t.border}`, borderLeft: kpi.net<0 ? `3px solid ${t.red}` : kpi.net>0 ? `3px solid ${t.em}` : `1px solid ${t.border}` }}>
@@ -2792,7 +2793,7 @@ export default function Dashboard() {
 
   /* ─── render ──────────────────────────────────────────────── */
   return (
-    <div style={{ background:t.bg, minHeight:"100vh", height: fileData ? "100vh" : undefined, overflow: fileData ? "hidden" : undefined, fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
+    <div style={{ background:t.bg, minHeight:"100vh", height: fileData ? "100vh" : undefined, overflow: fileData ? "auto" : undefined, fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
 
       {/* ── Professional Trading Terminal navbar ─────────────────── */}
       <div style={{ background:t.bg, borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"fixed", top:0, left:0, right:0, zIndex:100, flexWrap:"nowrap" }}>
@@ -3784,10 +3785,10 @@ export default function Dashboard() {
                 {topCustomers.length>0 ? (
                   <div style={{ overflowX:"auto", maxHeight:340, overflowY:"auto" }}>
                     <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                      <thead style={{ position:"sticky", top:0, background:t.dark?"rgba(4,6,14,0.98)":t.bg }}>
+                      <thead style={{ position:"sticky", top:0, background:t.blue }}>
                         <tr>
                           {["#","ПІБ / Телефон","Замовлень","Витрачено ₴"].map(h=>(
-                            <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}` }}>{h}</th>
+                            <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:"#FFFFFF", borderBottom:`1px solid ${t.border}` }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -4026,10 +4027,10 @@ export default function Dashboard() {
                     </div>
                     <div style={{ overflowX:"auto", maxHeight:360, overflowY:"auto" }}>
                       <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                        <thead style={{ position:"sticky", top:0, background:t.dark?"rgba(4,6,14,0.98)":t.bg }}>
+                        <thead style={{ position:"sticky", top:0, background:t.blue }}>
                           <tr>
                             {["#","ПІБ / Ключ","Телефон","Замовлень","Сума ₴","Тип"].map((h,hi)=>(
-                              <th key={h} style={{ padding:"8px 14px", textAlign: hi>=3?"right":"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap" }}>{h}</th>
+                              <th key={h} style={{ padding:"8px 14px", textAlign: hi>=3?"right":"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:"#FFFFFF", borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap" }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
@@ -4088,10 +4089,10 @@ export default function Dashboard() {
               <div style={{ overflowX:"auto", maxHeight:380, overflowY:"auto" }}>
                 <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
                   <thead style={{ position:"sticky", top:0, zIndex:10 }}>
-                    <tr style={{ background:t.dark?"rgba(4,6,14,0.98)":t.bg }}>
+                    <tr style={{ background:t.blue }}>
                       {fileData.columns.map(col=>{
                         const isFin=[fileData.cols.revenue,fileData.cols.delivery,fileData.cols.commission,fileData.cols.debt].includes(col);
-                        return <th key={col} style={{ padding:"8px 13px", textAlign:"left", fontWeight:600, whiteSpace:"nowrap", color:isFin?t.blue:t.dim, borderBottom:`1px solid ${t.border}`, letterSpacing:"0.04em", fontSize:9, textTransform:"uppercase" }}>{col}</th>;
+                        return <th key={col} style={{ padding:"8px 13px", textAlign:"left", fontWeight:600, whiteSpace:"nowrap", color:isFin?"#FFFFFF":"rgba(255,255,255,0.85)", borderBottom:`1px solid ${t.border}`, letterSpacing:"0.04em", fontSize:9, textTransform:"uppercase" }}>{col}</th>;
                       })}
                     </tr>
                   </thead>
