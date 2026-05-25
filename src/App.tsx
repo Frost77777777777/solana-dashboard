@@ -883,18 +883,16 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
                 {debtCol ? (hasDebt ? "⚠ УВАГА: Заборгованість є!" : "Заборгованість відсутня") : "Дані відсутні"}
               </span>
             </div>
-            {/* Money in Transit sub-metric */}
-            {kpi.moneyInTransit > 0 && (
-              <div style={{ paddingTop:8, borderTop:`1px solid ${t.border}`, marginTop:8 }}>
-                <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-                  <span style={{ fontSize:8, color:"#E29578", letterSpacing:"0.08em", textTransform:"uppercase" as const, fontWeight:700, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Гроші в дорозі 📦</span>
-                  <strong style={{ fontSize:16, fontWeight:800, color:"#E29578", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-                    <AnimNum value={kpi.moneyInTransit} fmt={fmt}/> ₴
-                  </strong>
-                  <span style={{ fontSize:9, color:t.dim }}>{kpi.transitOrders} замовлень</span>
-                </div>
+            {/* Money in Transit sub-metric — always visible */}
+            <div style={{ paddingTop:8, borderTop:`1px solid ${t.border}`, marginTop:8 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                <span style={{ fontSize:8, color:kpi.moneyInTransit > 0 ? "#E29578" : t.dim, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontWeight:700, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Гроші в дорозі 📦</span>
+                <strong style={{ fontSize:16, fontWeight:800, color:kpi.moneyInTransit > 0 ? "#E29578" : t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
+                  <AnimNum value={kpi.moneyInTransit} fmt={fmt}/> ₴
+                </strong>
+                <span style={{ fontSize:9, color:t.dim }}>{kpi.transitOrders} замовлень</span>
               </div>
-            )}
+            </div>
           </div>
         );
       })()}
