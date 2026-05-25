@@ -96,14 +96,25 @@ function findCol(cols: string[], ...kw: string[]): string | null {
 }
 
 function detectCols(columns: string[], rows: Row[]): Cols {
+  // Status column: prefer exact "статус" match, then any column whose header
+  // contains "статус" or "status" but NOT "причина"/"comment"/"reason".
+  // The old fallback scanned row VALUES and matched "причина" (cancellation reasons column) — wrong.
+  const statusExclude = ["причина", "comment", "reason", "коментар", "відмов", "повернен"];
   const status =
-    findCol(columns, "статус", "status") ??
-    columns.find(c =>
-      rows.slice(0, 300).some(r => {
+    findCol(columns, "статус замовлення", "статус доставки", "статус", "status") ??
+    columns.find(c => {
+      const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
+      if (statusExclude.some(ex => cl.includes(ex))) return false;
+      return cl.includes("статус") || cl.includes("status") || cl.includes("стан");
+    }) ??
+    columns.find(c => {
+      const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
+      if (statusExclude.some(ex => cl.includes(ex))) return false;
+      return rows.slice(0, 300).some(r => {
         const v = String(r[c] ?? "").toLowerCase();
-        return v.includes("відмова") || v.includes("повернення") || v.includes("успіш");
-      })
-    ) ?? null;
+        return v.includes("в дорозі") || v.includes("доставлен") || v.includes("відправлен") || v.includes("завершен") || v.includes("очікує");
+      });
+    }) ?? null;
 
   const refusalDate = findCol(columns, "ттн повернення", "дата_відмови", "дата відмови", "refusal_date", "дата повернення", "причина повернення");
   const brand       = findCol(columns, "магазин", "бренд", "brand", "shop", "store");
