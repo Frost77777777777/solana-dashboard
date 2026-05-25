@@ -753,7 +753,6 @@ const KPI_CARD_BASE: React.CSSProperties = {
   borderRadius:6,
   padding:"20px 20px 16px",
   display:"flex", flexDirection:"column", justifyContent:"space-between",
-  height:"auto",
   minHeight:0,
   boxSizing:"border-box" as const,
 };
@@ -774,7 +773,7 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
   };
   return (
     <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
-      <style>{`.kpi-cards-grid > .kpi-card { display:flex; flex-direction:column; justify-content:space-between; height:auto; min-height:0; box-sizing:border-box; }`}</style>
+      <style>{`.kpi-cards-grid > .kpi-card { display:flex; flex-direction:column; justify-content:space-between; min-height:0; box-sizing:border-box; }`}</style>
 
       {/* 1 — Net Income */}
       <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${kpi.net<0 ? t.red+"44" : t.border}`, borderLeft: kpi.net<0 ? `3px solid ${t.red}` : kpi.net>0 ? `3px solid ${t.em}` : `1px solid ${t.border}` }}>
@@ -3748,7 +3747,7 @@ export default function Dashboard() {
             )}
 
             {/* top products + top customers */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, alignItems:"start" }}>
 
               <div style={{ ...glassBase, overflow:"hidden" }}>
                 <div style={{ padding:"14px 18px 10px", borderBottom:`1px solid ${t.border}` }}>
