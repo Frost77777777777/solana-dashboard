@@ -751,20 +751,20 @@ interface KpiRowProps {
 }
 const KPI_CARD_BASE: React.CSSProperties = {
   borderRadius:6,
-  padding:"22px 22px 18px",
+  padding:"20px 20px 16px",
   display:"flex", flexDirection:"column", justifyContent:"space-between",
-  minHeight:190,
+  height:"100%",
   contain:"layout",
 };
 const KPI_LABEL: React.CSSProperties = {
   fontSize:10, fontWeight:700, letterSpacing:"0.12em",
   textTransform:"uppercase" as const,
-  fontFamily:"'JetBrains Mono', monospace",
+  fontFamily:"'JetBrains Mono', 'Inter', sans-serif",
 };
 const KPI_NUM: React.CSSProperties = {
   fontSize:26, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1,
   margin:"8px 0 4px",
-  fontFamily:"'JetBrains Mono', monospace",
+  fontFamily:"'JetBrains Mono', 'Inter', sans-serif",
 };
 
 const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _filteredCount, syncError, debtCol, t, fmt }: KpiRowProps) {
@@ -773,7 +773,7 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
   };
   return (
     <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
-      <style>{`.kpi-cards-grid > .kpi-card { display:flex; flex-direction:column; justify-content:space-between; min-height:190px; height:100%; }`}</style>
+      <style>{`.kpi-cards-grid > .kpi-card { display:flex; flex-direction:column; justify-content:space-between; height:100%; }`}</style>
 
       {/* 1 — Net Income */}
       <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${kpi.net<0 ? t.red+"44" : t.border}`, borderLeft: kpi.net<0 ? `3px solid ${t.red}` : kpi.net>0 ? `3px solid ${t.em}` : `1px solid ${t.border}` }}>
@@ -802,14 +802,14 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* Margin % + Net ROI */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Margin %</span>
-            <strong style={{ fontSize:14, fontWeight:800, color:kpi.grossIncome>0?(kpi.net/kpi.grossIncome*100)>=0?t.em:t.red:t.text, fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Margin %</span>
+            <strong style={{ fontSize:14, fontWeight:800, color:kpi.grossIncome>0?(kpi.net/kpi.grossIncome*100)>=0?t.em:t.red:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
               {kpi.grossIncome>0 ? (kpi.net/kpi.grossIncome*100).toFixed(1)+"%" : "—"}
             </strong>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Net ROI</span>
-            <strong style={{ fontSize:14, fontWeight:800, color:kpi.logistics>0?(kpi.net/kpi.logistics)>=0?t.em:t.red:t.text, fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Net ROI</span>
+            <strong style={{ fontSize:14, fontWeight:800, color:kpi.logistics>0?(kpi.net/kpi.logistics)>=0?t.em:t.red:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
               {kpi.logistics>0 ? (kpi.net/kpi.logistics).toFixed(2)+"x" : "—"}
             </strong>
           </div>
@@ -858,8 +858,8 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* Average Check */}
         <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
-            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>Середній чек</span>
-            <strong style={{ fontSize:16, fontWeight:800, color:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Середній чек</span>
+            <strong style={{ fontSize:16, fontWeight:800, color:t.blue, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
               {kpi.orders>0 ? fmt(kpi.grossIncome/kpi.orders)+" ₴" : "—"}
             </strong>
           </div>
@@ -895,8 +895,8 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         {/* % of Revenue */}
         <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
-            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>% від виручки</span>
-            <strong style={{ fontSize:16, fontWeight:800, color:kpi.grossIncome>0&&(kpi.logistics/kpi.grossIncome*100)>15?t.red:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>% від виручки</span>
+            <strong style={{ fontSize:16, fontWeight:800, color:kpi.grossIncome>0&&(kpi.logistics/kpi.grossIncome*100)>15?t.red:t.blue, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
               {kpi.grossIncome>0 ? (kpi.logistics/kpi.grossIncome*100).toFixed(1)+"%" : "—"}
             </strong>
           </div>
@@ -2804,19 +2804,19 @@ export default function Dashboard() {
             </button>
           )}
           <div style={{ display:"flex", alignItems:"baseline", gap:5 }}>
-            <span style={{ color:t.text, fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', monospace" }}>SOLANA</span>
+            <span style={{ color:t.text, fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>SOLANA</span>
             <span style={{ color:t.blue, fontSize:13, fontWeight:400 }}>|</span>
-            <span style={{ color:t.blue, fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', monospace" }}>CORE</span>
+            <span style={{ color:t.blue, fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>CORE</span>
           </div>
           <div className="ethena-nav-links" style={{ display:"flex", alignItems:"center", gap:2 }}>
-            <button style={{ padding:"5px 12px", borderRadius:4, background:t.blue, border:"none", color:"#ffffff", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', monospace" }}>Dashboards</button>
+            <button style={{ padding:"5px 12px", borderRadius:4, background:t.blue, border:"none", color:"#ffffff", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Dashboards</button>
           </div>
         </div>
         {/* Right: Actions */}
         <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 16px", borderRadius:6, border:`2px solid ${t.blue}`, background:`${t.blue}0A` }}>
             <span style={{ fontSize:11, fontWeight:800, color:t.blue, letterSpacing:"0.08em" }}>ВИРУЧКА</span>
-            <span style={{ fontSize:16, fontWeight:900, color:"#22C55E", fontFamily:"'JetBrains Mono', monospace", letterSpacing:"-0.02em" }}>{kpi ? fmt(kpi.grossIncome) : "—"}</span>
+            <span style={{ fontSize:16, fontWeight:900, color:"#22C55E", fontFamily:"'JetBrains Mono', 'Inter', sans-serif", letterSpacing:"-0.02em" }}>{kpi ? fmt(kpi.grossIncome) : "—"}</span>
           </div>
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
@@ -2826,9 +2826,9 @@ export default function Dashboard() {
             </div>
           )}
           {fileData && (
-            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.text, fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', monospace" }}><X size={11} /> Скинути</button>
+            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.text, fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}><X size={11} /> Скинути</button>
           )}
-          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:t.blue, color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>
+          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:t.blue, color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
             <Upload size={12} /> Генерація звіту
           </button>
           <button onClick={()=>setDarkMode(v=>!v)} title={darkMode?"Режим День":"Режим Ніч"} style={{ padding:"6px 8px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.text, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -2861,8 +2861,8 @@ export default function Dashboard() {
               padding:"9px 12px", borderRadius:4, marginBottom:8,
               border:`1px solid ${t.border}`,
             }}>
-              <p style={{ fontSize:11, fontWeight:700, color:t.blue, margin:0, fontFamily:"'JetBrains Mono', monospace", letterSpacing:"0.06em" }}>● Аналіз активний</p>
-              <p style={{ fontSize:10, color:t.text, opacity:0.7, margin:"2px 0 0", fontFamily:"'JetBrains Mono', monospace" }}>Solana // Core</p>
+              <p style={{ fontSize:11, fontWeight:700, color:t.blue, margin:0, fontFamily:"'JetBrains Mono', 'Inter', sans-serif", letterSpacing:"0.06em" }}>● Аналіз активний</p>
+              <p style={{ fontSize:10, color:t.text, opacity:0.7, margin:"2px 0 0", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Solana // Core</p>
             </div>
 
 
@@ -2994,10 +2994,10 @@ export default function Dashboard() {
                           <Upload size={26} style={{ color:t.blue }}/>
             </div>
             <div style={{ textAlign:"center" }}>
-              <p style={{ color:t.text, fontSize:18, fontWeight:800, margin:0, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажте дані звітності</p>
+              <p style={{ color:t.text, fontSize:18, fontWeight:800, margin:0, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Завантажте дані звітності</p>
               <p style={{ color:t.text, fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
             </div>
-            <div style={{ padding:"9px 28px", background:t.blue, borderRadius:4, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', monospace" }}>Завантажити дані</div>
+            <div style={{ padding:"9px 28px", background:t.blue, borderRadius:4, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Завантажити дані</div>
           </div>
         )}
 
@@ -3009,14 +3009,14 @@ export default function Dashboard() {
             <div className="orbit-fadein" style={{ marginBottom:4, paddingBottom:18, borderBottom:`1px solid ${t.border}` }}>
               <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
                 <div>
-                  <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:t.blue, fontFamily:"'JetBrains Mono', monospace" }}>
+                  <p style={{ margin:"0 0 4px", fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:t.blue, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
                     Solana Analytics Terminal
                   </p>
                 </div>
                 {/* L I V E indicator */}
                 <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px", borderRadius:4, border:`1px solid ${t.border}`, flexShrink:0, alignSelf:"center" }}>
                   <span style={{ width:7, height:7, borderRadius:"50%", background:"#22C55E", flexShrink:0, animation:"pulse 2s infinite" }}/>
-                  <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", letterSpacing:"0.35em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>L I V E</span>
+                  <span style={{ fontSize:11, fontWeight:800, color:"#22C55E", letterSpacing:"0.35em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>L I V E</span>
                 </div>
               </div>
             </div>
@@ -3051,11 +3051,11 @@ export default function Dashboard() {
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       <div style={{ width:3, height:20, borderRadius:2, background:t.blue }}/>
                       <div>
-                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>Revenue Performance</div>
-                        <div style={{ fontSize:9, color:t.text, marginTop:1, fontFamily:"'JetBrains Mono', monospace" }}>Дохід за рік · YTD vs Record</div>
+                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Revenue Performance</div>
+                        <div style={{ fontSize:9, color:t.text, marginTop:1, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Дохід за рік · YTD vs Record</div>
                       </div>
                     </div>
-                    <div style={{ fontSize:9, padding:"3px 8px", borderRadius:3, background:"#2B455914", color:t.blue, fontWeight:700, letterSpacing:"0.06em", fontFamily:"'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize:9, padding:"3px 8px", borderRadius:3, background:"#2B455914", color:t.blue, fontWeight:700, letterSpacing:"0.06em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
                       {hubberProj2026.monthsIn}/12 міс.
                     </div>
                   </div>
@@ -3064,38 +3064,38 @@ export default function Dashboard() {
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:0 }}>
                     {/* YTD Fact */}
                     <div style={{ padding:"16px 24px", borderRight:`1px solid ${t.border}` }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>YTD факт</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:t.text, letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
-                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>{hubberProj2026.monthsIn} міс. даних</div>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>YTD факт</div>
+                      <div style={{ fontSize:24, fontWeight:800, color:t.text, letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
+                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{hubberProj2026.monthsIn} міс. даних</div>
                     </div>
                     {/* Projected Year-End */}
                     <div style={{ padding:"16px 24px", borderRight:`1px solid ${t.border}` }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>Прогноз до кінця року</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:t.blue, letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(projectedYearEnd)} ₴</div>
-                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Прогноз до кінця року</div>
+                      <div style={{ fontSize:24, fontWeight:800, color:t.blue, letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{fmtWhole(projectedYearEnd)} ₴</div>
+                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
                     </div>
                     {/* vs Record */}
                     <div style={{ padding:"16px 24px" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', monospace" }}>vs рекорд {hubberProj2026.bestYear}</div>
-                      <div style={{ fontSize:24, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1, color:vsRec!==null?(vsRec>=0?"#22C55E":t.red):t.text, fontFamily:"'JetBrains Mono', monospace" }}>
+                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>vs рекорд {hubberProj2026.bestYear}</div>
+                      <div style={{ fontSize:24, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1, color:vsRec!==null?(vsRec>=0?"#22C55E":t.red):t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
                         {vsRec!==null ? (vsRec>=0?"+":"")+vsRec.toFixed(1)+"%" : "—"}
                       </div>
-                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
+                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
                     </div>
                   </div>
 
                   {/* Progress bar: YTD vs Record */}
                   <div style={{ padding:"12px 24px 16px", borderTop:`1px solid ${t.border}` }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                      <span style={{ fontSize:8, fontWeight:700, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', monospace" }}>YTD vs Record {hubberProj2026.bestYear}</span>
-                      <span style={{ fontSize:10, fontWeight:800, color:progressPct>=100?"#22C55E":t.blue, fontFamily:"'JetBrains Mono', monospace" }}>{progressPct.toFixed(0)}%</span>
+                      <span style={{ fontSize:8, fontWeight:700, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>YTD vs Record {hubberProj2026.bestYear}</span>
+                      <span style={{ fontSize:10, fontWeight:800, color:progressPct>=100?"#22C55E":t.blue, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{progressPct.toFixed(0)}%</span>
                     </div>
                     <div style={{ position:"relative", height:6, borderRadius:3, background:t.blue, overflow:"hidden" }}>
                       <div style={{ width:`${progressPct}%`, height:"100%", borderRadius:3, background: progressPct>=100 ? "linear-gradient(90deg, #22C55E, #16A34A)" : "linear-gradient(90deg, #2B4559, #2563EB)", transition:"width 0.8s ease" }}/>
                     </div>
                     <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-                      <span style={{ fontSize:8, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>0</span>
-                      <span style={{ fontSize:8, color:t.text, fontFamily:"'JetBrains Mono', monospace" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
+                      <span style={{ fontSize:8, color:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>0</span>
+                      <span style={{ fontSize:8, color:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
                     </div>
                   </div>
                 </div>
@@ -3114,7 +3114,7 @@ export default function Dashboard() {
                 <div style={{ ...KPI_NUM, color:lflPct!==null?(lflPct>=0?"#22C55E":"#EF4444"):t.text, fontSize:28 }}>
                   {lflPct!==null ? (lflPct>=0?"+":"")+lflPct.toFixed(1)+"%" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>
+                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
                   {hubberLfl ? `vs ${hubberLfl.prevYear} · ${hubberLfl.monthName}` : prevKpi ? "vs попер. місяць" : "Немає даних"}
                 </div>
               </div>
@@ -3123,14 +3123,14 @@ export default function Dashboard() {
                 <div style={{ ...KPI_NUM, color:marginPct!==null?(marginPct>=0?t.blue:"#EF4444"):t.text, fontSize:28 }}>
                   {marginPct!==null ? marginPct.toFixed(1)+"%" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Чистий дохід / Виручка</div>
+                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Чистий дохід / Виручка</div>
               </div>
               <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
                 <div style={{ ...KPI_LABEL, color:t.text }}>ROI / Sebe</div>
                 <div style={{ ...KPI_NUM, color:roiVal!==null?(roiVal>=0?t.blue:"#EF4444"):t.text, fontSize:28 }}>
                   {roiVal!==null ? roiVal.toFixed(2)+"x" : "—"}
                 </div>
-                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', monospace" }}>Net / Логістика</div>
+                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Net / Логістика</div>
               </div>
             </div>
               );
