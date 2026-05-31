@@ -100,21 +100,37 @@ function detectCols(columns: string[], rows: Row[]): Cols {
   // contains "статус" or "status" but NOT "причина"/"comment"/"reason".
   // The old fallback scanned row VALUES and matched "причина" (cancellation reasons column) — wrong.
   const statusExclude = ["причина", "comment", "reason", "коментар", "відмов", "повернен"];
-  const status =
-    findCol(columns, "статус замовлення", "статус доставки", "статус", "status") ??
-    columns.find(c => {
-      const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
-      if (statusExclude.some(ex => cl.includes(ex))) return false;
-      return cl.includes("статус") || cl.includes("status") || cl.includes("стан");
-    }) ??
-    columns.find(c => {
-      const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
-      if (statusExclude.some(ex => cl.includes(ex))) return false;
-      return rows.slice(0, 300).some(r => {
-        const v = String(r[c] ?? "").toLowerCase();
-        return v.includes("в дорозі") || v.includes("доставлен") || v.includes("відправлен") || v.includes("завершен") || v.includes("очікує");
-      });
-    }) ?? null;
+  // Drastically expanded keyword dictionary for the order-lifecycle/delivery status column (v53.x).
+  const statusKeywords = [
+    "статус", "status", "стан", "доставка", "delivery", "state", "lifecycle",
+    "етап", "тип", "рух", "fulfillment", "трекінг", "tracking", "накладна", "current_status",
+  ];
+  // Payment-method column (also used by the "next column" fallback below + the return).
+  const paymentMethodCol = findCol(columns, "спосіб оплати", "оплата", "payment method", "payment", "тип оплати");
+  // A column is a status column if its first rows hold lifecycle words.
+  const statusValueRe = /(в дорозі|доставлен|відправлен|завершен|очікує|видан|отриман|повернен|відмов|нова пошта|укрпошт|готов)/i;
+  // Never let the payment column masquerade as the status column.
+  const notExcluded = (c: string) => {
+    const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
+    if (c === paymentMethodCol) return false;
+    return !statusExclude.some(ex => cl.includes(ex));
+  };
+  let status =
+    findCol(columns, "статус замовлення", "статус доставки", "стан замовлення", "статус", "status", "стан", "lifecycle", "state", "етап", "fulfillment", "tracking", "трекінг", "рух") ??
+    columns.find(c => notExcluded(c) && statusKeywords.some(k => c.replace(/\uFEFF/g, "").toLowerCase().trim().includes(k))) ??
+    columns.find(c => notExcluded(c) && rows.slice(0, 300).some(r => statusValueRe.test(String(r[c] ?? "")))) ??
+    null;
+  // Fallback A: the column immediately AFTER "Спосіб оплати".
+  if (!status && paymentMethodCol) {
+    const idx = columns.indexOf(paymentMethodCol);
+    if (idx >= 0 && idx + 1 < columns.length && notExcluded(columns[idx + 1])) {
+      status = columns[idx + 1];
+    }
+  }
+  // Fallback B: value-scan EVERY column's first 5 rows for status words.
+  if (!status) {
+    status = columns.find(c => notExcluded(c) && rows.slice(0, 5).some(r => statusValueRe.test(String(r[c] ?? "")))) ?? null;
+  }
 
   const refusalDate = findCol(columns, "ттн повернення", "дата_відмови", "дата відмови", "refusal_date", "дата повернення", "причина повернення");
   const brand       = findCol(columns, "магазин", "бренд", "brand", "shop", "store");
@@ -168,7 +184,7 @@ function detectCols(columns: string[], rows: Row[]): Cols {
     city:        cityFromDelivery
                  ?? findCol(columns, "місто", "місто отримувача", "місто одержувача", "населений пункт", "city", "регіон", "область", "region", "district"),
     brand, date, status, refusalDate,
-    paymentMethod: findCol(columns, "спосіб оплати", "оплата", "payment method", "payment", "тип оплати"),
+    paymentMethod: paymentMethodCol,
   };
 }
 
@@ -2154,7 +2170,14 @@ export default function Dashboard() {
 
         if (!allRows.length) { setParseError("Файл порожній або не вдалося зчитати рядки."); return; }
         const columns = Array.from(colSet);
+        // Unwrapped header dump — prints each name as a plain string (no need to expand objects).
+        const headers = Object.keys(allRows[0] || {});
+        console.log("--- RAW HEADERS START ---");
+        headers.forEach(h => console.log("Header found:", h));
+        console.log("--- RAW HEADERS END ---");
+        console.log('--- ALL DETECTED COLUMNS (full set across sheets): ---', columns);
         const cols = detectCols(columns, allRows);
+        console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue });
 
         // ── PRE-STAMP every row with calculated fields ──────────────────
         stampRows(allRows, cols);
@@ -2302,9 +2325,12 @@ export default function Dashboard() {
       com         += r._fee   as number;
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
-      // Money in Transit logic — bulletproof matching
-      if (c.paymentMethod || c.status) {
-        const rawPm = c.paymentMethod ? String(r[c.paymentMethod] ?? "") : "";
+      // Money in Transit — derived SOLELY from "Спосіб оплати" (no status column needed).
+      // The file has no separate delivery-status text column, so we TRUST THE ROW:
+      // any COD or Rozetka order is treated as money in transit (funds not yet on our balance),
+      // unless a status column happens to exist AND explicitly marks the row as refused/returned.
+      if (c.paymentMethod) {
+        const rawPm = String(r[c.paymentMethod] ?? "");
         const rawSt = c.status ? String(r[c.status] ?? "") : "";
         const pm = rawPm.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
         const st = rawSt.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
@@ -2313,20 +2339,11 @@ export default function Dashboard() {
         const isCOD = pm.includes("налож") || pm.includes("наклад") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладен");
         // Rozetka payment detection: partial match
         const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
-        // Condition A — Red / Pending / In Transit
-        const isPending = st.includes("в дорозі") || st.includes("відправлен") || st.includes("очікує в укрпошт") || st.includes("очікує в новій пошт") || st.includes("в обробці") || st.includes("transit") || st.includes("прямує") || st.includes("в пути") || st.includes("очікує");
-        // Condition B — Green / Delivered but unpaid
-        const isDeliveredUnpaid = st.includes("доставлен") || st.includes("очікує видачі") || st.includes("завершен") || st.includes("видано") || st.includes("отриман") || st.includes("виконан") || st.includes("успіш") || st.includes("delivered") || st.includes("completed");
-        // Refusal / cancellation — skip
-        const isRefused = st.includes("відмова") || st.includes("повернен") || st.includes("refus") || st.includes("скасов") || st.includes("cancel");
-        if (isRefused) { /* skip refusals */ }
-        else if (isCOD && isPending && rev > 0) {
+        // Optional refinement only — skip a row ONLY if a status col explicitly says refused/returned.
+        const isRefused = !!st && (st.includes("відмова") || st.includes("повернен") || st.includes("refus") || st.includes("скасов") || st.includes("cancel"));
+        if ((isCOD || isRozetka) && rev > 0 && !isRefused) {
           moneyInTransit += rev; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim(), ", Price:", rev);
-        }
-        else if ((isCOD || isRozetka) && isDeliveredUnpaid && rev > 0) {
-          moneyInTransit += rev; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim(), ", Price:", rev);
+          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim() || "(no status col — trusted)", ", Price:", rev);
         }
       }
     }
