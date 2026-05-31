@@ -24,6 +24,7 @@ interface Cols {
   quantity:    string | null;
   orderId:     string | null; // TTN / order number — for cross-sheet deduplication
   paymentMethod: string | null; // Спосіб оплати — for Money in Transit
+  amount:        string | null; // Сума / Сума замовлення — order amount used for Money in Transit
 }
 
 interface FileData {
@@ -235,6 +236,10 @@ function detectCols(columns: string[], rows: Row[]): Cols {
                  ?? findCol(columns, "місто", "місто отримувача", "місто одержувача", "населений пункт", "city", "регіон", "область", "region", "district"),
     brand, date, status, refusalDate,
     paymentMethod: paymentMethodCol,
+    // Order amount for Money in Transit — strictly the "Сума" / "Сума замовлення" column
+    // (sits beside "Спосіб оплати"), NOT net profit/turnover.
+    amount: findCol(columns, "сума замовлення", "сума зам", "сума", "order amount", "order_sum")
+            ?? (paymentMethodCol ? columns[columns.indexOf(paymentMethodCol) + 1] ?? null : null),
   };
 }
 
@@ -2244,7 +2249,7 @@ export default function Dashboard() {
         console.log("--- RAW FILL HEX VALUES IN FILE: ---", Array.from(rawFillColors));
         console.log('--- ALL DETECTED COLUMNS (full set across sheets): ---', columns);
         const cols = detectCols(columns, allRows);
-        console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue });
+        console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue, amount: cols.amount, date: cols.date });
 
         // ── PRE-STAMP every row with calculated fields ──────────────────
         stampRows(allRows, cols);
@@ -2385,6 +2390,7 @@ export default function Dashboard() {
     if (!fileData) return null;
     const c = fileData.cols;
     let net=0, del=0, com=0, debt=0, refs=0, grossIncome=0, moneyInTransit=0, transitOrders=0;
+    const NOW_MS = Date.now(); // for the 21-day transit freshness window
     for (const r of filtered) {
       net         += r._net   as number;
       grossIncome += r._gross as number;
@@ -2393,31 +2399,38 @@ export default function Dashboard() {
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
       // ── Money in Transit — STRICT color logic ─────────────────────────
-      //  Count ONLY when BOTH hold:
+      //  Count ONLY when ALL hold:
       //    (a) payment method is COD or Rozetka, AND
-      //    (b) the Excel row has an explicit GREEN or RED fill.
+      //    (b) the Excel row has an explicit GREEN or RED fill, AND
+      //    (c) the order is NOT older than 21 days (stale = settled/written-off).
       //  GREEN = collected, payout pending · RED = still in transit.
       //  WHITE / no fill / transparent  → ALWAYS excluded (settled order).
       //  HARD EXCLUDE: "причина" (or status) = відмова/повернення/скасовано.
+      //  VALUE = strictly the "Сума" / "Сума замовлення" column (NOT net/turnover).
       {
-        const rev = r._gross as number;
         const fill = r._fill as FillState | undefined;
         const rawPm = c.paymentMethod ? String(r[c.paymentMethod] ?? "") : "";
         const pm = rawPm.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
         const isCOD = pm.includes("налож") || pm.includes("наклад") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладен");
         const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
         const isColored = fill === "green" || fill === "red";
+        // Amount strictly from the "Сума" column (parseFinancial → no 50k cap). Fallback to gross only if no Сума col.
+        const amount = c.amount ? parseFinancial(r[c.amount]) : (r._gross as number);
         // Hard refusal exclude — check причина column first, then any status column.
         const reasonVal = c.reason  ? String(r[c.reason]  ?? "").toLowerCase() : "";
         const statusVal = c.status  ? String(r[c.status]  ?? "").toLowerCase() : "";
         const isRefused = /відмов|поверн|скасов|refus|cancel/.test(reasonVal + " " + statusVal);
-        if ((isCOD || isRozetka) && isColored && rev > 0 && !isRefused) {
-          moneyInTransit += rev; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| reason:", reasonVal.trim() || "-", "| ₴", rev);
+        // 21-day exclusion — drop stale orders (only when a valid order date exists).
+        const orderDate = c.date ? parseDate(r[c.date]) : null;
+        const ageDays = orderDate ? (NOW_MS - orderDate.getTime()) / 86_400_000 : 0;
+        const tooOld = orderDate ? ageDays > 21 : false;
+        if ((isCOD || isRozetka) && isColored && amount > 0 && !isRefused && !tooOld) {
+          moneyInTransit += amount; transitOrders++;
+          if (transitOrders <= 5) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| reason:", reasonVal.trim() || "-", "| age(d):", Math.round(ageDays), "| Сума ₴", amount);
         }
       }
     }
-    console.log("[KPI] transit mode: STRICT (COD/Rozetka + green/red fill) | paymentMethod col:", c.paymentMethod, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
+    console.log("[KPI] transit mode: STRICT (COD/Rozetka + green/red fill + ≤21d) | amount col:", c.amount, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
     if (filtered.length > 0) {
       const pmCol = c.paymentMethod;
       const stCol = c.status;
