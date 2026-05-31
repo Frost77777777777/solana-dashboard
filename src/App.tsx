@@ -95,27 +95,36 @@ function classifyFill(rgb: string | undefined): FillState {
   const b = parseInt(hex.slice(4, 6), 16);
   // Near-white / very light → treat as no fill (settled)
   if (r > 224 && g > 224 && b > 224) return "none";
-  // Dominant green channel
-  if (g > 90 && g >= r + 25 && g >= b + 25) return "green";
-  // Dominant red channel
-  if (r > 90 && r >= g + 25 && r >= b + 25) return "red";
+  // Dominant green channel (loose enough for pale highlights like C6EFCE / D9EAD3)
+  if (g > 60 && g >= r + 12 && g >= b + 12) return "green";
+  // Dominant red channel. r must clearly beat g AND b, and g≈b (so yellow/gold
+  // like FFF2CC/FFE599 — where g far exceeds b — is NOT mistaken for red).
+  if (r > 60 && r >= g + 18 && r >= b + 18 && g <= b + 20) return "red";
   return "none";
 }
-// Scan every cell in sheet row R (0-based) for the first solid fill color.
+// Scan every cell in sheet row R (0-based) for the first meaningful fill color.
+// Returns the classified state AND the raw rgb (for diagnostics/calibration).
 function rowFillState(
   sh: Record<string, unknown>,
   R: number,
   range: { s: { c: number }; e: { c: number } },
   encodeCell: (a: { r: number; c: number }) => string,
-): FillState {
+): { state: FillState; rgb: string } {
+  let firstRaw = "";
   for (let C = range.s.c; C <= range.e.c; C++) {
-    const cell = sh[encodeCell({ r: R, c: C })] as { s?: { patternType?: string; fgColor?: { rgb?: string } } } | undefined;
+    const cell = sh[encodeCell({ r: R, c: C })] as
+      | { s?: { patternType?: string; fgColor?: { rgb?: string }; bgColor?: { rgb?: string } } }
+      | undefined;
     const s = cell?.s;
-    if (!s || s.patternType !== "solid") continue;
-    const state = classifyFill(s.fgColor?.rgb);
-    if (state !== "none") return state;
+    if (!s) continue;
+    // Solid fills store the colour in fgColor; some files put it in bgColor.
+    const rgb = s.fgColor?.rgb || s.bgColor?.rgb;
+    if (!rgb) continue;
+    if (!firstRaw) firstRaw = rgb;
+    const state = classifyFill(rgb);
+    if (state !== "none") return { state, rgb };
   }
-  return "none";
+  return { state: "none", rgb: firstRaw };
 }
 
 /* ─── column detection ───────────────────────────────────────── */
@@ -2177,6 +2186,7 @@ export default function Dashboard() {
         const allRows: Row[] = [];
         const colSet = new Set<string>();
         const fillStats = { green: 0, red: 0, none: 0 };
+        const rawFillColors = new Set<string>();
 
         for (const sheetName of wb.SheetNames) {
           const sh = wb.Sheets[sheetName];
@@ -2213,11 +2223,12 @@ export default function Dashboard() {
             if (isMultiSheet) merged["_sheet_"] = sheetName;
             // Stamp the Excel row FILL color (green/red/none). Data row i sits at
             // sheet row headerR + 1 + i (row 0 of data is right after the header).
-            const fill: FillState = range
+            const fillRes = range
               ? rowFillState(sh as Record<string, unknown>, headerR + 1 + i, range, XLSX.utils.encode_cell)
-              : "none";
-            merged["_fill"] = fill;
-            fillStats[fill]++;
+              : { state: "none" as FillState, rgb: "" };
+            merged["_fill"] = fillRes.state;
+            fillStats[fillRes.state]++;
+            if (fillRes.rgb) rawFillColors.add(fillRes.rgb);
             allRows.push(merged);
           });
         }
@@ -2230,6 +2241,7 @@ export default function Dashboard() {
         headers.forEach(h => console.log("Header found:", h));
         console.log("--- RAW HEADERS END ---");
         console.log("--- ROW FILL COLORS DETECTED: ---", fillStats);
+        console.log("--- RAW FILL HEX VALUES IN FILE: ---", Array.from(rawFillColors));
         console.log('--- ALL DETECTED COLUMNS (full set across sheets): ---', columns);
         const cols = detectCols(columns, allRows);
         console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue });
@@ -2372,9 +2384,6 @@ export default function Dashboard() {
   const kpi = useMemo(()=>{
     if (!fileData) return null;
     const c = fileData.cols;
-    // PRIMARY signal = Excel row FILL color. Use color logic only if the file actually
-    // carries fills; otherwise fall back to the COD/Rozetka payment-method heuristic.
-    const hasColors = fileData.rows.some(r => r._fill === "green" || r._fill === "red");
     let net=0, del=0, com=0, debt=0, refs=0, grossIncome=0, moneyInTransit=0, transitOrders=0;
     for (const r of filtered) {
       net         += r._net   as number;
@@ -2383,12 +2392,13 @@ export default function Dashboard() {
       com         += r._fee   as number;
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
-      // ── Money in Transit ──────────────────────────────────────────────
-      //  GREEN row = collected, payout pending  → transit
-      //  RED   row = still in transit           → transit
-      //  WHITE / no fill                        → settled, exclude
-      //  HARD EXCLUDE: any row whose "причина" (or status) says відмова/повернення/скасовано.
-      //  FALLBACK (colors stripped): trust COD/Rozetka rows.
+      // ── Money in Transit — STRICT color logic ─────────────────────────
+      //  Count ONLY when BOTH hold:
+      //    (a) payment method is COD or Rozetka, AND
+      //    (b) the Excel row has an explicit GREEN or RED fill.
+      //  GREEN = collected, payout pending · RED = still in transit.
+      //  WHITE / no fill / transparent  → ALWAYS excluded (settled order).
+      //  HARD EXCLUDE: "причина" (or status) = відмова/повернення/скасовано.
       {
         const rev = r._gross as number;
         const fill = r._fill as FillState | undefined;
@@ -2396,21 +2406,18 @@ export default function Dashboard() {
         const pm = rawPm.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
         const isCOD = pm.includes("налож") || pm.includes("наклад") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладен");
         const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
+        const isColored = fill === "green" || fill === "red";
         // Hard refusal exclude — check причина column first, then any status column.
         const reasonVal = c.reason  ? String(r[c.reason]  ?? "").toLowerCase() : "";
         const statusVal = c.status  ? String(r[c.status]  ?? "").toLowerCase() : "";
-        const refusedText = reasonVal + " " + statusVal;
-        const isRefused = /відмов|поверн|скасов|refus|cancel/.test(refusedText);
-        const counts = hasColors
-          ? (fill === "green" || fill === "red")   // color-driven
-          : (isCOD || isRozetka);                  // fallback: trust the row
-        if (counts && rev > 0 && !isRefused) {
+        const isRefused = /відмов|поверн|скасов|refus|cancel/.test(reasonVal + " " + statusVal);
+        if ((isCOD || isRozetka) && isColored && rev > 0 && !isRefused) {
           moneyInTransit += rev; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] matched →", hasColors ? `fill=${fill}` : `pay=${rawPm.trim()}`, "| reason:", reasonVal.trim() || "-", "| ₴", rev);
+          if (transitOrders <= 5) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| reason:", reasonVal.trim() || "-", "| ₴", rev);
         }
       }
     }
-    console.log("[KPI] transit mode:", hasColors ? "ROW FILL COLOR" : "COD/Rozetka fallback", "| paymentMethod col:", c.paymentMethod, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
+    console.log("[KPI] transit mode: STRICT (COD/Rozetka + green/red fill) | paymentMethod col:", c.paymentMethod, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
     if (filtered.length > 0) {
       const pmCol = c.paymentMethod;
       const stCol = c.status;
