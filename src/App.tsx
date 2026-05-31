@@ -2325,9 +2325,12 @@ export default function Dashboard() {
       com         += r._fee   as number;
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
-      // Money in Transit logic — bulletproof matching
-      if (c.paymentMethod || c.status) {
-        const rawPm = c.paymentMethod ? String(r[c.paymentMethod] ?? "") : "";
+      // Money in Transit — derived SOLELY from "Спосіб оплати" (no status column needed).
+      // The file has no separate delivery-status text column, so we TRUST THE ROW:
+      // any COD or Rozetka order is treated as money in transit (funds not yet on our balance),
+      // unless a status column happens to exist AND explicitly marks the row as refused/returned.
+      if (c.paymentMethod) {
+        const rawPm = String(r[c.paymentMethod] ?? "");
         const rawSt = c.status ? String(r[c.status] ?? "") : "";
         const pm = rawPm.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
         const st = rawSt.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
@@ -2336,20 +2339,11 @@ export default function Dashboard() {
         const isCOD = pm.includes("налож") || pm.includes("наклад") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладен");
         // Rozetka payment detection: partial match
         const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
-        // Condition A — Red / Pending / In Transit
-        const isPending = st.includes("в дорозі") || st.includes("відправлен") || st.includes("очікує в укрпошт") || st.includes("очікує в новій пошт") || st.includes("в обробці") || st.includes("transit") || st.includes("прямує") || st.includes("в пути") || st.includes("очікує");
-        // Condition B — Green / Delivered but unpaid
-        const isDeliveredUnpaid = st.includes("доставлен") || st.includes("очікує видачі") || st.includes("завершен") || st.includes("видано") || st.includes("отриман") || st.includes("виконан") || st.includes("успіш") || st.includes("delivered") || st.includes("completed");
-        // Refusal / cancellation — skip
-        const isRefused = st.includes("відмова") || st.includes("повернен") || st.includes("refus") || st.includes("скасов") || st.includes("cancel");
-        if (isRefused) { /* skip refusals */ }
-        else if (isCOD && isPending && rev > 0) {
+        // Optional refinement only — skip a row ONLY if a status col explicitly says refused/returned.
+        const isRefused = !!st && (st.includes("відмова") || st.includes("повернен") || st.includes("refus") || st.includes("скасов") || st.includes("cancel"));
+        if ((isCOD || isRozetka) && rev > 0 && !isRefused) {
           moneyInTransit += rev; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim(), ", Price:", rev);
-        }
-        else if ((isCOD || isRozetka) && isDeliveredUnpaid && rev > 0) {
-          moneyInTransit += rev; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim(), ", Price:", rev);
+          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim() || "(no status col — trusted)", ", Price:", rev);
         }
       }
     }
