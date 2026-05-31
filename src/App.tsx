@@ -100,23 +100,37 @@ function detectCols(columns: string[], rows: Row[]): Cols {
   // contains "статус" or "status" but NOT "причина"/"comment"/"reason".
   // The old fallback scanned row VALUES and matched "причина" (cancellation reasons column) — wrong.
   const statusExclude = ["причина", "comment", "reason", "коментар", "відмов", "повернен"];
-  // Keyword fallbacks for the order-lifecycle/delivery status column (v53.x).
-  const statusKeywords = ["статус", "status", "стан", "доставка", "lifecycle", "state", "етап", "current_status"];
-  const status =
-    findCol(columns, "статус замовлення", "статус доставки", "стан замовлення", "статус", "status", "стан", "lifecycle", "state", "етап", "current_status", "доставка") ??
-    columns.find(c => {
-      const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
-      if (statusExclude.some(ex => cl.includes(ex))) return false;
-      return statusKeywords.some(k => cl.includes(k));
-    }) ??
-    columns.find(c => {
-      const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
-      if (statusExclude.some(ex => cl.includes(ex))) return false;
-      return rows.slice(0, 300).some(r => {
-        const v = String(r[c] ?? "").toLowerCase();
-        return v.includes("в дорозі") || v.includes("доставлен") || v.includes("відправлен") || v.includes("завершен") || v.includes("очікує");
-      });
-    }) ?? null;
+  // Drastically expanded keyword dictionary for the order-lifecycle/delivery status column (v53.x).
+  const statusKeywords = [
+    "статус", "status", "стан", "доставка", "delivery", "state", "lifecycle",
+    "етап", "тип", "рух", "fulfillment", "трекінг", "tracking", "накладна", "current_status",
+  ];
+  // Payment-method column (also used by the "next column" fallback below + the return).
+  const paymentMethodCol = findCol(columns, "спосіб оплати", "оплата", "payment method", "payment", "тип оплати");
+  // A column is a status column if its first rows hold lifecycle words.
+  const statusValueRe = /(в дорозі|доставлен|відправлен|завершен|очікує|видан|отриман|повернен|відмов|нова пошта|укрпошт|готов)/i;
+  // Never let the payment column masquerade as the status column.
+  const notExcluded = (c: string) => {
+    const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
+    if (c === paymentMethodCol) return false;
+    return !statusExclude.some(ex => cl.includes(ex));
+  };
+  let status =
+    findCol(columns, "статус замовлення", "статус доставки", "стан замовлення", "статус", "status", "стан", "lifecycle", "state", "етап", "fulfillment", "tracking", "трекінг", "рух") ??
+    columns.find(c => notExcluded(c) && statusKeywords.some(k => c.replace(/\uFEFF/g, "").toLowerCase().trim().includes(k))) ??
+    columns.find(c => notExcluded(c) && rows.slice(0, 300).some(r => statusValueRe.test(String(r[c] ?? "")))) ??
+    null;
+  // Fallback A: the column immediately AFTER "Спосіб оплати".
+  if (!status && paymentMethodCol) {
+    const idx = columns.indexOf(paymentMethodCol);
+    if (idx >= 0 && idx + 1 < columns.length && notExcluded(columns[idx + 1])) {
+      status = columns[idx + 1];
+    }
+  }
+  // Fallback B: value-scan EVERY column's first 5 rows for status words.
+  if (!status) {
+    status = columns.find(c => notExcluded(c) && rows.slice(0, 5).some(r => statusValueRe.test(String(r[c] ?? "")))) ?? null;
+  }
 
   const refusalDate = findCol(columns, "ттн повернення", "дата_відмови", "дата відмови", "refusal_date", "дата повернення", "причина повернення");
   const brand       = findCol(columns, "магазин", "бренд", "brand", "shop", "store");
@@ -170,7 +184,7 @@ function detectCols(columns: string[], rows: Row[]): Cols {
     city:        cityFromDelivery
                  ?? findCol(columns, "місто", "місто отримувача", "місто одержувача", "населений пункт", "city", "регіон", "область", "region", "district"),
     brand, date, status, refusalDate,
-    paymentMethod: findCol(columns, "спосіб оплати", "оплата", "payment method", "payment", "тип оплати"),
+    paymentMethod: paymentMethodCol,
   };
 }
 
@@ -2156,7 +2170,11 @@ export default function Dashboard() {
 
         if (!allRows.length) { setParseError("Файл порожній або не вдалося зчитати рядки."); return; }
         const columns = Array.from(colSet);
-        console.log('--- ALL DETECTED COLUMNS IN FILE: ---', Object.keys(allRows[0] || {}));
+        // Unwrapped header dump — prints each name as a plain string (no need to expand objects).
+        const headers = Object.keys(allRows[0] || {});
+        console.log("--- RAW HEADERS START ---");
+        headers.forEach(h => console.log("Header found:", h));
+        console.log("--- RAW HEADERS END ---");
         console.log('--- ALL DETECTED COLUMNS (full set across sheets): ---', columns);
         const cols = detectCols(columns, allRows);
         console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue });
