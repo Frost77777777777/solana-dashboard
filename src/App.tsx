@@ -2413,16 +2413,6 @@ export default function Dashboard() {
     if (!fileData) return null;
     const c = fileData.cols;
     let net=0, del=0, com=0, debt=0, refs=0, grossIncome=0, moneyInTransit=0, transitOrders=0;
-    // 21-day transit window is measured against the NEWEST date in the file
-    // (not wall-clock). Files can be from any period; using Date.now() produced
-    // negative ages and let old completed rows leak in. maxFileMs = latest order date.
-    let maxFileMs = 0;
-    if (c.date) {
-      for (const r of filtered) {
-        const d = parseDate(r[c.date]);
-        if (d) { const t = d.getTime(); if (t > maxFileMs) maxFileMs = t; }
-      }
-    }
     for (const r of filtered) {
       net         += r._net   as number;
       grossIncome += r._gross as number;
@@ -2430,15 +2420,13 @@ export default function Dashboard() {
       com         += r._fee   as number;
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
-      // ── Money in Transit — STRICT color logic ─────────────────────────
-      //  Count ONLY when ALL hold:
-      //    (a) payment method is COD or Rozetka, AND
-      //    (b) the Excel row has an explicit GREEN or RED fill, AND
-      //    (c) the order is NOT older than 21 days (stale = settled/written-off).
-      //  GREEN = collected, payout pending · RED = still in transit.
-      //  WHITE / no fill / transparent  → ALWAYS excluded (settled order).
-      //  HARD EXCLUDE: "причина" (or status) = відмова/повернення/скасовано.
-      //  VALUE = strictly the "Сума" / "Сума замовлення" column (NOT net/turnover).
+      // ── Money in Transit — PURE color logic (no date window) ──────────
+      //  Count ONLY when BOTH hold:
+      //    (a) спосіб оплати (col H) is наложка / Розетка, AND
+      //    (b) the Excel row fill is RED or GREEN.
+      //  EXCLUDE: WHITE / no-fill, YELLOW (classifyFill → "none"), and any
+      //           "причина" = відмова/повернення/скасовано.
+      //  VALUE = strictly the "сума" column G (parseFinancial → no 50k cap).
       {
         const fill = r._fill as FillState | undefined;
         const rawPm = c.paymentMethod ? String(r[c.paymentMethod] ?? "") : "";
@@ -2446,24 +2434,17 @@ export default function Dashboard() {
         const isCOD = pm.includes("налож") || pm.includes("наклад") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладен");
         const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
         const isColored = fill === "green" || fill === "red";
-        // Amount strictly from the "Сума" column (parseFinancial → no 50k cap). Fallback to gross only if no Сума col.
         const amount = c.amount ? parseFinancial(r[c.amount]) : (r._gross as number);
-        // Hard refusal exclude — check причина column first, then any status column.
         const reasonVal = c.reason  ? String(r[c.reason]  ?? "").toLowerCase() : "";
         const statusVal = c.status  ? String(r[c.status]  ?? "").toLowerCase() : "";
         const isRefused = /відмов|поверн|скасов|refus|cancel/.test(reasonVal + " " + statusVal);
-        // 21-day exclusion — age measured vs the newest date in the file, so it is
-        // always >= 0. Window: 0..21 days. Rows with no parseable date are kept.
-        const orderDate = c.date ? parseDate(r[c.date]) : null;
-        const ageDays = (orderDate && maxFileMs) ? Math.floor((maxFileMs - orderDate.getTime()) / 86_400_000) : 0;
-        const inWindow = (orderDate && maxFileMs) ? (ageDays >= 0 && ageDays <= 21) : true;
-        if ((isCOD || isRozetka) && isColored && amount > 0 && !isRefused && inWindow) {
+        if ((isCOD || isRozetka) && isColored && amount > 0 && !isRefused) {
           moneyInTransit += amount; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| reason:", reasonVal.trim() || "-", "| age(d):", ageDays, "| Сума ₴", amount);
+          if (transitOrders <= 5) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| reason:", reasonVal.trim() || "-", "| сума ₴", amount);
         }
       }
     }
-    console.log("[KPI] transit mode: STRICT (COD/Rozetka + green/red fill + age 0..21d vs newest file date) | ref date:", maxFileMs ? new Date(maxFileMs).toISOString().slice(0,10) : "n/a", "| amount col:", c.amount, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
+    console.log("[KPI] transit mode: PURE COLOR (COD/Rozetka + green/red fill) | amount col:", c.amount, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
     if (filtered.length > 0) {
       const pmCol = c.paymentMethod;
       const stCol = c.status;
