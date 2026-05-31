@@ -2207,6 +2207,23 @@ export default function Dashboard() {
           const range = ref ? XLSX.utils.decode_range(ref) : null;
           const headerR = range ? range.s.r : 0;
 
+          // DIAGNOSTIC (first sheet only): dump the RAW style object of every
+          // styled cell in the first 10 data rows, so we can see exactly how the
+          // library reports red/green — as { rgb }, { theme } or { indexed }.
+          if (range && sheetName === wb.SheetNames[0]) {
+            console.log(`=== RAW CELL STYLE DUMP (sheet "${sheetName}", first 10 data rows) ===`);
+            for (let R = headerR + 1; R <= Math.min(headerR + 10, range.e.r); R++) {
+              for (let C = range.s.c; C <= range.e.c; C++) {
+                const addr = XLSX.utils.encode_cell({ r: R, c: C });
+                const cs = (sh[addr] as { s?: { patternType?: string; fgColor?: unknown; bgColor?: unknown } } | undefined)?.s;
+                if (cs && (cs.patternType || cs.fgColor || cs.bgColor)) {
+                  console.log(`cell ${addr}`, JSON.stringify({ patternType: cs.patternType, fgColor: cs.fgColor, bgColor: cs.bgColor }));
+                }
+              }
+            }
+            console.log("=== END RAW CELL STYLE DUMP ===");
+          }
+
           // Collect keys from EVERY row (not just first) — some sheets have columns
           // that are empty in row 1 (e.g. "комісія банку" in Sl-Artmon starts empty).
           // Keys are NORMALIZED to lowercase+trimmed so that "Дата"/"ДАТА"/"дата" all
