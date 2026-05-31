@@ -36,7 +36,7 @@ interface FileData {
   cacheVersion: string;    // must equal STORAGE_KEY — prevents stale HMR data from polluting cache
 }
 
-const STORAGE_KEY   = "orbit_analytics_v25";
+const STORAGE_KEY   = "orbit_analytics_v26"; // v26: row-fill-color transit logic (invalidates pre-color cache)
 const HUBBER_KEY    = "orbit_hubber_v1";
 const FILTERS_KEY   = "orbit_filters_v1";
 const PRESET_BRANDS = ["Каста", "Розетка", "Хаббер", "Шафа"];
@@ -76,6 +76,47 @@ function toNum(val: unknown): number {
 }
 // Alias for any legacy call sites
 const parseNum = toNum;
+
+/* ─── Excel row FILL color → transit state ───────────────────────
+   The user's file encodes delivery state via ROW BACKGROUND COLOR, not text:
+     GREEN = collected by customer, payout pending  → Money in Transit
+     RED   = still in transit / not picked up       → Money in Transit
+     WHITE / no fill = settled (money received)      → EXCLUDE
+   xlsx (community) exposes solid fills via cell.s.fgColor.rgb when read with
+   { cellStyles: true }. We classify the rgb into "green" | "red" | "none". */
+type FillState = "green" | "red" | "none";
+function classifyFill(rgb: string | undefined): FillState {
+  if (!rgb) return "none";
+  let hex = rgb.replace(/[^0-9a-fA-F]/g, "");
+  if (hex.length === 8) hex = hex.slice(2);        // strip ARGB alpha
+  if (hex.length !== 6) return "none";
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  // Near-white / very light → treat as no fill (settled)
+  if (r > 224 && g > 224 && b > 224) return "none";
+  // Dominant green channel
+  if (g > 90 && g >= r + 25 && g >= b + 25) return "green";
+  // Dominant red channel
+  if (r > 90 && r >= g + 25 && r >= b + 25) return "red";
+  return "none";
+}
+// Scan every cell in sheet row R (0-based) for the first solid fill color.
+function rowFillState(
+  sh: Record<string, unknown>,
+  R: number,
+  range: { s: { c: number }; e: { c: number } },
+  encodeCell: (a: { r: number; c: number }) => string,
+): FillState {
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const cell = sh[encodeCell({ r: R, c: C })] as { s?: { patternType?: string; fgColor?: { rgb?: string } } } | undefined;
+    const s = cell?.s;
+    if (!s || s.patternType !== "solid") continue;
+    const state = classifyFill(s.fgColor?.rgb);
+    if (state !== "none") return state;
+  }
+  return "none";
+}
 
 /* ─── column detection ───────────────────────────────────────── */
 // Keywords are checked in PRIORITY ORDER — the first keyword that has a matching
@@ -2130,16 +2171,22 @@ export default function Dashboard() {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const wb = XLSX.read(new Uint8Array(e.target?.result as ArrayBuffer), { type:"array", cellDates:true });
+        // cellStyles:true → exposes row FILL colors (cell.s.fgColor.rgb) for transit logic.
+        const wb = XLSX.read(new Uint8Array(e.target?.result as ArrayBuffer), { type:"array", cellDates:true, cellStyles:true });
         const isMultiSheet = wb.SheetNames.length > 1;
         const allRows: Row[] = [];
         const colSet = new Set<string>();
+        const fillStats = { green: 0, red: 0, none: 0 };
 
         for (const sheetName of wb.SheetNames) {
           const sh = wb.Sheets[sheetName];
           const rawRows = XLSX.utils.sheet_to_json<Row>(sh, { raw:true,  cellDates:true } as XLSX.Sheet2JSONOpts);
           const fmtRows = XLSX.utils.sheet_to_json<Row>(sh, { raw:false });
           if (!rawRows.length) continue;
+          // Decode sheet range so we can read fill color from each data row's cells.
+          const ref = sh["!ref"] as string | undefined;
+          const range = ref ? XLSX.utils.decode_range(ref) : null;
+          const headerR = range ? range.s.r : 0;
 
           // Collect keys from EVERY row (not just first) — some sheets have columns
           // that are empty in row 1 (e.g. "комісія банку" in Sl-Artmon starts empty).
@@ -2164,6 +2211,13 @@ export default function Dashboard() {
               colSet.add(normKey);
             }
             if (isMultiSheet) merged["_sheet_"] = sheetName;
+            // Stamp the Excel row FILL color (green/red/none). Data row i sits at
+            // sheet row headerR + 1 + i (row 0 of data is right after the header).
+            const fill: FillState = range
+              ? rowFillState(sh as Record<string, unknown>, headerR + 1 + i, range, XLSX.utils.encode_cell)
+              : "none";
+            merged["_fill"] = fill;
+            fillStats[fill]++;
             allRows.push(merged);
           });
         }
@@ -2175,6 +2229,7 @@ export default function Dashboard() {
         console.log("--- RAW HEADERS START ---");
         headers.forEach(h => console.log("Header found:", h));
         console.log("--- RAW HEADERS END ---");
+        console.log("--- ROW FILL COLORS DETECTED: ---", fillStats);
         console.log('--- ALL DETECTED COLUMNS (full set across sheets): ---', columns);
         const cols = detectCols(columns, allRows);
         console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue });
@@ -2317,6 +2372,9 @@ export default function Dashboard() {
   const kpi = useMemo(()=>{
     if (!fileData) return null;
     const c = fileData.cols;
+    // PRIMARY signal = Excel row FILL color. Use color logic only if the file actually
+    // carries fills; otherwise fall back to the COD/Rozetka payment-method heuristic.
+    const hasColors = fileData.rows.some(r => r._fill === "green" || r._fill === "red");
     let net=0, del=0, com=0, debt=0, refs=0, grossIncome=0, moneyInTransit=0, transitOrders=0;
     for (const r of filtered) {
       net         += r._net   as number;
@@ -2325,29 +2383,34 @@ export default function Dashboard() {
       com         += r._fee   as number;
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
-      // Money in Transit — derived SOLELY from "Спосіб оплати" (no status column needed).
-      // The file has no separate delivery-status text column, so we TRUST THE ROW:
-      // any COD or Rozetka order is treated as money in transit (funds not yet on our balance),
-      // unless a status column happens to exist AND explicitly marks the row as refused/returned.
-      if (c.paymentMethod) {
-        const rawPm = String(r[c.paymentMethod] ?? "");
-        const rawSt = c.status ? String(r[c.status] ?? "") : "";
-        const pm = rawPm.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
-        const st = rawSt.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
+      // ── Money in Transit ──────────────────────────────────────────────
+      //  GREEN row = collected, payout pending  → transit
+      //  RED   row = still in transit           → transit
+      //  WHITE / no fill                        → settled, exclude
+      //  HARD EXCLUDE: any row whose "причина" (or status) says відмова/повернення/скасовано.
+      //  FALLBACK (colors stripped): trust COD/Rozetka rows.
+      {
         const rev = r._gross as number;
-        // COD detection: partial match on short stems
+        const fill = r._fill as FillState | undefined;
+        const rawPm = c.paymentMethod ? String(r[c.paymentMethod] ?? "") : "";
+        const pm = rawPm.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
         const isCOD = pm.includes("налож") || pm.includes("наклад") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладен");
-        // Rozetka payment detection: partial match
         const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
-        // Optional refinement only — skip a row ONLY if a status col explicitly says refused/returned.
-        const isRefused = !!st && (st.includes("відмова") || st.includes("повернен") || st.includes("refus") || st.includes("скасов") || st.includes("cancel"));
-        if ((isCOD || isRozetka) && rev > 0 && !isRefused) {
+        // Hard refusal exclude — check причина column first, then any status column.
+        const reasonVal = c.reason  ? String(r[c.reason]  ?? "").toLowerCase() : "";
+        const statusVal = c.status  ? String(r[c.status]  ?? "").toLowerCase() : "";
+        const refusedText = reasonVal + " " + statusVal;
+        const isRefused = /відмов|поверн|скасов|refus|cancel/.test(refusedText);
+        const counts = hasColors
+          ? (fill === "green" || fill === "red")   // color-driven
+          : (isCOD || isRozetka);                  // fallback: trust the row
+        if (counts && rev > 0 && !isRefused) {
           moneyInTransit += rev; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] Row matched! Method:", rawPm.trim(), ", Status:", rawSt.trim() || "(no status col — trusted)", ", Price:", rev);
+          if (transitOrders <= 5) console.log("[Debug Transit] matched →", hasColors ? `fill=${fill}` : `pay=${rawPm.trim()}`, "| reason:", reasonVal.trim() || "-", "| ₴", rev);
         }
       }
     }
-    console.log("[KPI] paymentMethod col:", c.paymentMethod, "| status col:", c.status, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
+    console.log("[KPI] transit mode:", hasColors ? "ROW FILL COLOR" : "COD/Rozetka fallback", "| paymentMethod col:", c.paymentMethod, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
     if (filtered.length > 0) {
       const pmCol = c.paymentMethod;
       const stCol = c.status;
