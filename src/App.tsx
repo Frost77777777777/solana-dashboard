@@ -2413,7 +2413,16 @@ export default function Dashboard() {
     if (!fileData) return null;
     const c = fileData.cols;
     let net=0, del=0, com=0, debt=0, refs=0, grossIncome=0, moneyInTransit=0, transitOrders=0;
-    const NOW_MS = Date.now(); // for the 21-day transit freshness window
+    // 21-day transit window is measured against the NEWEST date in the file
+    // (not wall-clock). Files can be from any period; using Date.now() produced
+    // negative ages and let old completed rows leak in. maxFileMs = latest order date.
+    let maxFileMs = 0;
+    if (c.date) {
+      for (const r of filtered) {
+        const d = parseDate(r[c.date]);
+        if (d) { const t = d.getTime(); if (t > maxFileMs) maxFileMs = t; }
+      }
+    }
     for (const r of filtered) {
       net         += r._net   as number;
       grossIncome += r._gross as number;
@@ -2443,17 +2452,18 @@ export default function Dashboard() {
         const reasonVal = c.reason  ? String(r[c.reason]  ?? "").toLowerCase() : "";
         const statusVal = c.status  ? String(r[c.status]  ?? "").toLowerCase() : "";
         const isRefused = /відмов|поверн|скасов|refus|cancel/.test(reasonVal + " " + statusVal);
-        // 21-day exclusion — drop stale orders (only when a valid order date exists).
+        // 21-day exclusion — age measured vs the newest date in the file, so it is
+        // always >= 0. Window: 0..21 days. Rows with no parseable date are kept.
         const orderDate = c.date ? parseDate(r[c.date]) : null;
-        const ageDays = orderDate ? (NOW_MS - orderDate.getTime()) / 86_400_000 : 0;
-        const tooOld = orderDate ? ageDays > 21 : false;
-        if ((isCOD || isRozetka) && isColored && amount > 0 && !isRefused && !tooOld) {
+        const ageDays = (orderDate && maxFileMs) ? Math.floor((maxFileMs - orderDate.getTime()) / 86_400_000) : 0;
+        const inWindow = (orderDate && maxFileMs) ? (ageDays >= 0 && ageDays <= 21) : true;
+        if ((isCOD || isRozetka) && isColored && amount > 0 && !isRefused && inWindow) {
           moneyInTransit += amount; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| reason:", reasonVal.trim() || "-", "| age(d):", Math.round(ageDays), "| Сума ₴", amount);
+          if (transitOrders <= 5) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| reason:", reasonVal.trim() || "-", "| age(d):", ageDays, "| Сума ₴", amount);
         }
       }
     }
-    console.log("[KPI] transit mode: STRICT (COD/Rozetka + green/red fill + ≤21d) | amount col:", c.amount, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
+    console.log("[KPI] transit mode: STRICT (COD/Rozetka + green/red fill + age 0..21d vs newest file date) | ref date:", maxFileMs ? new Date(maxFileMs).toISOString().slice(0,10) : "n/a", "| amount col:", c.amount, "| moneyInTransit:", Math.round(moneyInTransit), "| transitOrders:", transitOrders);
     if (filtered.length > 0) {
       const pmCol = c.paymentMethod;
       const stCol = c.status;
