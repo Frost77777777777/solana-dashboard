@@ -100,12 +100,14 @@ function detectCols(columns: string[], rows: Row[]): Cols {
   // contains "статус" or "status" but NOT "причина"/"comment"/"reason".
   // The old fallback scanned row VALUES and matched "причина" (cancellation reasons column) — wrong.
   const statusExclude = ["причина", "comment", "reason", "коментар", "відмов", "повернен"];
+  // Keyword fallbacks for the order-lifecycle/delivery status column (v53.x).
+  const statusKeywords = ["статус", "status", "стан", "доставка", "lifecycle", "state", "етап", "current_status"];
   const status =
-    findCol(columns, "статус замовлення", "статус доставки", "статус", "status") ??
+    findCol(columns, "статус замовлення", "статус доставки", "стан замовлення", "статус", "status", "стан", "lifecycle", "state", "етап", "current_status", "доставка") ??
     columns.find(c => {
       const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
       if (statusExclude.some(ex => cl.includes(ex))) return false;
-      return cl.includes("статус") || cl.includes("status") || cl.includes("стан");
+      return statusKeywords.some(k => cl.includes(k));
     }) ??
     columns.find(c => {
       const cl = c.replace(/\uFEFF/g, "").toLowerCase().trim();
@@ -2154,7 +2156,10 @@ export default function Dashboard() {
 
         if (!allRows.length) { setParseError("Файл порожній або не вдалося зчитати рядки."); return; }
         const columns = Array.from(colSet);
+        console.log('--- ALL DETECTED COLUMNS IN FILE: ---', Object.keys(allRows[0] || {}));
+        console.log('--- ALL DETECTED COLUMNS (full set across sheets): ---', columns);
         const cols = detectCols(columns, allRows);
+        console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue });
 
         // ── PRE-STAMP every row with calculated fields ──────────────────
         stampRows(allRows, cols);
