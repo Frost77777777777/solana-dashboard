@@ -2251,6 +2251,29 @@ export default function Dashboard() {
         const cols = detectCols(columns, allRows);
         console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue, amount: cols.amount, date: cols.date });
 
+        // ── DIAGNOSTIC: dump one full sample row of each fill color so we can
+        //    see exactly which raw fields separate transit (red/green) from a
+        //    completed+paid (white) order. Dates serialised to ISO for clean JSON.
+        {
+          const jsonSafe = (row: Row) => {
+            const o: Record<string, unknown> = {};
+            for (const k of Object.keys(row)) {
+              const v = row[k];
+              o[k] = v instanceof Date ? v.toISOString().slice(0, 10) : v;
+            }
+            return o;
+          };
+          const sample = (state: FillState) => allRows.find(r => r._fill === state);
+          console.log("=== SAMPLE ROW DUMP (copy the JSON below) ===");
+          for (const state of ["red", "green", "none"] as FillState[]) {
+            const r = sample(state);
+            const label = state === "none" ? "WHITE / NO-FILL (settled?)" : state.toUpperCase();
+            if (r) console.log(`--- SAMPLE ${label} ROW: ---\n` + JSON.stringify(jsonSafe(r), null, 2));
+            else   console.log(`--- SAMPLE ${label} ROW: --- (none found)`);
+          }
+          console.log("=== END SAMPLE ROW DUMP ===");
+        }
+
         // ── PRE-STAMP every row with calculated fields ──────────────────
         stampRows(allRows, cols);
 
