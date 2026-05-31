@@ -118,7 +118,11 @@ function rowFillState(
       | undefined;
     const s = cell?.s;
     if (!s) continue;
-    // Solid fills store the colour in fgColor; some files put it in bgColor.
+    // ONLY count a real, user-applied SOLID fill. xlsx exposes a phantom bgColor
+    // on many non-filled cells (theme/border defaults), which caused white/empty
+    // rows to be mis-read as colored. Requiring patternType==="solid" eliminates
+    // those false positives. For a solid fill the highlight colour is fgColor.
+    if (s.patternType !== "solid") continue;
     const rgb = s.fgColor?.rgb || s.bgColor?.rgb;
     if (!rgb) continue;
     if (!firstRaw) firstRaw = rgb;
