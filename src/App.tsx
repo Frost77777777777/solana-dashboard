@@ -2848,9 +2848,21 @@ export default function Dashboard() {
         const amount = c.amount ? parseFinancial(r[c.amount]) : (r._gross as number);
         const reasonText = c.reason ? String(r[c.reason] ?? "").replace(/[\uFEFF]/g, "").trim() : "";
         const hasReason = reasonText !== "";
-        if ((isCOD || isRozetka) && isColored && amount > 0 && !hasReason) {
+        // ── Date-range gate ────────────────────────────────────────────
+        //  Money in transit is a *current* snapshot — it must follow the
+        //  dashboard's active date selection (Column C дата → _monthKey), so
+        //  completed orders from earlier months drop out instead of being
+        //  summed forever. monthFilter is already applied to `filtered`; we
+        //  additionally honour the year selector so picking a year/month
+        //  scopes the in-transit total. Both "All" ⇒ all-time.
+        const mk = String(r._monthKey ?? "No Date");
+        const inActiveRange =
+          monthFilter !== "All" ? mk === monthFilter
+          : yearFilter  !== "All" ? mk.startsWith(yearFilter)
+          : true;
+        if ((isCOD || isRozetka) && isColored && amount > 0 && !hasReason && inActiveRange) {
           moneyInTransit += amount; transitOrders++;
-          if (transitOrders <= 8) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| причина: (empty) | сума ₴", amount);
+          if (transitOrders <= 8) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| дата:", mk, "| причина: (empty) | сума ₴", amount);
         }
       }
     }
@@ -2874,7 +2886,7 @@ export default function Dashboard() {
       }
     }
     return { net, del, com, debt, grossIncome, logistics:del+com, orders:filtered.length, refs, successOrders:filtered.length-refs, returnRate:filtered.length>0?(refs/filtered.length)*100:0, moneyInTransit, transitOrders };
-  },[filtered, fileData]);
+  },[filtered, fileData, monthFilter, yearFilter]);
 
   /* ── LFL: prev-month KPI (same brand/company filters, prior month) ── */
   const prevKpi = useMemo(()=>{
