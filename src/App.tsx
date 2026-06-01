@@ -208,7 +208,9 @@ interface EJRow {
   eachCell?: (opts: { includeEmpty?: boolean }, cb: (cell: EJCell, colNumber: number) => void) => void;
   getCell?: (c: number) => EJCell | undefined;
 }
-interface EJWorksheet { getRow: (r: number) => EJRow | undefined }
+interface EJCFRule { type?: string; operator?: string; text?: string; formulae?: string[]; priority?: number; style?: { fill?: EJFill } }
+interface EJConditionalFormatting { ref?: string; rules?: EJCFRule[] }
+interface EJWorksheet { getRow: (r: number) => EJRow | undefined; conditionalFormattings?: EJConditionalFormatting[] }
 interface EJWorkbook { getWorksheet: (name: string) => EJWorksheet | undefined }
 
 function ejColorToXlsx(c: EJColor | undefined): XlsxColor | undefined {
@@ -259,6 +261,181 @@ function excelJsFindCol(ws: EJWorksheet, headerRow1: number, payKey: string): nu
     if (!partial && /оплат/.test(txt)) partial = col;
   });
   return exact || partial || 0;
+}
+
+/* ─── CONDITIONAL-FORMATTING aware fill reader ──────────────────────────
+   The user's red/green is produced by Excel CONDITIONAL FORMATTING, not a
+   static cell fill — so xlsx/exceljs return an EMPTY fill for those cells.
+   To reproduce what Excel renders, we read the workbook's CF rules
+   (ws.conditionalFormattings) and evaluate each rule against the row's data.
+   A rule whose dxf fill classifies as red/green AND whose condition is true
+   ⇒ that's the cell's effective colour.  A tiny Excel-formula evaluator
+   handles the common rule conditions (expression / cellIs / containsText…). */
+type CFScalar = string | number | boolean;
+function colLettersToNum(s: string): number { let n = 0; for (const ch of s.toUpperCase()) n = n * 26 + (ch.charCodeAt(0) - 64); return n; }
+interface CFRange { c1: number; r1: number; c2: number; r2: number }
+function parseCFRanges(ref: string | undefined): CFRange[] {
+  const out: CFRange[] = [];
+  for (const part of String(ref ?? "").trim().split(/\s+/)) {
+    if (!part) continue;
+    const seg = part.split(":");
+    const a = seg[0].match(/^\$?([A-Za-z]+)\$?(\d+)$/); if (!a) continue;
+    const c1 = colLettersToNum(a[1]), r1 = +a[2];
+    if (seg[1]) { const b = seg[1].match(/^\$?([A-Za-z]+)\$?(\d+)$/); if (!b) continue; out.push({ c1, r1, c2: colLettersToNum(b[1]), r2: +b[2] }); }
+    else out.push({ c1, r1, c2: c1, r2: r1 });
+  }
+  return out;
+}
+function cfRangeCover(ranges: CFRange[], r: number, c: number): CFRange | null {
+  for (const g of ranges) if (r >= Math.min(g.r1, g.r2) && r <= Math.max(g.r1, g.r2) && c >= Math.min(g.c1, g.c2) && c <= Math.max(g.c1, g.c2)) return g;
+  return null;
+}
+function cfCellRaw(ws: EJWorksheet, r: number, c: number): CFScalar {
+  const row = ws.getRow(r); const cell = row && typeof row.getCell === "function" ? row.getCell(c) : undefined;
+  if (!cell) return "";
+  let v: unknown = cell.value;
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    if ("result" in o) v = o.result;
+    else if ("richText" in o && Array.isArray(o.richText)) v = (o.richText as { text?: string }[]).map(t => t.text ?? "").join("");
+    else if ("text" in o) v = o.text;
+    else v = cell.text;
+  }
+  if (v == null) return "";
+  return v as CFScalar;
+}
+function cfNum(v: CFScalar): number { if (typeof v === "number") return v; if (typeof v === "boolean") return v ? 1 : 0; const n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? 0 : n; }
+function cfBool(v: CFScalar): boolean { if (typeof v === "boolean") return v; if (typeof v === "number") return v !== 0; return !(v == null || v === ""); }
+function cfIsNumeric(v: CFScalar): boolean { if (typeof v === "number") return true; if (typeof v !== "string") return false; const s = v.trim(); return s !== "" && !isNaN(parseFloat(s)) && isFinite(Number(s.replace(",", "."))); }
+function cfCompare(l: CFScalar, r: CFScalar, op: string): boolean {
+  let a: CFScalar = l, b: CFScalar = r;
+  if (cfIsNumeric(l) && cfIsNumeric(r)) { a = cfNum(l); b = cfNum(r); }
+  else { a = String(l ?? "").toLowerCase().trim(); b = String(r ?? "").toLowerCase().trim(); }
+  switch (op) { case "=": return a === b; case "<>": return a !== b; case "<": return a < b; case ">": return a > b; case "<=": return a <= b; case ">=": return a >= b; }
+  return false;
+}
+interface CFCtx { ws: EJWorksheet; rowShift: number; colShift: number }
+interface CFTok { t: "num" | "str" | "id" | "op"; v: string | number }
+function cfTokenize(s: string): CFTok[] {
+  const t: CFTok[] = []; let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === " " || ch === "\t") { i++; continue; }
+    if (ch === '"') { let j = i + 1, str = ""; while (j < s.length) { if (s[j] === '"') { if (s[j + 1] === '"') { str += '"'; j += 2; continue; } break; } str += s[j++]; } t.push({ t: "str", v: str }); i = j + 1; continue; }
+    if (/[0-9]/.test(ch) || (ch === "." && /[0-9]/.test(s[i + 1] ?? ""))) { let j = i; while (j < s.length && /[0-9.]/.test(s[j])) j++; t.push({ t: "num", v: parseFloat(s.slice(i, j)) }); i = j; continue; }
+    if (/[A-Za-z_$]/.test(ch)) { let j = i; while (j < s.length && /[A-Za-z0-9_$.!]/.test(s[j])) j++; t.push({ t: "id", v: s.slice(i, j) }); i = j; continue; }
+    const two = s.substr(i, 2);
+    if (two === "<>" || two === "<=" || two === ">=") { t.push({ t: "op", v: two }); i += 2; continue; }
+    if ("=<>+-*/(),".includes(ch)) { t.push({ t: "op", v: ch }); i++; continue; }
+    i++;
+  }
+  return t;
+}
+function cfParse(tokens: CFTok[], ctx: CFCtx): CFScalar {
+  let p = 0;
+  const peek = () => tokens[p];
+  const next = () => tokens[p++];
+  function expr(): CFScalar { return cmp(); }
+  function cmp(): CFScalar { const l = add(); const o = peek(); if (o && o.t === "op" && ["=", "<>", "<", ">", "<=", ">="].includes(String(o.v))) { next(); const r = add(); return cfCompare(l, r, String(o.v)); } return l; }
+  function add(): CFScalar { let l = mul(); let o; while ((o = peek()) && o.t === "op" && (o.v === "+" || o.v === "-")) { next(); const r = mul(); l = o.v === "+" ? cfNum(l) + cfNum(r) : cfNum(l) - cfNum(r); } return l; }
+  function mul(): CFScalar { let l = un(); let o; while ((o = peek()) && o.t === "op" && (o.v === "*" || o.v === "/")) { next(); const r = un(); l = o.v === "*" ? cfNum(l) * cfNum(r) : cfNum(l) / cfNum(r); } return l; }
+  function un(): CFScalar { const o = peek(); if (o && o.t === "op" && o.v === "-") { next(); return -cfNum(un()); } return prim(); }
+  function prim(): CFScalar {
+    const o = next(); if (!o) return "";
+    if (o.t === "num") return o.v;
+    if (o.t === "str") return o.v;
+    if (o.t === "op" && o.v === "(") { const e = expr(); if (peek() && peek().v === ")") next(); return e; }
+    if (o.t === "id") {
+      const up = String(o.v).toUpperCase();
+      if (peek() && peek().t === "op" && peek().v === "(") {
+        next(); const args: CFScalar[] = [];
+        if (!(peek() && peek().v === ")")) { args.push(expr()); while (peek() && peek().v === ",") { next(); args.push(expr()); } }
+        if (peek() && peek().v === ")") next();
+        return fn(up, args);
+      }
+      if (up === "TRUE") return true; if (up === "FALSE") return false;
+      return ref(String(o.v));
+    }
+    return "";
+  }
+  function ref(tok: string): CFScalar {
+    const m = tok.match(/^(\$?)([A-Za-z]+)(\$?)(\d+)$/); if (!m) return "";
+    const colAbs = !!m[1], col = colLettersToNum(m[2]), rowAbs = !!m[3], row = +m[4];
+    const cc = col + (colAbs ? 0 : ctx.colShift); const rr = row + (rowAbs ? 0 : ctx.rowShift);
+    return cfCellRaw(ctx.ws, rr, cc);
+  }
+  function fn(name: string, a: CFScalar[]): CFScalar {
+    switch (name) {
+      case "AND": return a.every(cfBool);
+      case "OR": return a.some(cfBool);
+      case "NOT": return !cfBool(a[0]);
+      case "ISBLANK": return a[0] === "" || a[0] == null;
+      case "ISNUMBER": return typeof a[0] === "number" && !isNaN(a[0]);
+      case "ISTEXT": return typeof a[0] === "string" && a[0] !== "";
+      case "LEN": return String(a[0] ?? "").length;
+      case "TODAY": case "NOW": return Date.now() / 86400000 + 25569;
+      case "SEARCH": case "FIND": { const idx = String(a[1] ?? "").toLowerCase().indexOf(String(a[0] ?? "").toLowerCase()); return idx < 0 ? NaN : idx + 1; }
+      case "ISERROR": return typeof a[0] === "number" && isNaN(a[0]);
+      case "EXACT": return String(a[0]) === String(a[1]);
+      case "LEFT": return String(a[0] ?? "").slice(0, a[1] == null ? 1 : cfNum(a[1]));
+      case "RIGHT": { const n = a[1] == null ? 1 : cfNum(a[1]); return String(a[0] ?? "").slice(-n); }
+      case "LOWER": return String(a[0] ?? "").toLowerCase();
+      case "UPPER": return String(a[0] ?? "").toUpperCase();
+      case "TRIM": return String(a[0] ?? "").trim();
+      case "VALUE": return cfNum(a[0]);
+      default: return "";
+    }
+  }
+  return expr();
+}
+function cfEvalFormula(f: string, ctx: CFCtx): boolean { try { return cfBool(cfParse(cfTokenize(f.replace(/^=/, "")), ctx)); } catch { return false; } }
+function cfEvalScalar(f: string | undefined, ctx: CFCtx): CFScalar { if (f == null) return ""; const s = String(f).replace(/^=/, ""); try { return cfParse(cfTokenize(s), ctx); } catch { return s.replace(/^"|"$/g, ""); } }
+function cfRuleState(rule: EJCFRule): FillState { const f = rule.style?.fill; if (!f) return "none"; const rgb = resolveFillRgb(ejColorToXlsx(f.fgColor)) || resolveFillRgb(ejColorToXlsx(f.bgColor)); return rgb ? classifyFill(rgb) : "none"; }
+function cfEvalRule(rule: EJCFRule, ws: EJWorksheet, r: number, c: number, anchorR: number, anchorC: number): FillState {
+  const st = cfRuleState(rule); if (st === "none") return "none";
+  const ctx: CFCtx = { ws, rowShift: r - anchorR, colShift: c - anchorC };
+  const target = cfCellRaw(ws, r, c);
+  const fx = rule.formulae?.[0] ?? "";
+  const textOf = (raw: string) => (rule.text ?? raw.replace(/^="?|"?$/g, "").replace(/^"|"$/g, ""));
+  switch (rule.type) {
+    case "expression": return cfEvalFormula(fx, ctx) ? st : "none";
+    case "containsText": return (rule.text ? String(target).toLowerCase().includes(String(rule.text).toLowerCase()) : cfEvalFormula(fx, ctx)) ? st : "none";
+    case "notContainsText": return (rule.text ? !String(target).toLowerCase().includes(String(rule.text).toLowerCase()) : cfEvalFormula(fx, ctx)) ? st : "none";
+    case "beginsWith": return String(target).toLowerCase().startsWith(String(textOf(fx)).toLowerCase()) ? st : "none";
+    case "endsWith": return String(target).toLowerCase().endsWith(String(textOf(fx)).toLowerCase()) ? st : "none";
+    case "cellIs": {
+      const op = rule.operator ?? "";
+      const v = cfEvalScalar(rule.formulae?.[0], ctx);
+      const v2 = cfEvalScalar(rule.formulae?.[1], ctx);
+      const map: Record<string, string> = { equal: "=", notEqual: "<>", greaterThan: ">", lessThan: "<", greaterThanOrEqual: ">=", lessThanOrEqual: "<=" };
+      if (op === "between") return (cfCompare(target, v, ">=") && cfCompare(target, v2, "<=")) ? st : "none";
+      if (op === "notBetween") return !(cfCompare(target, v, ">=") && cfCompare(target, v2, "<=")) ? st : "none";
+      if (op === "containsText") return String(target).toLowerCase().includes(String(v).toLowerCase()) ? st : "none";
+      if (map[op]) return cfCompare(target, v, map[op]) ? st : "none";
+      return "none";
+    }
+    default: return "none";
+  }
+}
+// Effective fill of a cell via CONDITIONAL FORMATTING (rules sorted by priority).
+function excelJsCellCFFill(ws: EJWorksheet, rowNum1: number, colNum1: number): { state: FillState; rgb: string } {
+  const cfs = ws.conditionalFormattings; if (!Array.isArray(cfs) || !cfs.length) return { state: "none", rgb: "" };
+  const matches: { rule: EJCFRule; anchorR: number; anchorC: number; priority: number }[] = [];
+  for (const cf of cfs) {
+    const ranges = parseCFRanges(cf.ref);
+    const g = cfRangeCover(ranges, rowNum1, colNum1); if (!g) continue;
+    const anchorR = Math.min(g.r1, g.r2), anchorC = Math.min(g.c1, g.c2);
+    for (const rule of cf.rules ?? []) matches.push({ rule, anchorR, anchorC, priority: rule.priority ?? 999 });
+  }
+  matches.sort((a, b) => a.priority - b.priority);
+  for (const m of matches) { const st = cfEvalRule(m.rule, ws, rowNum1, colNum1, m.anchorR, m.anchorC); if (st !== "none") return { state: st, rgb: "(cf)" }; }
+  return { state: "none", rgb: "" };
+}
+// Effective fill of the спосіб-оплати cell: static solid fill first, else CF-derived.
+function excelJsCellEffectiveFill(ws: EJWorksheet, rowNum1: number, colNum1: number): { state: FillState; rgb: string } {
+  const stat = excelJsCellFill(ws, rowNum1, colNum1);
+  if (stat.state !== "none") return stat;
+  return excelJsCellCFFill(ws, rowNum1, colNum1);
 }
 
 /* ─── column detection ───────────────────────────────────────── */
@@ -2421,10 +2598,12 @@ export default function Dashboard() {
           let res: { state: FillState; rgb: string } = { state: "none", rgb: "" };
           if (info?.ejws) {
             const payCol = sheetPayCol[meta.sheetName];
-            // Read ONLY the спосіб-оплати cell. If we somehow couldn't locate the
-            // column, fall back to scanning the row so we don't silently zero out.
+            // Read ONLY the спосіб-оплати cell. Use the EFFECTIVE fill = static
+            // solid fill OR conditional-formatting-derived colour (the user's
+            // red/green is CF, which has no static fill). If we somehow couldn't
+            // locate the column, fall back to scanning the row.
             res = payCol
-              ? excelJsCellFill(info.ejws, meta.ejRow, payCol)
+              ? excelJsCellEffectiveFill(info.ejws, meta.ejRow, payCol)
               : excelJsRowFill(info.ejws, meta.ejRow);
           } else if (info?.range) {
             // exceljs unavailable → degrade to xlsx whole-row reader.
@@ -2435,9 +2614,25 @@ export default function Dashboard() {
           if (res.rgb) rawFillColors.add(res.rgb);
         });
 
-        console.log("--- FILL READER: ---", ejwb ? "exceljs (спосіб-оплати cell, indexed/theme/argb aware)" : "xlsx fallback");
+        console.log("--- FILL READER: ---", ejwb ? "exceljs (спосіб-оплати cell: static fill + CONDITIONAL FORMATTING)" : "xlsx fallback");
         console.log("--- ROW FILL COLORS DETECTED: ---", fillStats);
         console.log("--- RAW FILL HEX VALUES IN FILE: ---", Array.from(rawFillColors));
+
+        // DIAGNOSTIC: dump the raw CONDITIONAL-FORMATTING rules per sheet (ref,
+        // type, operator, formula, resolved red/green). This reveals exactly how
+        // the user's red/green is driven so the evaluator can be calibrated.
+        for (const sn of Object.keys(sheetEJ)) {
+          const ejws = sheetEJ[sn].ejws;
+          const cfs = ejws?.conditionalFormattings;
+          if (!ejws || !Array.isArray(cfs) || !cfs.length) continue;
+          console.log(`=== CONDITIONAL FORMATTING RULES (sheet "${sn}", payCol ${sheetPayCol[sn]}) ===`);
+          for (const cf of cfs) {
+            for (const rule of cf.rules ?? []) {
+              console.log(`ref=${cf.ref} | type=${rule.type} op=${rule.operator ?? "-"} prio=${rule.priority ?? "-"} => ${cfRuleState(rule)} | formula=${JSON.stringify(rule.formulae ?? rule.text ?? "")}`);
+            }
+          }
+          console.log(`=== END CONDITIONAL FORMATTING RULES ("${sn}") ===`);
+        }
 
         // DIAGNOSTIC: for the first sheet, dump the спосіб-оплати cell's raw fill +
         // resolved state for the first 12 data rows so we can verify the mapping.
@@ -2451,8 +2646,8 @@ export default function Dashboard() {
             for (const m of metas) {
               const cell = payCol ? info.ejws.getRow(m.ejRow)?.getCell?.(payCol) : undefined;
               const raw = cell?.fill?.fgColor ? JSON.stringify(cell.fill.fgColor) : "(no solid fill)";
-              const res = payCol ? excelJsCellFill(info.ejws, m.ejRow, payCol) : { state: "none", rgb: "" };
-              console.log(`ejRow ${m.ejRow} → _fill=${res.state} rgb=${res.rgb || "-"} | payCellFg:`, raw, "| txt:", String(cell?.text ?? cell?.value ?? "").trim());
+              const res = payCol ? excelJsCellEffectiveFill(info.ejws, m.ejRow, payCol) : { state: "none", rgb: "" };
+              console.log(`ejRow ${m.ejRow} → _fill=${res.state} via=${res.rgb || "-"} | payCellStaticFg:`, raw, "| txt:", String(cell?.text ?? cell?.value ?? "").trim());
             }
             console.log("=== END PAYMENT-CELL FILL DUMP ===");
           }
