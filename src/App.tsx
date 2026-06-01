@@ -546,10 +546,13 @@ function detectCols(columns: string[], rows: Row[]): Cols {
                  ?? findCol(columns, "місто", "місто отримувача", "місто одержувача", "населений пункт", "city", "регіон", "область", "region", "district"),
     brand, date, status, refusalDate,
     paymentMethod: paymentMethodCol,
-    // Order amount for Money in Transit — strictly the "Сума" / "Сума замовлення" column
-    // (sits beside "Спосіб оплати"), NOT net profit/turnover.
-    amount: findCol(columns, "сума замовлення", "сума зам", "сума", "order amount", "order_sum")
-            ?? (paymentMethodCol ? columns[columns.indexOf(paymentMethodCol) + 1] ?? null : null),
+    // Order amount for Money in Transit — STRICTLY the bare "Сума" column (Column G,
+    // which sits immediately LEFT of "Спосіб оплати"), NOT "Сума замовлення" and NOT
+    // net profit/turnover. Exact "сума" is matched first so it wins over "сума замовлення".
+    amount: findCol(columns, "сума", "сума ₴", "сума,грн", "сума, грн", "сума грн", "order amount", "order_sum", "сума замовлення", "сума зам")
+            ?? (paymentMethodCol
+                  ? (columns[columns.indexOf(paymentMethodCol) - 1] ?? columns[columns.indexOf(paymentMethodCol) + 1] ?? null)
+                  : null),
   };
 }
 
