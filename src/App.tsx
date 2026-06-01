@@ -203,8 +203,11 @@ function rowFillState(
    them through the same resolveFillRgb + classifyFill pipeline. */
 interface EJColor { argb?: string; theme?: number; tint?: number; indexed?: number }
 interface EJFill { type?: string; pattern?: string; fgColor?: EJColor; bgColor?: EJColor }
-interface EJCell { fill?: EJFill }
-interface EJRow { eachCell?: (opts: { includeEmpty?: boolean }, cb: (cell: EJCell) => void) => void }
+interface EJCell { fill?: EJFill; text?: string; value?: unknown }
+interface EJRow {
+  eachCell?: (opts: { includeEmpty?: boolean }, cb: (cell: EJCell, colNumber: number) => void) => void;
+  getCell?: (c: number) => EJCell | undefined;
+}
 interface EJWorksheet { getRow: (r: number) => EJRow | undefined }
 interface EJWorkbook { getWorksheet: (name: string) => EJWorksheet | undefined }
 
@@ -212,7 +215,21 @@ function ejColorToXlsx(c: EJColor | undefined): XlsxColor | undefined {
   if (!c) return undefined;
   return { rgb: c.argb, theme: c.theme, tint: c.tint, indexed: c.indexed };
 }
-// Read the first meaningful solid fill in exceljs row `rowNum1` (1-based).
+function fillToState(fill: EJFill | undefined): { state: FillState; rgb: string } {
+  if (!fill || fill.type !== "pattern" || fill.pattern !== "solid") return { state: "none", rgb: "" };
+  const rgb = resolveFillRgb(ejColorToXlsx(fill.fgColor)) || resolveFillRgb(ejColorToXlsx(fill.bgColor));
+  if (!rgb) return { state: "none", rgb: "" };
+  return { state: classifyFill(rgb), rgb };
+}
+// Read the solid fill of ONE specific cell (the user colors the спосіб-оплати cell,
+// not the whole row). rowNum1/colNum1 are 1-based exceljs coordinates.
+function excelJsCellFill(ws: EJWorksheet, rowNum1: number, colNum1: number): { state: FillState; rgb: string } {
+  const row = ws.getRow(rowNum1);
+  if (!row || typeof row.getCell !== "function") return { state: "none", rgb: "" };
+  return fillToState(row.getCell(colNum1)?.fill);
+}
+// Read the first meaningful solid fill in exceljs row `rowNum1` (1-based) — used
+// only as a fallback / diagnostic when a specific column isn't known.
 function excelJsRowFill(ws: EJWorksheet, rowNum1: number): { state: FillState; rgb: string } {
   const row = ws.getRow(rowNum1);
   if (!row || typeof row.eachCell !== "function") return { state: "none", rgb: "" };
@@ -220,16 +237,28 @@ function excelJsRowFill(ws: EJWorksheet, rowNum1: number): { state: FillState; r
   let result: { state: FillState; rgb: string } = { state: "none", rgb: "" };
   row.eachCell({ includeEmpty: false }, (cell) => {
     if (result.state !== "none") return;
-    const fill = cell.fill;
-    if (!fill || fill.type !== "pattern" || fill.pattern !== "solid") return;
-    const rgb = resolveFillRgb(ejColorToXlsx(fill.fgColor)) || resolveFillRgb(ejColorToXlsx(fill.bgColor));
-    if (!rgb) return;
-    if (!firstRaw) firstRaw = rgb;
-    const state = classifyFill(rgb);
-    if (state !== "none") result = { state, rgb };
+    const res = fillToState(cell.fill);
+    if (res.rgb && !firstRaw) firstRaw = res.rgb;
+    if (res.state !== "none") result = res;
   });
   if (result.state === "none") result.rgb = firstRaw;
   return result;
+}
+// Locate the 1-based column number of the спосіб-оплати header in an exceljs sheet.
+// Prefers an exact match to the detected payment key, else any header containing "оплат".
+function excelJsFindCol(ws: EJWorksheet, headerRow1: number, payKey: string): number {
+  const hr = ws.getRow(headerRow1);
+  if (!hr || typeof hr.eachCell !== "function") return 0;
+  let exact = 0, partial = 0;
+  const norm = (s: string) => s.replace(/[\uFEFF]/g, "").replace(/\s+/g, " ").toLowerCase().trim();
+  const key = norm(payKey);
+  hr.eachCell({ includeEmpty: false }, (cell, col) => {
+    const txt = norm(String(cell.text ?? cell.value ?? ""));
+    if (!txt) return;
+    if (key && txt === key && !exact) exact = col;
+    if (!partial && /оплат/.test(txt)) partial = col;
+  });
+  return exact || partial || 0;
 }
 
 /* ─── column detection ───────────────────────────────────────── */
@@ -2310,6 +2339,14 @@ export default function Dashboard() {
         const colSet = new Set<string>();
         const fillStats = { green: 0, red: 0, none: 0 };
         const rawFillColors = new Set<string>();
+        // exceljs worksheet + header row per sheet, and per-row coordinates so we can
+        // read the спосіб-оплати CELL fill AFTER we know which column it is.
+        type SheetInfo = {
+          ejws?: EJWorksheet; headerRow1: number;
+          sh: Record<string, unknown>; range: { s: { c: number }; e: { c: number } } | null; headerR: number;
+        };
+        const sheetEJ: Record<string, SheetInfo> = {};
+        const rowMeta: { sheetName: string; ejRow: number; sheetRow0: number }[] = [];
 
         for (const sheetName of wb.SheetNames) {
           const sh = wb.Sheets[sheetName];
@@ -2320,29 +2357,9 @@ export default function Dashboard() {
           const ref = sh["!ref"] as string | undefined;
           const range = ref ? XLSX.utils.decode_range(ref) : null;
           const headerR = range ? range.s.r : 0;
-          // exceljs worksheet for the SAME sheet (used for indexed-palette fills).
+          // exceljs worksheet for the SAME sheet (reads indexed-palette cell fills).
           const ejws = ejwb ? ejwb.getWorksheet(sheetName) : undefined;
-
-          // DIAGNOSTIC (first sheet): dump exceljs raw fills for the first 8 data
-          // rows so we can SEE the indexed/theme/argb values xlsx was dropping.
-          if (ejws && sheetName === wb.SheetNames[0]) {
-            console.log(`=== EXCELJS RAW FILL DUMP (sheet "${sheetName}", first 8 data rows) ===`);
-            for (let i = 0; i < Math.min(8, rawRows.length); i++) {
-              const rn = headerR + 1 + i + 1; // exceljs 1-based
-              const rowObj = ejws.getRow(rn);
-              const fills: string[] = [];
-              rowObj?.eachCell?.({ includeEmpty: false }, (cell) => {
-                const f = cell.fill;
-                if (f && f.type === "pattern" && f.pattern === "solid") {
-                  const fg = f.fgColor || {};
-                  fills.push(JSON.stringify(fg));
-                }
-              });
-              const res = excelJsRowFill(ejws, rn);
-              console.log(`row ${i} → _fill=${res.state} rgb=${res.rgb || "-"} | rawFgColors:`, fills.length ? fills.join(", ") : "(none)");
-            }
-            console.log("=== END EXCELJS RAW FILL DUMP ===");
-          }
+          sheetEJ[sheetName] = { ejws, headerRow1: headerR + 1, sh: sh as Record<string, unknown>, range, headerR };
 
           // Collect keys from EVERY row (not just first) — some sheets have columns
           // that are empty in row 1 (e.g. "комісія банку" in Sl-Artmon starts empty).
@@ -2367,19 +2384,11 @@ export default function Dashboard() {
               colSet.add(normKey);
             }
             if (isMultiSheet) merged["_sheet_"] = sheetName;
-            // Stamp the Excel row FILL color (green/red/none). Data row i sits at
-            // sheet row headerR + 1 + i (0-based; row 0 of data is right after the
-            // header). Prefer exceljs (reads indexed-palette fills xlsx drops);
-            // fall back to the xlsx reader if exceljs failed to load.
-            const sheetRow0 = headerR + 1 + i;
-            const fillRes = ejws
-              ? excelJsRowFill(ejws, sheetRow0 + 1) // exceljs rows are 1-based
-              : (range
-                  ? rowFillState(sh as Record<string, unknown>, sheetRow0, range, XLSX.utils.encode_cell)
-                  : { state: "none" as FillState, rgb: "" });
-            merged["_fill"] = fillRes.state;
-            fillStats[fillRes.state]++;
-            if (fillRes.rgb) rawFillColors.add(fillRes.rgb);
+            // _fill is stamped in the SECOND pass below (after we know the спосіб-оплати
+            // column). Record where this row lives so we can read that exact cell.
+            // Data row i sits at sheet row headerR + 1 + i (0-based) → exceljs row +1.
+            merged["_fill"] = "none";
+            rowMeta.push({ sheetName, ejRow: headerR + 1 + i + 1, sheetRow0: headerR + 1 + i });
             allRows.push(merged);
           });
         }
@@ -2391,12 +2400,63 @@ export default function Dashboard() {
         console.log("--- RAW HEADERS START ---");
         headers.forEach(h => console.log("Header found:", h));
         console.log("--- RAW HEADERS END ---");
-        console.log("--- FILL READER: ---", ejwb ? "exceljs (indexed/theme/argb aware)" : "xlsx fallback");
-        console.log("--- ROW FILL COLORS DETECTED: ---", fillStats);
-        console.log("--- RAW FILL HEX VALUES IN FILE: ---", Array.from(rawFillColors));
         console.log('--- ALL DETECTED COLUMNS (full set across sheets): ---', columns);
         const cols = detectCols(columns, allRows);
         console.log('--- COLUMN DETECTION RESULT: ---', { status: cols.status, paymentMethod: cols.paymentMethod, revenue: cols.revenue, amount: cols.amount, date: cols.date });
+
+        // ── STAMP _fill FROM THE спосіб-оплати CELL ONLY ────────────────
+        // The user colors the спосіб-оплати (col H) CELL individually — NOT the whole
+        // row, and neighbouring columns are yellow. So we resolve the payment column
+        // per sheet and read the fill of THAT cell only (exceljs → indexed aware).
+        const payKey = String(cols.paymentMethod ?? "");
+        const sheetPayCol: Record<string, number> = {}; // exceljs 1-based col per sheet
+        for (const sn of Object.keys(sheetEJ)) {
+          const info = sheetEJ[sn];
+          sheetPayCol[sn] = info.ejws ? excelJsFindCol(info.ejws, info.headerRow1, payKey) : 0;
+        }
+        console.log("--- PAYMENT-METHOD COLUMN (exceljs 1-based) per sheet: ---", sheetPayCol);
+        allRows.forEach((row, idx) => {
+          const meta = rowMeta[idx];
+          const info = sheetEJ[meta.sheetName];
+          let res: { state: FillState; rgb: string } = { state: "none", rgb: "" };
+          if (info?.ejws) {
+            const payCol = sheetPayCol[meta.sheetName];
+            // Read ONLY the спосіб-оплати cell. If we somehow couldn't locate the
+            // column, fall back to scanning the row so we don't silently zero out.
+            res = payCol
+              ? excelJsCellFill(info.ejws, meta.ejRow, payCol)
+              : excelJsRowFill(info.ejws, meta.ejRow);
+          } else if (info?.range) {
+            // exceljs unavailable → degrade to xlsx whole-row reader.
+            res = rowFillState(info.sh, meta.sheetRow0, info.range, XLSX.utils.encode_cell);
+          }
+          row["_fill"] = res.state;
+          fillStats[res.state]++;
+          if (res.rgb) rawFillColors.add(res.rgb);
+        });
+
+        console.log("--- FILL READER: ---", ejwb ? "exceljs (спосіб-оплати cell, indexed/theme/argb aware)" : "xlsx fallback");
+        console.log("--- ROW FILL COLORS DETECTED: ---", fillStats);
+        console.log("--- RAW FILL HEX VALUES IN FILE: ---", Array.from(rawFillColors));
+
+        // DIAGNOSTIC: for the first sheet, dump the спосіб-оплати cell's raw fill +
+        // resolved state for the first 12 data rows so we can verify the mapping.
+        {
+          const firstSheet = wb.SheetNames.find(sn => sheetEJ[sn]?.ejws);
+          const info = firstSheet ? sheetEJ[firstSheet] : undefined;
+          if (info?.ejws) {
+            const payCol = sheetPayCol[firstSheet as string];
+            console.log(`=== PAYMENT-CELL FILL DUMP (sheet "${firstSheet}", col ${payCol}, first 12 rows) ===`);
+            const metas = rowMeta.filter(m => m.sheetName === firstSheet).slice(0, 12);
+            for (const m of metas) {
+              const cell = payCol ? info.ejws.getRow(m.ejRow)?.getCell?.(payCol) : undefined;
+              const raw = cell?.fill?.fgColor ? JSON.stringify(cell.fill.fgColor) : "(no solid fill)";
+              const res = payCol ? excelJsCellFill(info.ejws, m.ejRow, payCol) : { state: "none", rgb: "" };
+              console.log(`ejRow ${m.ejRow} → _fill=${res.state} rgb=${res.rgb || "-"} | payCellFg:`, raw, "| txt:", String(cell?.text ?? cell?.value ?? "").trim());
+            }
+            console.log("=== END PAYMENT-CELL FILL DUMP ===");
+          }
+        }
 
         // ── DIAGNOSTIC: dump one full sample row of each fill color so we can
         //    see exactly which raw fields separate transit (red/green) from a
