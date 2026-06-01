@@ -86,6 +86,57 @@ const parseNum = toNum;
    xlsx (community) exposes solid fills via cell.s.fgColor.rgb when read with
    { cellStyles: true }. We classify the rgb into "green" | "red" | "none". */
 type FillState = "green" | "red" | "none";
+
+// A fill color as xlsx reports it: explicit rgb, OR a theme index (+tint), OR a
+// legacy indexed-palette number. We must resolve theme/indexed → real RGB,
+// otherwise green/red highlights stored as theme/indexed are invisible.
+interface XlsxColor { rgb?: string; theme?: number; tint?: number; indexed?: number }
+
+// Default Office theme palette in the order used by the cell `theme` attribute.
+// 0=lt1(white) 1=dk1(black) 2=lt2 3=dk2 4..9=accent1..6 10=hlink 11=folHlink.
+// theme 0/1 (window bg/text) are NOT fills → return "" so they're skipped.
+const THEME_RGB: Record<number, string> = {
+  0: "FFFFFF", 1: "000000", 2: "E7E6E6", 3: "44546A",
+  4: "4472C4", 5: "ED7D31", 6: "A5A5A5", 7: "FFC000",
+  8: "5B9BD5", 9: "70AD47", 10: "0563C1", 11: "954F72",
+};
+// Legacy Excel (BIFF8) indexed palette — only the entries we care about.
+// 64/65 = system foreground/background (auto) → NOT a fill.
+const INDEXED_RGB: Record<number, string> = {
+  8: "000000", 9: "FFFFFF", 10: "FF0000", 11: "00FF00", 12: "0000FF",
+  13: "FFFF00", 14: "FF00FF", 15: "00FFFF", 17: "00FF00", 51: "FFCC00",
+  50: "00B050", 53: "FF6600", 3: "00FF00", 2: "FF0000",
+};
+// Apply Excel tint to one 0..255 channel (lighten when >0, darken when <0).
+function applyTint(c: number, tint: number): number {
+  if (!tint) return c;
+  const v = tint < 0 ? c * (1 + tint) : c * (1 - tint) + 255 * tint;
+  return Math.max(0, Math.min(255, Math.round(v)));
+}
+// Resolve any xlsx color object to a 6-hex RGB string, or "" if it's not a real fill.
+function resolveFillRgb(color: XlsxColor | undefined): string {
+  if (!color) return "";
+  if (color.rgb) {
+    let hex = color.rgb.replace(/[^0-9a-fA-F]/g, "");
+    if (hex.length === 8) hex = hex.slice(2);
+    return hex.length === 6 ? hex.toUpperCase() : "";
+  }
+  let base = "";
+  if (typeof color.theme === "number")   base = THEME_RGB[color.theme] ?? "";
+  else if (typeof color.indexed === "number") {
+    if (color.indexed === 64 || color.indexed === 65) return ""; // system auto = no fill
+    base = INDEXED_RGB[color.indexed] ?? "";
+  }
+  if (!base) return "";
+  if (color.tint) {
+    const r = applyTint(parseInt(base.slice(0, 2), 16), color.tint);
+    const g = applyTint(parseInt(base.slice(2, 4), 16), color.tint);
+    const b = applyTint(parseInt(base.slice(4, 6), 16), color.tint);
+    base = [r, g, b].map(n => n.toString(16).padStart(2, "0")).join("").toUpperCase();
+  }
+  return base;
+}
+
 function classifyFill(rgb: string | undefined): FillState {
   if (!rgb) return "none";
   let hex = rgb.replace(/[^0-9a-fA-F]/g, "");
@@ -114,7 +165,7 @@ function rowFillState(
   let firstRaw = "";
   for (let C = range.s.c; C <= range.e.c; C++) {
     const cell = sh[encodeCell({ r: R, c: C })] as
-      | { s?: { patternType?: string; fgColor?: { rgb?: string }; bgColor?: { rgb?: string } } }
+      | { s?: { patternType?: string; fgColor?: XlsxColor; bgColor?: XlsxColor } }
       | undefined;
     const s = cell?.s;
     if (!s) continue;
@@ -123,7 +174,9 @@ function rowFillState(
     // rows to be mis-read as colored. Requiring patternType==="solid" eliminates
     // those false positives. For a solid fill the highlight colour is fgColor.
     if (s.patternType !== "solid") continue;
-    const rgb = s.fgColor?.rgb || s.bgColor?.rgb;
+    // Resolve theme/indexed → RGB (green/red are often stored as theme/indexed,
+    // not explicit rgb). resolveFillRgb returns "" for system/auto/white defaults.
+    const rgb = resolveFillRgb(s.fgColor) || resolveFillRgb(s.bgColor);
     if (!rgb) continue;
     if (!firstRaw) firstRaw = rgb;
     const state = classifyFill(rgb);
