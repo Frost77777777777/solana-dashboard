@@ -2826,11 +2826,17 @@ export default function Dashboard() {
       debt        += toNum(c.debt ? r[c.debt] : null);
       if (isRefusal(r, c)) refs++;
       // ── Money in Transit — PURE color logic (no date window) ──────────
-      //  Count ONLY when BOTH hold:
-      //    (a) спосіб оплати (col H) is наложка / Розетка, AND
-      //    (b) the Excel row fill is RED or GREEN.
-      //  EXCLUDE: WHITE / no-fill, YELLOW (classifyFill → "none"), and any
-      //           "причина" = відмова/повернення/скасовано.
+      //  Count ONLY when ALL hold:
+      //    (a) спосіб оплати (col H) is наложка / Розетка (COD), AND
+      //    (b) that cell's fill is RED or GREEN (static OR conditional-format), AND
+      //    (c) "причина" (col T) is EMPTY.
+      //  A non-empty причина means the order has a logged reason — a return,
+      //  exchange or complaint (e.g. "Великі", "Не прийшла на пошту", "відмова")
+      //  — i.e. it is NOT clean money still in transit, so it is excluded.
+      //  This is the discriminator confirmed against the Афіна benchmark: of the
+      //  8 red/green наложка rows, only the 2 with a BLANK причина (525 + 466 =
+      //  991 ₴) are genuinely in transit; the other 6 all carry a причина note.
+      //  EXCLUDE also: WHITE/no-fill, YELLOW, пром-оплата/prepaid (not COD).
       //  VALUE = strictly the "сума" column G (parseFinancial → no 50k cap).
       {
         const fill = r._fill as FillState | undefined;
@@ -2840,12 +2846,11 @@ export default function Dashboard() {
         const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
         const isColored = fill === "green" || fill === "red";
         const amount = c.amount ? parseFinancial(r[c.amount]) : (r._gross as number);
-        const reasonVal = c.reason  ? String(r[c.reason]  ?? "").toLowerCase() : "";
-        const statusVal = c.status  ? String(r[c.status]  ?? "").toLowerCase() : "";
-        const isRefused = /відмов|поверн|скасов|refus|cancel/.test(reasonVal + " " + statusVal);
-        if ((isCOD || isRozetka) && isColored && amount > 0 && !isRefused) {
+        const reasonText = c.reason ? String(r[c.reason] ?? "").replace(/[\uFEFF]/g, "").trim() : "";
+        const hasReason = reasonText !== "";
+        if ((isCOD || isRozetka) && isColored && amount > 0 && !hasReason) {
           moneyInTransit += amount; transitOrders++;
-          if (transitOrders <= 5) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| reason:", reasonVal.trim() || "-", "| сума ₴", amount);
+          if (transitOrders <= 8) console.log("[Debug Transit] matched →", `fill=${fill}`, "| pay:", rawPm.trim(), "| причина: (empty) | сума ₴", amount);
         }
       }
     }
