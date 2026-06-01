@@ -100,12 +100,23 @@ const THEME_RGB: Record<number, string> = {
   4: "4472C4", 5: "ED7D31", 6: "A5A5A5", 7: "FFC000",
   8: "5B9BD5", 9: "70AD47", 10: "0563C1", 11: "954F72",
 };
-// Legacy Excel (BIFF8) indexed palette — only the entries we care about.
-// 64/65 = system foreground/background (auto) → NOT a fill.
+// Full legacy Excel (BIFF8) 56-color indexed palette so ANY indexed red/green
+// the file uses resolves to a real RGB. 64/65 = system fg/bg (auto) → NOT a fill.
 const INDEXED_RGB: Record<number, string> = {
+  0: "000000", 1: "FFFFFF", 2: "FF0000", 3: "00FF00", 4: "0000FF",
+  5: "FFFF00", 6: "FF00FF", 7: "00FFFF",
   8: "000000", 9: "FFFFFF", 10: "FF0000", 11: "00FF00", 12: "0000FF",
-  13: "FFFF00", 14: "FF00FF", 15: "00FFFF", 17: "00FF00", 51: "FFCC00",
-  50: "00B050", 53: "FF6600", 3: "00FF00", 2: "FF0000",
+  13: "FFFF00", 14: "FF00FF", 15: "00FFFF",
+  16: "800000", 17: "008000", 18: "000080", 19: "808000", 20: "800080",
+  21: "008080", 22: "C0C0C0", 23: "808080", 24: "9999FF", 25: "993366",
+  26: "FFFFCC", 27: "CCFFFF", 28: "660066", 29: "FF8080", 30: "0066CC",
+  31: "CCCCFF", 32: "000080", 33: "FF00FF", 34: "FFFF00", 35: "00FFFF",
+  36: "800080", 37: "800000", 38: "008080", 39: "0000FF", 40: "00CCFF",
+  41: "CCFFFF", 42: "CCFFCC", 43: "FFFF99", 44: "99CCFF", 45: "FF99CC",
+  46: "CC99FF", 47: "FFCC99", 48: "3366FF", 49: "33CCCC", 50: "99CC00",
+  51: "FFCC00", 52: "FF9900", 53: "FF6600", 54: "666699", 55: "969696",
+  56: "003366", 57: "339966", 58: "003300", 59: "333300", 60: "993300",
+  61: "993366", 62: "333399", 63: "333333",
 };
 // Apply Excel tint to one 0..255 channel (lighten when >0, darken when <0).
 function applyTint(c: number, tint: number): number {
@@ -183,6 +194,42 @@ function rowFillState(
     if (state !== "none") return { state, rgb };
   }
   return { state: "none", rgb: firstRaw };
+}
+
+/* ─── exceljs fill reader ─────────────────────────────────────────
+   The `xlsx` library DROPS indexed-palette fills (returns empty fgColor),
+   which made the user's indexed red/green rows invisible. exceljs preserves
+   argb / theme / indexed exactly, so we read row fills with exceljs and feed
+   them through the same resolveFillRgb + classifyFill pipeline. */
+interface EJColor { argb?: string; theme?: number; tint?: number; indexed?: number }
+interface EJFill { type?: string; pattern?: string; fgColor?: EJColor; bgColor?: EJColor }
+interface EJCell { fill?: EJFill }
+interface EJRow { eachCell?: (opts: { includeEmpty?: boolean }, cb: (cell: EJCell) => void) => void }
+interface EJWorksheet { getRow: (r: number) => EJRow | undefined }
+interface EJWorkbook { getWorksheet: (name: string) => EJWorksheet | undefined }
+
+function ejColorToXlsx(c: EJColor | undefined): XlsxColor | undefined {
+  if (!c) return undefined;
+  return { rgb: c.argb, theme: c.theme, tint: c.tint, indexed: c.indexed };
+}
+// Read the first meaningful solid fill in exceljs row `rowNum1` (1-based).
+function excelJsRowFill(ws: EJWorksheet, rowNum1: number): { state: FillState; rgb: string } {
+  const row = ws.getRow(rowNum1);
+  if (!row || typeof row.eachCell !== "function") return { state: "none", rgb: "" };
+  let firstRaw = "";
+  let result: { state: FillState; rgb: string } = { state: "none", rgb: "" };
+  row.eachCell({ includeEmpty: false }, (cell) => {
+    if (result.state !== "none") return;
+    const fill = cell.fill;
+    if (!fill || fill.type !== "pattern" || fill.pattern !== "solid") return;
+    const rgb = resolveFillRgb(ejColorToXlsx(fill.fgColor)) || resolveFillRgb(ejColorToXlsx(fill.bgColor));
+    if (!rgb) return;
+    if (!firstRaw) firstRaw = rgb;
+    const state = classifyFill(rgb);
+    if (state !== "none") result = { state, rgb };
+  });
+  if (result.state === "none") result.rgb = firstRaw;
+  return result;
 }
 
 /* ─── column detection ───────────────────────────────────────── */
@@ -2240,10 +2287,24 @@ export default function Dashboard() {
   function processFile(file: File) {
     setParseError(null); setFileData(null); setBrandFilter("All"); setMonthFilter("All"); setYearFilter("All"); setSearch("");
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
         // cellStyles:true → exposes row FILL colors (cell.s.fgColor.rgb) for transit logic.
-        const wb = XLSX.read(new Uint8Array(e.target?.result as ArrayBuffer), { type:"array", cellDates:true, cellStyles:true });
+        const wb = XLSX.read(new Uint8Array(arrayBuffer), { type:"array", cellDates:true, cellStyles:true });
+        // exceljs reads INDEXED-palette fills that xlsx drops. We use it ONLY for
+        // row fill colors; all cell VALUES still come from the proven xlsx path.
+        let ejwb: EJWorkbook | null = null;
+        try {
+          const ExcelJSmod = await import("exceljs");
+          const ExcelJSlib = (ExcelJSmod as unknown as { default?: { Workbook: new () => unknown } }).default
+            ?? (ExcelJSmod as unknown as { Workbook: new () => unknown });
+          const w = new ExcelJSlib.Workbook() as unknown as { xlsx: { load: (b: ArrayBuffer) => Promise<unknown> } };
+          await w.xlsx.load(arrayBuffer);
+          ejwb = w as unknown as EJWorkbook;
+        } catch (ejErr) {
+          console.warn("[transit] exceljs load failed — falling back to xlsx fill reader:", ejErr);
+        }
         const isMultiSheet = wb.SheetNames.length > 1;
         const allRows: Row[] = [];
         const colSet = new Set<string>();
@@ -2259,6 +2320,29 @@ export default function Dashboard() {
           const ref = sh["!ref"] as string | undefined;
           const range = ref ? XLSX.utils.decode_range(ref) : null;
           const headerR = range ? range.s.r : 0;
+          // exceljs worksheet for the SAME sheet (used for indexed-palette fills).
+          const ejws = ejwb ? ejwb.getWorksheet(sheetName) : undefined;
+
+          // DIAGNOSTIC (first sheet): dump exceljs raw fills for the first 8 data
+          // rows so we can SEE the indexed/theme/argb values xlsx was dropping.
+          if (ejws && sheetName === wb.SheetNames[0]) {
+            console.log(`=== EXCELJS RAW FILL DUMP (sheet "${sheetName}", first 8 data rows) ===`);
+            for (let i = 0; i < Math.min(8, rawRows.length); i++) {
+              const rn = headerR + 1 + i + 1; // exceljs 1-based
+              const rowObj = ejws.getRow(rn);
+              const fills: string[] = [];
+              rowObj?.eachCell?.({ includeEmpty: false }, (cell) => {
+                const f = cell.fill;
+                if (f && f.type === "pattern" && f.pattern === "solid") {
+                  const fg = f.fgColor || {};
+                  fills.push(JSON.stringify(fg));
+                }
+              });
+              const res = excelJsRowFill(ejws, rn);
+              console.log(`row ${i} → _fill=${res.state} rgb=${res.rgb || "-"} | rawFgColors:`, fills.length ? fills.join(", ") : "(none)");
+            }
+            console.log("=== END EXCELJS RAW FILL DUMP ===");
+          }
 
           // Collect keys from EVERY row (not just first) — some sheets have columns
           // that are empty in row 1 (e.g. "комісія банку" in Sl-Artmon starts empty).
@@ -2284,10 +2368,15 @@ export default function Dashboard() {
             }
             if (isMultiSheet) merged["_sheet_"] = sheetName;
             // Stamp the Excel row FILL color (green/red/none). Data row i sits at
-            // sheet row headerR + 1 + i (row 0 of data is right after the header).
-            const fillRes = range
-              ? rowFillState(sh as Record<string, unknown>, headerR + 1 + i, range, XLSX.utils.encode_cell)
-              : { state: "none" as FillState, rgb: "" };
+            // sheet row headerR + 1 + i (0-based; row 0 of data is right after the
+            // header). Prefer exceljs (reads indexed-palette fills xlsx drops);
+            // fall back to the xlsx reader if exceljs failed to load.
+            const sheetRow0 = headerR + 1 + i;
+            const fillRes = ejws
+              ? excelJsRowFill(ejws, sheetRow0 + 1) // exceljs rows are 1-based
+              : (range
+                  ? rowFillState(sh as Record<string, unknown>, sheetRow0, range, XLSX.utils.encode_cell)
+                  : { state: "none" as FillState, rgb: "" });
             merged["_fill"] = fillRes.state;
             fillStats[fillRes.state]++;
             if (fillRes.rgb) rawFillColors.add(fillRes.rgb);
@@ -2302,6 +2391,7 @@ export default function Dashboard() {
         console.log("--- RAW HEADERS START ---");
         headers.forEach(h => console.log("Header found:", h));
         console.log("--- RAW HEADERS END ---");
+        console.log("--- FILL READER: ---", ejwb ? "exceljs (indexed/theme/argb aware)" : "xlsx fallback");
         console.log("--- ROW FILL COLORS DETECTED: ---", fillStats);
         console.log("--- RAW FILL HEX VALUES IN FILE: ---", Array.from(rawFillColors));
         console.log('--- ALL DETECTED COLUMNS (full set across sheets): ---', columns);
