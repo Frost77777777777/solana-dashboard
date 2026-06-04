@@ -4357,8 +4357,9 @@ export default function Dashboard() {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, alignItems:"start" }}>
 
               <div style={{ ...glassBase, overflow:"hidden" }}>
-                <div style={{ padding:"14px 18px 10px", borderBottom:`1px solid ${t.border}` }}>
+                <div style={{ padding:"14px 18px", borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:8, minHeight:46, boxSizing:"border-box" }}>
                   <p style={{ color:t.text, fontSize:13, fontWeight:600, margin:0 }}>Топ-10 Товарів за Чистим Доходом</p>
+                  <p style={{ color:t.dim, fontSize:10, margin:0, whiteSpace:"nowrap" }}>Топ 10</p>
                 </div>
                 {topProducts.length>0 ? (
                   <div style={{ overflowX:"auto" }}>
@@ -4384,9 +4385,9 @@ export default function Dashboard() {
               </div>
 
               <div style={{ ...glassBase, overflow:"hidden" }}>
-                <div style={{ padding:"14px 18px 10px", borderBottom:`1px solid ${t.border}` }}>
+                <div style={{ padding:"14px 18px", borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:8, minHeight:46, boxSizing:"border-box" }}>
                   <p style={{ color:t.text, fontSize:13, fontWeight:600, margin:0 }}>Топ Покупців за Чистим Доходом</p>
-                  <p style={{ color:t.dim, fontSize:10, margin:"2px 0 0" }}>Топ 20</p>
+                  <p style={{ color:t.dim, fontSize:10, margin:0, whiteSpace:"nowrap" }}>Топ 20</p>
                 </div>
                 {topCustomers.length>0 ? (
                   <div style={{ overflowX:"auto", maxHeight:340, overflowY:"auto" }}>
