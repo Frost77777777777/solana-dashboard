@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback, memo, Component } from "react";
 import { createPortal } from "react-dom";
-import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu, Copy } from "lucide-react";
+import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AreaChart, Area, BarChart, Bar, ComposedChart, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 
@@ -1031,7 +1031,7 @@ interface T { bg:string; card:string; nav:string; border:string; text:string; su
 const DK: T = { bg:"#0B0C10", card:"#15161D", nav:"#0B0C10", border:"#23252E", text:"#ECEDF1", sub:"#B9BBC6", dim:"#7E808C", in:"#15161D", blue:"#8B82F0", em:"#5BD68A", red:"#F2728C", amb:"#ECEDF1", dark:true };
 const LT: T = { bg:"#F6F7F9", card:"#FFFFFF", nav:"#FFFFFF", border:"#E6E8EE", text:"#13141A", sub:"#3A3C44", dim:"#8A8C99", in:"#FFFFFF", blue:"#6D5FE8", em:"#16A34A", red:"#E11D48", amb:"#13141A", dark:false };
 
-// Lime highlight used for the dominant percentage pill (Wormhole reference).
+// Lime highlight used for the dominant "top performer" outline.
 const PILL_HI = "#D7F23E";
 
 function glass(t: T): React.CSSProperties {
@@ -1329,182 +1329,192 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
    financial aggregates as props and never touch parsing / state /
    formula logic. ───────────────────────────────────────────────── */
 const MONO = "'JetBrains Mono', 'Inter', sans-serif";
-const FLOW_SRC_COLORS = ["#8B82F0","#5BD68A","#5AA9FF","#D7F23E","#F2728C","#E2B65A","#7BE0C8","#B98BF0","#9AA0AE"];
 
-interface WhStat { label:string; value:string; raw:string; accent?:string; }
-const WhStatBar = memo(function WhStatBar({ stats, t }:{ stats:WhStat[]; t:T }) {
-  const [copied, setCopied] = useState<number|null>(null);
-  const copy = (i:number, raw:string) => {
-    try { navigator.clipboard?.writeText(raw); } catch { /* clipboard unavailable */ }
-    setCopied(i);
-    window.setTimeout(()=>setCopied(c => c===i ? null : c), 1100);
-  };
+/* ─── Premium light-mode dashboard primitives ───────────────────
+   Pure presentational. They receive already-computed financial
+   aggregates as props and never touch parsing / state / formulas.
+   ──────────────────────────────────────────────────────────────── */
+const VIVID = ["#16A34A","#2563EB","#EA580C","#7C3AED","#DC2626","#0891B2","#CA8A04","#DB2777","#0D9488","#475569"];
+
+interface PKpi { label:string; value:string; sub?:string; trend?:"up"|"down"; warn?:string; accent?:string; }
+const PremiumKpiCards = memo(function PremiumKpiCards({ cards, t }:{ cards:PKpi[]; t:T }) {
   return (
-    <div style={{ ...glass(t), padding:0, overflow:"hidden" }}>
-      <div className="wh-statbar" style={{ display:"grid", gridTemplateColumns:`repeat(${stats.length}, minmax(0,1fr))` }}>
-        {stats.map((s,i)=>(
-          <div key={s.label} style={{ padding:"16px 20px", borderLeft: i ? `1px solid ${t.border}` : "none" }}>
-            <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:t.dim, fontFamily:MONO, whiteSpace:"nowrap" }}>{s.label}</div>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:9 }}>
-              <span style={{ fontSize:22, fontWeight:800, letterSpacing:"-0.02em", lineHeight:1, color:s.accent||t.text, fontFamily:MONO, whiteSpace:"nowrap" }}>{s.value}</span>
-              <button onClick={()=>copy(i, s.raw)} title="Скопіювати" style={{ background:"none", border:"none", padding:2, cursor:"pointer", color: copied===i ? t.em : t.dim, display:"inline-flex", flexShrink:0 }}>
-                <Copy size={12}/>
-              </button>
-            </div>
+    <div style={{ display:"grid", gridTemplateColumns:`repeat(${cards.length}, minmax(0,1fr))`, gap:14 }} className="pkpi-grid">
+      {cards.map((c)=>(
+        <div key={c.label} style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:8, minWidth:0 }}>
+          <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", color:t.sub, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{c.label}</span>
+          <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+            <span style={{ fontSize:26, fontWeight:800, letterSpacing:"-0.025em", lineHeight:1, color:c.accent||t.text, fontFamily:MONO, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{c.value}</span>
+            {c.trend && (c.trend==="up"
+              ? <TrendingUp size={17} style={{ color:t.em, flexShrink:0 }}/>
+              : <TrendingDown size={17} style={{ color:t.red, flexShrink:0 }}/>)}
           </div>
-        ))}
-      </div>
+          {c.warn
+            ? <span style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:11, fontWeight:700, color:"#B45309" }}><AlertTriangle size={13}/> {c.warn}</span>
+            : c.sub
+              ? <span style={{ fontSize:11, color:t.dim, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{c.sub}</span>
+              : <span style={{ fontSize:11, color:"transparent" }}>·</span>}
+        </div>
+      ))}
     </div>
   );
 });
 
-interface FlowSource { name:string; gross:number; net:number; ship:number; fee:number; orders:number; refs:number; }
-const WhFlow = memo(function WhFlow({ sources, t, fmt }:{ sources:FlowSource[]; t:T; fmt:(n:number)=>string }) {
-  const [mode, setMode] = useState<"volume"|"transfers">("volume");
+/* ── stacked metric blocks for the side columns ── */
+interface SideBlock { title:string; rows:{ label:string; value:string; strong?:boolean }[]; note?:string; }
+const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks:SideBlock[]; t:T; align?:"left"|"right" }) {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      {blocks.map((b,i)=>(
+        <div key={i} style={{ ...glass(t), padding:"14px 16px", display:"flex", flexDirection:"column", gap:9 }}>
+          <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.08em", textTransform:"uppercase", color:t.text, textAlign:align }}>{b.title}</span>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {b.rows.map((r,j)=>(
+              <div key={j} style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:10 }}>
+                <span style={{ fontSize:11, fontWeight:600, letterSpacing:"0.04em", textTransform:"uppercase", color:t.sub }}>{r.label}</span>
+                <span style={{ fontSize:r.strong?15:13, fontWeight:r.strong?800:700, color:t.text, fontFamily:MONO, textAlign:"right" }}>{r.value}</span>
+              </div>
+            ))}
+          </div>
+          {b.note && <span style={{ fontSize:10.5, color:t.dim, lineHeight:1.45 }}>{b.note}</span>}
+        </div>
+      ))}
+    </div>
+  );
+});
 
-  const targets = mode==="volume"
-    ? [ { key:"net",  name:"Чистий дохід", color:t.em },
-        { key:"ship", name:"Логістика",    color:t.blue },
-        { key:"fee",  name:"Комісія",       color:"#E2B65A" } ]
-    : [ { key:"ok",   name:"Успішні",       color:t.em },
-        { key:"ref",  name:"Відмови",       color:t.red } ];
+/* ── bipartite Sankey: brands (left) → marketplaces (right) ── */
+interface BMEdge { brand:string; mkt:string; gross:number; orders:number; }
+const BrandMktSankey = memo(function BrandMktSankey({ edges, t, fmt }:{ edges:BMEdge[]; t:T; fmt:(n:number)=>string }) {
+  const [mode, setMode] = useState<"volume"|"orders">("volume");
+  const val = (e:{gross:number;orders:number}) => mode==="volume" ? e.gross : e.orders;
+  const fmtV = (n:number) => mode==="volume" ? fmt(n) : Math.round(n).toLocaleString("uk-UA").replace(/,/g," ");
 
-  const valOf = (s:FlowSource, key:string):number => {
-    switch (key) {
-      case "net":  return Math.max(s.net, 0);
-      case "ship": return s.ship;
-      case "fee":  return s.fee;
-      case "ok":   return Math.max(s.orders - s.refs, 0);
-      case "ref":  return s.refs;
-      default:     return 0;
-    }
-  };
-  const srcTotal = (s:FlowSource) => targets.reduce((a,tg)=>a+valOf(s,tg.key), 0);
+  // aggregate per brand / per mkt, keep edge list with value
+  const eList = edges.map(e=>({ ...e, v:val(e) })).filter(e=>e.v>0);
 
-  // rank sources, collapse the long tail into one "інших" node
-  const ranked = [...sources].sort((a,b)=>srcTotal(b)-srcTotal(a));
-  const TOP = 8;
-  const display: FlowSource[] = ranked.slice(0, TOP);
-  const rest = ranked.slice(TOP);
-  if (rest.length) {
-    const agg = rest.reduce((a,s)=>({ name:`${rest.length} інших`, gross:a.gross+s.gross, net:a.net+s.net, ship:a.ship+s.ship, fee:a.fee+s.fee, orders:a.orders+s.orders, refs:a.refs+s.refs }),
-      { name:`${rest.length} інших`, gross:0, net:0, ship:0, fee:0, orders:0, refs:0 } as FlowSource);
-    if (srcTotal(agg) > 0) display.push(agg);
+  const brandAgg = new Map<string,number>();
+  const mktAgg   = new Map<string,number>();
+  for (const e of eList) { brandAgg.set(e.brand,(brandAgg.get(e.brand)??0)+e.v); mktAgg.set(e.mkt,(mktAgg.get(e.mkt)??0)+e.v); }
+
+  const TOPB = 7, TOPM = 7;
+  const brands = [...brandAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOPB).map(([name],i)=>({ name, color:VIVID[i%VIVID.length] }));
+  const mkts   = [...mktAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOPM).map(([name])=>name);
+  const brandSet = new Set(brands.map(b=>b.name)); const mktSet = new Set(mkts);
+  const shown = eList.filter(e=>brandSet.has(e.brand) && mktSet.has(e.mkt));
+  const gShown = shown.reduce((a,e)=>a+e.v,0) || 1;
+
+  const bTot = (n:string)=>shown.filter(e=>e.brand===n).reduce((a,e)=>a+e.v,0);
+  const mTot = (n:string)=>shown.filter(e=>e.mkt===n).reduce((a,e)=>a+e.v,0);
+
+  let cumL=0; const leftBands = brands.filter(b=>bTot(b.name)>0).map(b=>{ const h=bTot(b.name)/gShown; const band={ name:b.name, color:b.color, total:bTot(b.name), y0:cumL, y1:cumL+h }; cumL+=h; return band; });
+  let cumR=0; const rightBands = mkts.filter(m=>mTot(m)>0).map(m=>{ const h=mTot(m)/gShown; const band={ name:m, total:mTot(m), y0:cumR, y1:cumR+h }; cumR+=h; return band; });
+
+  const lCur = new Map(leftBands.map(b=>[b.name,b.y0]));
+  const rCur = new Map(rightBands.map(b=>[b.name,b.y0]));
+  const ribbons:{ d:string; color:string; key:string }[] = [];
+  for (const lb of leftBands) for (const rb of rightBands) {
+    const e = shown.find(x=>x.brand===lb.name && x.mkt===rb.name); if (!e) continue;
+    const h = e.v/gShown;
+    const lY0=lCur.get(lb.name)!, lY1=lY0+h; lCur.set(lb.name,lY1);
+    const rY0=rCur.get(rb.name)!, rY1=rY0+h; rCur.set(rb.name,rY1);
+    ribbons.push({ key:`${lb.name}-${rb.name}`, color:lb.color, d:`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z` });
   }
-
-  const srcList = display.map(s=>({ s, total:srcTotal(s) })).filter(x=>x.total>0);
-  const grand = srcList.reduce((a,x)=>a+x.total, 0) || 1;
-  const tgtTotals = targets.map(tg => srcList.reduce((a,x)=>a+valOf(x.s, tg.key), 0));
-
-  // vertical bands (normalised 0..1) for left sources & right targets
-  let cumL = 0;
-  const leftBands = srcList.map((x,i)=>{ const h=x.total/grand; const band={ s:x.s, total:x.total, color:FLOW_SRC_COLORS[i%FLOW_SRC_COLORS.length], y0:cumL, y1:cumL+h }; cumL+=h; return band; });
-  let cumR = 0;
-  const rightBands = targets.map((tg,j)=>{ const h=tgtTotals[j]/grand; const band={ ...tg, total:tgtTotals[j], y0:cumR, y1:cumR+h }; cumR+=h; return band; });
-
-  // ribbons: each source band splits into its target components
-  const srcCursor = leftBands.map(b=>b.y0);
-  const tgtCursor = rightBands.map(b=>b.y0);
-  const ribbons: { d:string; tj:number; key:string }[] = [];
-  leftBands.forEach((lb,i)=>{
-    targets.forEach((tg,j)=>{
-      const v = valOf(lb.s, tg.key);
-      if (v<=0) return;
-      const h = v/grand;
-      const lY0=srcCursor[i], lY1=srcCursor[i]+h; srcCursor[i]=lY1;
-      const rY0=tgtCursor[j], rY1=tgtCursor[j]+h; tgtCursor[j]=rY1;
-      ribbons.push({ key:`${i}-${j}`, tj:j, d:`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z` });
-    });
-  });
-
-  const fmtCount = (n:number) => Math.round(n).toLocaleString("uk-UA").replace(/,/g," ");
   const dim = t.dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
 
   return (
-    <div style={{ ...glass(t), padding:"18px 20px 22px" }}>
-      {/* header + toggle */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:12 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-          <span style={{ fontSize:15, fontWeight:800, color:t.text, letterSpacing:"-0.01em", fontFamily:MONO }}>Грошовий потік</span>
-          <div style={{ display:"inline-flex", padding:3, borderRadius:8, background:dim, border:`1px solid ${t.border}` }}>
-            {([["volume","Оборот"],["transfers","Замовлення"]] as const).map(([m,lbl])=>(
-              <button key={m} onClick={()=>setMode(m)} style={{ padding:"4px 13px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, letterSpacing:"0.02em", color: mode===m ? (t.dark?"#0B0C10":"#fff") : t.dim, background: mode===m ? t.blue : "transparent", transition:"all .15s" }}>{lbl}</button>
-            ))}
-          </div>
+    <div style={{ ...glass(t), padding:"18px 20px 22px", height:"100%", display:"flex", flexDirection:"column" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14, flexWrap:"wrap", gap:10 }}>
+        <span style={{ fontSize:15, fontWeight:800, color:t.text, letterSpacing:"-0.01em" }}>Грошовий потік</span>
+        <div style={{ display:"inline-flex", padding:3, borderRadius:8, background:dim, border:`1px solid ${t.border}` }}>
+          {([["volume","Оборот"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
+            <button key={m} onClick={()=>setMode(m)} style={{ padding:"4px 13px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? "#fff" : t.dim, background: mode===m ? t.blue : "transparent", transition:"all .15s" }}>{lbl}</button>
+          ))}
         </div>
-        <span style={{ fontSize:11, color:t.dim, fontFamily:MONO, letterSpacing:"0.04em" }}>{mode==="volume" ? "Розподіл обороту" : "Структура замовлень"}</span>
       </div>
-
-      {/* source / target column headers */}
       <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8, padding:"0 2px" }}>
-        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:t.dim, fontFamily:MONO }}>Джерело</span>
-        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:t.dim, fontFamily:MONO }}>Призначення</span>
+        <span style={{ fontSize:10, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color:t.dim }}>Бренди</span>
+        <span style={{ fontSize:10, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color:t.dim }}>Маркетплейси</span>
       </div>
-
-      {/* flow body: labels | bars | ribbons | bars | labels */}
-      <div style={{ display:"grid", gridTemplateColumns:"minmax(110px,170px) 10px 1fr 10px minmax(110px,170px)", height:440, position:"relative" }}>
-        {/* left labels */}
+      {leftBands.length===0 || rightBands.length===0 ? (
+        <div style={{ flex:1, minHeight:300, display:"flex", alignItems:"center", justifyContent:"center", color:t.dim, fontSize:12 }}>Недостатньо даних для діаграми потоку</div>
+      ) : (
+      <div style={{ display:"grid", gridTemplateColumns:"minmax(96px,150px) 9px 1fr 9px minmax(96px,150px)", flex:1, minHeight:320, position:"relative" }}>
         <div style={{ position:"relative" }}>
           {leftBands.map((lb,i)=>(
-            <div key={i} style={{ position:"absolute", right:0, top:`${(lb.y0+lb.y1)/2*100}%`, transform:"translateY(-50%)", textAlign:"right", maxWidth:"100%", paddingRight:10 }}>
+            <div key={i} style={{ position:"absolute", right:0, top:`${(lb.y0+lb.y1)/2*100}%`, transform:"translateY(-50%)", maxWidth:"100%", paddingRight:9 }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:6 }}>
-                <span style={{ width:7, height:7, borderRadius:2, background:lb.color, flexShrink:0 }}/>
-                <span style={{ fontSize:12, fontWeight:600, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:120 }}>{lb.s.name}</span>
+                <span style={{ fontSize:12, fontWeight:700, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:108 }}>{lb.name}</span>
+                <span style={{ width:8, height:8, borderRadius:2, background:lb.color, flexShrink:0 }}/>
               </div>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:6, marginTop:3 }}>
-                <span style={{ fontSize:11, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap" }}>{mode==="volume" ? fmt(lb.total) : fmtCount(lb.total)}</span>
-                <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, padding:"1px 7px", borderRadius:999, background: i===0 ? PILL_HI : dim, color: i===0 ? "#0B0C10" : t.sub }}>{(lb.total/grand*100).toFixed(2)}%</span>
+                <span style={{ fontSize:11, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap" }}>{fmtV(lb.total)}</span>
+                <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, color:t.dim }}>{(lb.total/gShown*100).toFixed(1)}%</span>
               </div>
             </div>
           ))}
         </div>
-        {/* left bars */}
         <div style={{ position:"relative" }}>
           {leftBands.map((lb,i)=>(
             <div key={i} style={{ position:"absolute", left:0, right:0, top:`calc(${lb.y0*100}% + 1px)`, height:`calc(${(lb.y1-lb.y0)*100}% - 2px)`, background:lb.color, borderRadius:2 }}/>
           ))}
         </div>
-        {/* ribbons */}
         <div style={{ position:"relative" }}>
           <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
-            <defs>
-              {targets.map((tg,j)=>(
-                <linearGradient key={j} id={`whg-${mode}-${j}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor={tg.color} stopOpacity={0.10}/>
-                  <stop offset="100%" stopColor={tg.color} stopOpacity={0.52}/>
-                </linearGradient>
-              ))}
-            </defs>
-            {ribbons.map(r=>(<path key={r.key} d={r.d} fill={`url(#whg-${mode}-${r.tj})`}/>))}
+            {ribbons.map(r=>(<path key={r.key} d={r.d} fill={r.color} fillOpacity={0.42}/>))}
           </svg>
-          <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-            <span style={{ fontSize:13, fontWeight:800, letterSpacing:"0.4em", color:t.dim, opacity:0.22, fontFamily:MONO, textTransform:"uppercase" }}>Solana Flow</span>
-          </div>
         </div>
-        {/* right bars */}
         <div style={{ position:"relative" }}>
           {rightBands.map((rb,j)=>(
-            <div key={j} style={{ position:"absolute", left:0, right:0, top:`calc(${rb.y0*100}% + 1px)`, height:`calc(${(rb.y1-rb.y0)*100}% - 2px)`, background:rb.color, borderRadius:2 }}/>
+            <div key={j} style={{ position:"absolute", left:0, right:0, top:`calc(${rb.y0*100}% + 1px)`, height:`calc(${(rb.y1-rb.y0)*100}% - 2px)`, background:t.sub, borderRadius:2 }}/>
           ))}
         </div>
-        {/* right labels */}
         <div style={{ position:"relative" }}>
           {rightBands.map((rb,j)=>(
-            rb.total>0 && (
-            <div key={j} style={{ position:"absolute", left:0, top:`${(rb.y0+rb.y1)/2*100}%`, transform:"translateY(-50%)", maxWidth:"100%", paddingLeft:10 }}>
+            <div key={j} style={{ position:"absolute", left:0, top:`${(rb.y0+rb.y1)/2*100}%`, transform:"translateY(-50%)", maxWidth:"100%", paddingLeft:9 }}>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ width:7, height:7, borderRadius:2, background:rb.color, flexShrink:0 }}/>
-                <span style={{ fontSize:12, fontWeight:600, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:120 }}>{rb.name}</span>
+                <span style={{ width:8, height:8, borderRadius:2, background:t.sub, flexShrink:0 }}/>
+                <span style={{ fontSize:12, fontWeight:700, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:108 }}>{rb.name}</span>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
-                <span style={{ fontSize:11, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap" }}>{mode==="volume" ? fmt(rb.total) : fmtCount(rb.total)}</span>
-                <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, padding:"1px 7px", borderRadius:999, background:dim, color:t.sub }}>{(rb.total/grand*100).toFixed(2)}%</span>
+                <span style={{ fontSize:11, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap" }}>{fmtV(rb.total)}</span>
+                <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, color:t.dim }}>{(rb.total/gShown*100).toFixed(1)}%</span>
               </div>
             </div>
-            )
           ))}
         </div>
       </div>
+      )}
+    </div>
+  );
+});
+
+/* ── generic detail table ── */
+interface DetailCol { key:string; label:string; align?:"left"|"right"; }
+const DetailTable = memo(function DetailTable({ title, cols, rows, t }:{ title:string; cols:DetailCol[]; rows:Record<string,string>[]; t:T }) {
+  return (
+    <div style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:12 }}>
+      <span style={{ fontSize:13, fontWeight:800, letterSpacing:"0.02em", color:t.text }}>{title}</span>
+      <table style={{ width:"100%", borderCollapse:"collapse" }}>
+        <thead>
+          <tr>
+            {cols.map(c=>(
+              <th key={c.key} style={{ textAlign:c.align||"left", padding:"7px 8px", fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}` }}>{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length===0 ? (
+            <tr><td colSpan={cols.length} style={{ padding:"14px 8px", fontSize:12, color:t.dim, textAlign:"center" }}>Немає даних</td></tr>
+          ) : rows.map((r,i)=>(
+            <tr key={i} style={{ borderTop: i? `1px solid ${t.border}`:"none" }}>
+              {cols.map((c,ci)=>(
+                <td key={c.key} style={{ textAlign:c.align||"left", padding:"9px 8px", fontSize:12.5, fontWeight: ci===0?700:600, color: ci===0?t.text:t.sub, fontFamily: ci===0?undefined:MONO, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:220 }}>{r[c.key]}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 });
@@ -2593,9 +2603,9 @@ function getReasonAdvice(reason: string) {
 function readFiltersCache(): { brandFilter:string; monthFilter:string; companyFilter:string; yearFilter:string; hubberQYear:string; darkMode:boolean } {
   try {
     const s = localStorage.getItem(FILTERS_KEY);
-    if (s) return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:true, ...JSON.parse(s) };
+    if (s) return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:false, ...JSON.parse(s) };
   } catch {}
-  return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:true };
+  return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:false };
 }
 function readHubberCache(): HubberQuick|null {
   try {
@@ -3461,25 +3471,66 @@ export default function Dashboard() {
     return Array.from(map.entries()).map(([name,v])=>({name,...v})).sort((a,b)=>b.net-a.net);
   },[filtered,fileData]);
 
-  /* ── flow aggregation (read-only): per-marketplace gross/net/ship/fee +
-       order counts for the Wormhole-style money-flow diagram. Uses the same
-       `filtered` rows and already-stamped fields — no new business logic. ── */
-  const mktFlow = useMemo<FlowSource[]>(()=>{
-    if (!fileData) return [];
-    const map = new Map<string, FlowSource>();
+  /* ── premium dashboard aggregations (read-only) — feed the light
+       Sankey + side columns + detail tables. Only sum already-stamped
+       fields; no parsing / formula / state logic is touched here. ── */
+  const premium = useMemo(()=>{
+    if (!fileData) return null;
+    const c = fileData.cols;
+    const hasCompanies = companies.length > 0;
+    // brand dimension: company (_sheet_) when multi-sheet, else product category
+    const brandOf = (r:Row):string => {
+      if (hasCompanies) return String(r["_sheet_"] ?? "").trim() || "Інше";
+      const raw = getRowProduct(r, c.product ?? null);
+      return normalizeProductKey(raw) || "Інше";
+    };
+    const mktOf = (r:Row):string => String(r._mkt ?? "") || "Інше";
+
+    const edgeMap = new Map<string,BMEdge>();
+    const brandMap = new Map<string,{orders:number;gross:number;cost:number}>();
+    const mktMap   = new Map<string,{orders:number;gross:number;refs:number}>();
+    let blankOrders=0, blankMoney=0, returnsOrders=0, returnsMoney=0, retCount=0, refCount=0;
+    const blankByBrand = new Map<string,number>();
+
     for (const r of filtered) {
-      const brand = rowBrand(r) || "Інше";
-      let e = map.get(brand);
-      if (!e) { e = { name:brand, gross:0, net:0, ship:0, fee:0, orders:0, refs:0 }; map.set(brand, e); }
-      e.gross += r._gross as number;
-      e.net   += r._net   as number;
-      e.ship  += r._ship  as number;
-      e.fee   += r._fee   as number;
-      e.orders++;
-      if (isRefusal(r, fileData.cols)) e.refs++;
+      const brand = brandOf(r), mkt = mktOf(r);
+      const gross = r._gross as number;
+      const cost  = (r._ship as number) + (r._fee as number);
+      const refusal = isRefusal(r, c);
+      const st = c.status ? String(r[c.status] ?? "").toLowerCase() : "";
+      if (st.includes("поверн")) retCount++;
+      if (st.includes("відмов")) refCount++;
+
+      const ek = `${brand}\u0000${mkt}`;
+      let e = edgeMap.get(ek);
+      if (!e) { e = { brand, mkt, gross:0, orders:0 }; edgeMap.set(ek, e); }
+      e.gross += gross; e.orders++;
+
+      const b = brandMap.get(brand) ?? { orders:0, gross:0, cost:0 };
+      b.orders++; b.gross += gross; b.cost += cost; brandMap.set(brand, b);
+
+      const m = mktMap.get(mkt) ?? { orders:0, gross:0, refs:0 };
+      m.orders++; m.gross += gross; if (refusal) m.refs++; mktMap.set(mkt, m);
+
+      if (refusal) {
+        returnsOrders++; returnsMoney += gross;
+        const reason = c.reason ? String(r[c.reason] ?? "").replace(/[\uFEFF]/g,"").trim() : "";
+        if (reason === "") { blankOrders++; blankMoney += gross; blankByBrand.set(brand,(blankByBrand.get(brand)??0)+1); }
+      }
     }
-    return Array.from(map.values());
-  },[filtered, fileData]);
+
+    const topBlankBrand = [...blankByBrand.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0] ?? "—";
+    return {
+      edges: [...edgeMap.values()],
+      brandRows: [...brandMap.entries()].map(([name,v])=>({ name, ...v })).sort((a,b)=>b.gross-a.gross),
+      mktRows:   [...mktMap.entries()].map(([name,v])=>({ name, ...v, returnRate: v.orders? (v.refs/v.orders)*100 : 0 })).sort((a,b)=>b.gross-a.gross),
+      blankOrders, blankMoney, topBlankBrand, returnsOrders, returnsMoney,
+      retCount, refCount,
+      retRate: filtered.length ? (retCount/filtered.length)*100 : 0,
+      refRate: filtered.length ? (refCount/filtered.length)*100 : 0,
+      brandLabel: hasCompanies ? "Бренд" : "Категорія",
+    };
+  },[filtered, fileData, companies]);
 
   /* ── marketplace bar with MoM % overlay ── */
   const marketplaceBarWithMoM = useMemo(()=>{
@@ -3842,26 +3893,82 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ── Wormhole-style top stats bar — core financial metrics ── */}
-            <div className="orbit-fadein">
-              <WhStatBar t={t} stats={[
-                { label:"Чистий дохід",   value:fmt(kpi.net),                raw:String(Math.round(kpi.net)),                 accent: kpi.net>=0 ? t.em : t.red },
-                { label:"Оборот",          value:fmt(kpi.grossIncome),        raw:String(Math.round(kpi.grossIncome)) },
-                { label:"Замовлення",      value:Math.round(kpi.orders).toLocaleString("uk-UA").replace(/,/g," "), raw:String(kpi.orders) },
-                { label:"Дебіторка",       value:fmt(Math.abs(kpi.debt)),     raw:String(Math.round(Math.abs(kpi.debt))),      accent: Math.abs(kpi.debt)>0 ? t.red : undefined },
-                { label:"Відмови",         value:kpi.returnRate.toFixed(1)+"%", raw:kpi.returnRate.toFixed(2),                  accent: kpi.returnRate>0 ? t.red : undefined },
-                { label:"Гроші в дорозі",  value:fmt(kpi.moneyInTransit),     raw:String(Math.round(kpi.moneyInTransit)) },
-              ]}/>
-            </div>
+            {/* ══ Premium Wormhole-inspired dashboard (light, high-contrast) ══ */}
+            {premium && (
+              <div className="orbit-fadein" style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                {/* Top KPI cards */}
+                <PremiumKpiCards t={t} cards={[
+                  { label:"Чистий дохід",     value:fmt(kpi.net),                            trend: kpi.net>=0?"up":"down", accent: kpi.net>=0 ? t.em : t.red },
+                  { label:"Повернення",       value:premium.retRate.toFixed(2)+"%",          trend:"down", accent: premium.retRate>0 ? t.red : undefined },
+                  { label:"Оборот (Дохід)",   value:fmt(kpi.grossIncome) },
+                  { label:"Відмови %",        value:premium.refRate.toFixed(2)+"%",          trend:"down", accent: premium.refRate>0 ? t.red : undefined },
+                  { label:"Сервісні витрати", value:fmt(kpi.com),                            sub:`${fmt(kpi.orders ? kpi.com/kpi.orders : 0)} / замовлення` },
+                  { label:"Дебіторка",        value:fmt(Math.abs(kpi.debt)),                 warn: Math.abs(kpi.debt)>0 ? "УВАГА" : undefined, accent: Math.abs(kpi.debt)>0 ? t.red : undefined },
+                ]}/>
 
-            {/* ── Wormhole-style money-flow diagram ── */}
-            {mktFlow.length>0 && (
-              <div className="orbit-fadein" style={{ animationDelay:"40ms" }}>
-                <WhFlow sources={mktFlow} t={t} fmt={fmt}/>
+                {/* Center Sankey flanked by side columns */}
+                <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"minmax(180px,220px) 1fr minmax(180px,220px)", gap:14, alignItems:"start" }}>
+                  <SideColumn t={t} blocks={[
+                    { title:"Без причин", rows:[
+                      { label:"Замовлення", value:String(premium.blankOrders), strong:true },
+                      { label:"Гроші", value:fmt(premium.blankMoney) },
+                      { label:"Опис", value:"Без причини" },
+                      { label:premium.brandLabel, value:premium.topBlankBrand },
+                    ], note:"Повернення/відмови з порожньою колонкою «причина»." },
+                  ]}/>
+
+                  <BrandMktSankey edges={premium.edges} t={t} fmt={fmt}/>
+
+                  <SideColumn t={t} align="left" blocks={[
+                    { title:"У дорозі (Transit)", rows:[
+                      { label:"Замовлення", value:String(kpi.transitOrders), strong:true },
+                      { label:"Гроші", value:fmt(kpi.moneyInTransit) },
+                      { label:"Опис", value:"Логістика" },
+                    ], note:"Кошти за відправленими COD-замовленнями в очікуванні." },
+                    { title:"Повернення", rows:[
+                      { label:"Замовлення", value:String(premium.returnsOrders), strong:true },
+                      { label:"Гроші", value:fmt(premium.returnsMoney) },
+                    ] },
+                  ]}/>
+                </div>
+
+                {/* Bottom detail tables */}
+                <div className="premium-tables-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+                  <DetailTable t={t}
+                    title="Деталі по брендах"
+                    cols={[
+                      { key:"name",   label:premium.brandLabel },
+                      { key:"orders", label:"Замовлення", align:"right" },
+                      { key:"gross",  label:"Оборот ₴",   align:"right" },
+                      { key:"cost",   label:"Витрати ₴",  align:"right" },
+                    ]}
+                    rows={premium.brandRows.slice(0,12).map(b=>({
+                      name:b.name,
+                      orders:String(b.orders),
+                      gross:fmt(b.gross),
+                      cost:fmt(b.cost),
+                    }))}
+                  />
+                  <DetailTable t={t}
+                    title="Деталі по маркетплейсах"
+                    cols={[
+                      { key:"name",   label:"Маркетплейс" },
+                      { key:"orders", label:"Замовлення",   align:"right" },
+                      { key:"gross",  label:"Оборот ₴",     align:"right" },
+                      { key:"ret",    label:"Повернення %", align:"right" },
+                    ]}
+                    rows={premium.mktRows.slice(0,12).map(m=>({
+                      name:m.name,
+                      orders:String(m.orders),
+                      gross:fmt(m.gross),
+                      ret:m.returnRate.toFixed(1)+"%",
+                    }))}
+                  />
+                </div>
               </div>
             )}
 
-            {/* KPI row — memoized, only re-renders when kpi data changes */}
+            {/* Detailed KPI panel (LFL / margins) — memoized */}
             <KpiRow
               kpi={kpi}
               prevKpi={prevKpi ?? null}

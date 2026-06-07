@@ -239,3 +239,26 @@ body.dashboard-pinned {
   }
 }
 
+/* ─── Premium light dashboard responsive ───────────────────── */
+@media (max-width: 1200px) {
+  .pkpi-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  .premium-flow-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 768px) {
+  .pkpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .premium-tables-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 480px) {
+  .pkpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
