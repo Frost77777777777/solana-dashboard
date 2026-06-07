@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback, memo, Component } from "react";
 import { createPortal } from "react-dom";
-import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu } from "lucide-react";
+import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu, Copy } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AreaChart, Area, BarChart, Bar, ComposedChart, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 
@@ -1266,7 +1266,7 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
           <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
             <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Середній чек</span>
             <strong style={{ fontSize:16, fontWeight:800, color:t.blue, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-              {kpi.orders>0 ? fmt(kpi.grossIncome/kpi.orders)+" ₴" : "—"}
+              {kpi.orders>0 ? fmt(kpi.grossIncome/kpi.orders) : "—"}
             </strong>
           </div>
           <span style={{ fontSize:10, color:t.text }}>Успішних: <strong style={{ color:t.em }}>{kpi.successOrders.toLocaleString()}</strong></span>
@@ -1292,7 +1292,7 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
               <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
                 <span style={{ fontSize:8, color:kpi.moneyInTransit > 0 ? "#E29578" : t.dim, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontWeight:700, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Гроші в дорозі 📦</span>
                 <strong style={{ fontSize:16, fontWeight:800, color:kpi.moneyInTransit > 0 ? "#E29578" : t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-                  <AnimNum value={kpi.moneyInTransit} fmt={fmt}/> ₴
+                  <AnimNum value={kpi.moneyInTransit} fmt={fmt}/>
                 </strong>
                 <span style={{ fontSize:9, color:t.dim }}>{kpi.transitOrders} замовлень</span>
               </div>
@@ -1320,6 +1320,191 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
         </div>
       </div>
 
+    </div>
+  );
+});
+
+/* ─── Wormhole-style flow primitives ────────────────────────────
+   Pure presentational components. They receive already-computed
+   financial aggregates as props and never touch parsing / state /
+   formula logic. ───────────────────────────────────────────────── */
+const MONO = "'JetBrains Mono', 'Inter', sans-serif";
+const FLOW_SRC_COLORS = ["#8B82F0","#5BD68A","#5AA9FF","#D7F23E","#F2728C","#E2B65A","#7BE0C8","#B98BF0","#9AA0AE"];
+
+interface WhStat { label:string; value:string; raw:string; accent?:string; }
+const WhStatBar = memo(function WhStatBar({ stats, t }:{ stats:WhStat[]; t:T }) {
+  const [copied, setCopied] = useState<number|null>(null);
+  const copy = (i:number, raw:string) => {
+    try { navigator.clipboard?.writeText(raw); } catch { /* clipboard unavailable */ }
+    setCopied(i);
+    window.setTimeout(()=>setCopied(c => c===i ? null : c), 1100);
+  };
+  return (
+    <div style={{ ...glass(t), padding:0, overflow:"hidden" }}>
+      <div className="wh-statbar" style={{ display:"grid", gridTemplateColumns:`repeat(${stats.length}, minmax(0,1fr))` }}>
+        {stats.map((s,i)=>(
+          <div key={s.label} style={{ padding:"16px 20px", borderLeft: i ? `1px solid ${t.border}` : "none" }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.14em", textTransform:"uppercase", color:t.dim, fontFamily:MONO, whiteSpace:"nowrap" }}>{s.label}</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:9 }}>
+              <span style={{ fontSize:22, fontWeight:800, letterSpacing:"-0.02em", lineHeight:1, color:s.accent||t.text, fontFamily:MONO, whiteSpace:"nowrap" }}>{s.value}</span>
+              <button onClick={()=>copy(i, s.raw)} title="Скопіювати" style={{ background:"none", border:"none", padding:2, cursor:"pointer", color: copied===i ? t.em : t.dim, display:"inline-flex", flexShrink:0 }}>
+                <Copy size={12}/>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+interface FlowSource { name:string; gross:number; net:number; ship:number; fee:number; orders:number; refs:number; }
+const WhFlow = memo(function WhFlow({ sources, t, fmt }:{ sources:FlowSource[]; t:T; fmt:(n:number)=>string }) {
+  const [mode, setMode] = useState<"volume"|"transfers">("volume");
+
+  const targets = mode==="volume"
+    ? [ { key:"net",  name:"Чистий дохід", color:t.em },
+        { key:"ship", name:"Логістика",    color:t.blue },
+        { key:"fee",  name:"Комісія",       color:"#E2B65A" } ]
+    : [ { key:"ok",   name:"Успішні",       color:t.em },
+        { key:"ref",  name:"Відмови",       color:t.red } ];
+
+  const valOf = (s:FlowSource, key:string):number => {
+    switch (key) {
+      case "net":  return Math.max(s.net, 0);
+      case "ship": return s.ship;
+      case "fee":  return s.fee;
+      case "ok":   return Math.max(s.orders - s.refs, 0);
+      case "ref":  return s.refs;
+      default:     return 0;
+    }
+  };
+  const srcTotal = (s:FlowSource) => targets.reduce((a,tg)=>a+valOf(s,tg.key), 0);
+
+  // rank sources, collapse the long tail into one "інших" node
+  const ranked = [...sources].sort((a,b)=>srcTotal(b)-srcTotal(a));
+  const TOP = 8;
+  const display: FlowSource[] = ranked.slice(0, TOP);
+  const rest = ranked.slice(TOP);
+  if (rest.length) {
+    const agg = rest.reduce((a,s)=>({ name:`${rest.length} інших`, gross:a.gross+s.gross, net:a.net+s.net, ship:a.ship+s.ship, fee:a.fee+s.fee, orders:a.orders+s.orders, refs:a.refs+s.refs }),
+      { name:`${rest.length} інших`, gross:0, net:0, ship:0, fee:0, orders:0, refs:0 } as FlowSource);
+    if (srcTotal(agg) > 0) display.push(agg);
+  }
+
+  const srcList = display.map(s=>({ s, total:srcTotal(s) })).filter(x=>x.total>0);
+  const grand = srcList.reduce((a,x)=>a+x.total, 0) || 1;
+  const tgtTotals = targets.map(tg => srcList.reduce((a,x)=>a+valOf(x.s, tg.key), 0));
+
+  // vertical bands (normalised 0..1) for left sources & right targets
+  let cumL = 0;
+  const leftBands = srcList.map((x,i)=>{ const h=x.total/grand; const band={ s:x.s, total:x.total, color:FLOW_SRC_COLORS[i%FLOW_SRC_COLORS.length], y0:cumL, y1:cumL+h }; cumL+=h; return band; });
+  let cumR = 0;
+  const rightBands = targets.map((tg,j)=>{ const h=tgtTotals[j]/grand; const band={ ...tg, total:tgtTotals[j], y0:cumR, y1:cumR+h }; cumR+=h; return band; });
+
+  // ribbons: each source band splits into its target components
+  const srcCursor = leftBands.map(b=>b.y0);
+  const tgtCursor = rightBands.map(b=>b.y0);
+  const ribbons: { d:string; tj:number; key:string }[] = [];
+  leftBands.forEach((lb,i)=>{
+    targets.forEach((tg,j)=>{
+      const v = valOf(lb.s, tg.key);
+      if (v<=0) return;
+      const h = v/grand;
+      const lY0=srcCursor[i], lY1=srcCursor[i]+h; srcCursor[i]=lY1;
+      const rY0=tgtCursor[j], rY1=tgtCursor[j]+h; tgtCursor[j]=rY1;
+      ribbons.push({ key:`${i}-${j}`, tj:j, d:`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z` });
+    });
+  });
+
+  const fmtCount = (n:number) => Math.round(n).toLocaleString("uk-UA").replace(/,/g," ");
+  const dim = t.dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
+
+  return (
+    <div style={{ ...glass(t), padding:"18px 20px 22px" }}>
+      {/* header + toggle */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:12 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+          <span style={{ fontSize:15, fontWeight:800, color:t.text, letterSpacing:"-0.01em", fontFamily:MONO }}>Грошовий потік</span>
+          <div style={{ display:"inline-flex", padding:3, borderRadius:8, background:dim, border:`1px solid ${t.border}` }}>
+            {([["volume","Оборот"],["transfers","Замовлення"]] as const).map(([m,lbl])=>(
+              <button key={m} onClick={()=>setMode(m)} style={{ padding:"4px 13px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, letterSpacing:"0.02em", color: mode===m ? (t.dark?"#0B0C10":"#fff") : t.dim, background: mode===m ? t.blue : "transparent", transition:"all .15s" }}>{lbl}</button>
+            ))}
+          </div>
+        </div>
+        <span style={{ fontSize:11, color:t.dim, fontFamily:MONO, letterSpacing:"0.04em" }}>{mode==="volume" ? "Розподіл обороту" : "Структура замовлень"}</span>
+      </div>
+
+      {/* source / target column headers */}
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8, padding:"0 2px" }}>
+        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:t.dim, fontFamily:MONO }}>Джерело</span>
+        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:t.dim, fontFamily:MONO }}>Призначення</span>
+      </div>
+
+      {/* flow body: labels | bars | ribbons | bars | labels */}
+      <div style={{ display:"grid", gridTemplateColumns:"minmax(110px,170px) 10px 1fr 10px minmax(110px,170px)", height:440, position:"relative" }}>
+        {/* left labels */}
+        <div style={{ position:"relative" }}>
+          {leftBands.map((lb,i)=>(
+            <div key={i} style={{ position:"absolute", right:0, top:`${(lb.y0+lb.y1)/2*100}%`, transform:"translateY(-50%)", textAlign:"right", maxWidth:"100%", paddingRight:10 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:6 }}>
+                <span style={{ width:7, height:7, borderRadius:2, background:lb.color, flexShrink:0 }}/>
+                <span style={{ fontSize:12, fontWeight:600, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:120 }}>{lb.s.name}</span>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:6, marginTop:3 }}>
+                <span style={{ fontSize:11, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap" }}>{mode==="volume" ? fmt(lb.total) : fmtCount(lb.total)}</span>
+                <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, padding:"1px 7px", borderRadius:999, background: i===0 ? PILL_HI : dim, color: i===0 ? "#0B0C10" : t.sub }}>{(lb.total/grand*100).toFixed(2)}%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* left bars */}
+        <div style={{ position:"relative" }}>
+          {leftBands.map((lb,i)=>(
+            <div key={i} style={{ position:"absolute", left:0, right:0, top:`calc(${lb.y0*100}% + 1px)`, height:`calc(${(lb.y1-lb.y0)*100}% - 2px)`, background:lb.color, borderRadius:2 }}/>
+          ))}
+        </div>
+        {/* ribbons */}
+        <div style={{ position:"relative" }}>
+          <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
+            <defs>
+              {targets.map((tg,j)=>(
+                <linearGradient key={j} id={`whg-${mode}-${j}`} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={tg.color} stopOpacity={0.10}/>
+                  <stop offset="100%" stopColor={tg.color} stopOpacity={0.52}/>
+                </linearGradient>
+              ))}
+            </defs>
+            {ribbons.map(r=>(<path key={r.key} d={r.d} fill={`url(#whg-${mode}-${r.tj})`}/>))}
+          </svg>
+          <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
+            <span style={{ fontSize:13, fontWeight:800, letterSpacing:"0.4em", color:t.dim, opacity:0.22, fontFamily:MONO, textTransform:"uppercase" }}>Solana Flow</span>
+          </div>
+        </div>
+        {/* right bars */}
+        <div style={{ position:"relative" }}>
+          {rightBands.map((rb,j)=>(
+            <div key={j} style={{ position:"absolute", left:0, right:0, top:`calc(${rb.y0*100}% + 1px)`, height:`calc(${(rb.y1-rb.y0)*100}% - 2px)`, background:rb.color, borderRadius:2 }}/>
+          ))}
+        </div>
+        {/* right labels */}
+        <div style={{ position:"relative" }}>
+          {rightBands.map((rb,j)=>(
+            rb.total>0 && (
+            <div key={j} style={{ position:"absolute", left:0, top:`${(rb.y0+rb.y1)/2*100}%`, transform:"translateY(-50%)", maxWidth:"100%", paddingLeft:10 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span style={{ width:7, height:7, borderRadius:2, background:rb.color, flexShrink:0 }}/>
+                <span style={{ fontSize:12, fontWeight:600, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:120 }}>{rb.name}</span>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
+                <span style={{ fontSize:11, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap" }}>{mode==="volume" ? fmt(rb.total) : fmtCount(rb.total)}</span>
+                <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, padding:"1px 7px", borderRadius:999, background:dim, color:t.sub }}>{(rb.total/grand*100).toFixed(2)}%</span>
+              </div>
+            </div>
+            )
+          ))}
+        </div>
+      </div>
     </div>
   );
 });
@@ -3276,6 +3461,26 @@ export default function Dashboard() {
     return Array.from(map.entries()).map(([name,v])=>({name,...v})).sort((a,b)=>b.net-a.net);
   },[filtered,fileData]);
 
+  /* ── flow aggregation (read-only): per-marketplace gross/net/ship/fee +
+       order counts for the Wormhole-style money-flow diagram. Uses the same
+       `filtered` rows and already-stamped fields — no new business logic. ── */
+  const mktFlow = useMemo<FlowSource[]>(()=>{
+    if (!fileData) return [];
+    const map = new Map<string, FlowSource>();
+    for (const r of filtered) {
+      const brand = rowBrand(r) || "Інше";
+      let e = map.get(brand);
+      if (!e) { e = { name:brand, gross:0, net:0, ship:0, fee:0, orders:0, refs:0 }; map.set(brand, e); }
+      e.gross += r._gross as number;
+      e.net   += r._net   as number;
+      e.ship  += r._ship  as number;
+      e.fee   += r._fee   as number;
+      e.orders++;
+      if (isRefusal(r, fileData.cols)) e.refs++;
+    }
+    return Array.from(map.values());
+  },[filtered, fileData]);
+
   /* ── marketplace bar with MoM % overlay ── */
   const marketplaceBarWithMoM = useMemo(()=>{
     if (!fileData) return marketplaceBar.map(e=>({...e, momPct:null as number|null}));
@@ -3636,6 +3841,25 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {/* ── Wormhole-style top stats bar — core financial metrics ── */}
+            <div className="orbit-fadein">
+              <WhStatBar t={t} stats={[
+                { label:"Чистий дохід",   value:fmt(kpi.net),                raw:String(Math.round(kpi.net)),                 accent: kpi.net>=0 ? t.em : t.red },
+                { label:"Оборот",          value:fmt(kpi.grossIncome),        raw:String(Math.round(kpi.grossIncome)) },
+                { label:"Замовлення",      value:Math.round(kpi.orders).toLocaleString("uk-UA").replace(/,/g," "), raw:String(kpi.orders) },
+                { label:"Дебіторка",       value:fmt(Math.abs(kpi.debt)),     raw:String(Math.round(Math.abs(kpi.debt))),      accent: Math.abs(kpi.debt)>0 ? t.red : undefined },
+                { label:"Відмови",         value:kpi.returnRate.toFixed(1)+"%", raw:kpi.returnRate.toFixed(2),                  accent: kpi.returnRate>0 ? t.red : undefined },
+                { label:"Гроші в дорозі",  value:fmt(kpi.moneyInTransit),     raw:String(Math.round(kpi.moneyInTransit)) },
+              ]}/>
+            </div>
+
+            {/* ── Wormhole-style money-flow diagram ── */}
+            {mktFlow.length>0 && (
+              <div className="orbit-fadein" style={{ animationDelay:"40ms" }}>
+                <WhFlow sources={mktFlow} t={t} fmt={fmt}/>
+              </div>
+            )}
 
             {/* KPI row — memoized, only re-renders when kpi data changes */}
             <KpiRow
