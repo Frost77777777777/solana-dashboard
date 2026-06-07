@@ -1026,14 +1026,22 @@ function parseHubberQuick(file: File): Promise<HubberQuick> {
 
 /* ─── theme ──────────────────────────────────────────────────── */
 interface T { bg:string; card:string; nav:string; border:string; text:string; sub:string; dim:string; in:string; blue:string; em:string; red:string; amb:string; dark:boolean }
-const DK: T = { bg:"#0B0B0B", card:"#0B0B0B", nav:"#0B0B0B", border:"#2B4559", text:"#E4E4E4", sub:"#E4E4E4", dim:"#E4E4E4", in:"#0B0B0B", blue:"#2B4559", em:"#22C55E", red:"#EF4444", amb:"#E4E4E4", dark:true };
-const LT: T = { bg:"#FFFFFF", card:"#FFFFFF", nav:"#FFFFFF", border:"#E2E8F0", text:"#1A1A1B", sub:"#1A1A1B", dim:"#6B7280", in:"#FFFFFF", blue:"#2B4559", em:"#22C55E", red:"#EF4444", amb:"#1A1A1B", dark:false };
+// Premium Wormhole-style dark aesthetic: near-black page, slightly elevated
+// panels, hairline borders, violet accent + lime highlight pill.
+const DK: T = { bg:"#0B0C10", card:"#15161D", nav:"#0B0C10", border:"#23252E", text:"#ECEDF1", sub:"#B9BBC6", dim:"#7E808C", in:"#15161D", blue:"#8B82F0", em:"#5BD68A", red:"#F2728C", amb:"#ECEDF1", dark:true };
+const LT: T = { bg:"#F6F7F9", card:"#FFFFFF", nav:"#FFFFFF", border:"#E6E8EE", text:"#13141A", sub:"#3A3C44", dim:"#8A8C99", in:"#FFFFFF", blue:"#6D5FE8", em:"#16A34A", red:"#E11D48", amb:"#13141A", dark:false };
+
+// Lime highlight used for the dominant percentage pill (Wormhole reference).
+const PILL_HI = "#D7F23E";
 
 function glass(t: T): React.CSSProperties {
   return {
     background: t.card,
     border: `1px solid ${t.border}`,
-    borderRadius: 6,
+    borderRadius: 12,
+    boxShadow: t.dark
+      ? "0 1px 0 rgba(255,255,255,0.025) inset, 0 10px 30px rgba(0,0,0,0.35)"
+      : "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)",
   };
 }
 
@@ -1147,8 +1155,8 @@ interface KpiRowProps {
   fmt: (v:number)=>string;
 }
 const KPI_CARD_BASE: React.CSSProperties = {
-  borderRadius:6,
-  padding:"20px 20px 16px",
+  borderRadius:12,
+  padding:"18px 18px 16px",
   display:"flex", flexDirection:"column", justifyContent:"space-between",
   minHeight:0,
   boxSizing:"border-box" as const,
@@ -1166,7 +1174,8 @@ const KPI_NUM: React.CSSProperties = {
 
 const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _filteredCount, syncError, debtCol, t, fmt }: KpiRowProps) {
   const cardBg: React.CSSProperties = {
-    background: t.bg,
+    background: t.card,
+    boxShadow: t.dark ? "0 10px 30px rgba(0,0,0,0.35)" : "0 1px 3px rgba(16,24,40,0.06)",
   };
   return (
     <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
@@ -1411,7 +1420,7 @@ function BrandGridCell({ brand, active, onClick, t, logo, isTop, trend }: { bran
         padding:"7px 4px 5px", borderRadius:6, border:"none",
         background: active ? `${t.blue}15` : hov ? "rgba(0,0,0,0.04)" : "transparent",
         cursor:"pointer", gap:3,
-        outline: active ? `2px solid ${t.blue}` : isTop ? `2px solid rgba(184,134,11,0.55)` : "2px solid transparent",
+        outline: active ? `2px solid ${t.blue}` : isTop ? `2px solid ${PILL_HI}` : "2px solid transparent",
         outlineOffset:-1,
         transition:"all 0.15s ease",
       }}
@@ -3416,29 +3425,29 @@ export default function Dashboard() {
             <span style={{ color:t.blue, fontSize:13, fontWeight:700, letterSpacing:"0.05em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>CORE</span>
           </div>
           <div className="ethena-nav-links" style={{ display:"flex", alignItems:"center", gap:2 }}>
-            <button style={{ padding:"5px 12px", borderRadius:4, background:t.blue, border:"none", color:"#ffffff", fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Dashboards</button>
+            <button style={{ padding:"6px 14px", borderRadius:8, background:t.dark?"rgba(139,130,240,0.14)":"rgba(109,95,232,0.10)", border:`1px solid ${t.dark?"rgba(139,130,240,0.30)":"rgba(109,95,232,0.22)"}`, color:t.blue, fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Dashboards</button>
           </div>
         </div>
         {/* Right: Actions */}
         <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 16px", borderRadius:6, border:`2px solid ${t.blue}`, background:`${t.blue}0A` }}>
-            <span style={{ fontSize:11, fontWeight:800, color:t.blue, letterSpacing:"0.08em" }}>ВИРУЧКА</span>
-            <span style={{ fontSize:16, fontWeight:900, color:"#22C55E", fontFamily:"'JetBrains Mono', 'Inter', sans-serif", letterSpacing:"-0.02em" }}>{kpi ? fmt(kpi.grossIncome) : "—"}</span>
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 14px", borderRadius:10, border:`1px solid ${t.border}`, background:t.card }}>
+            <span style={{ fontSize:10, fontWeight:700, color:t.dim, letterSpacing:"0.12em" }}>ВИРУЧКА</span>
+            <span style={{ fontSize:15, fontWeight:800, color:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif", letterSpacing:"-0.02em" }}>{kpi ? fmt(kpi.grossIncome) : "—"}</span>
           </div>
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
-              style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 9px", borderRadius:4, border:`1px solid ${t.border}` }}>
-              <HardDrive size={11} style={{ color:"#22C55E" }}/>
-              <span style={{ fontSize:10, fontWeight:700, color:"#22C55E", letterSpacing:"0.03em" }}>Збережено</span>
+              style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 10px", borderRadius:8, border:`1px solid ${t.border}`, background:t.card }}>
+              <HardDrive size={11} style={{ color:t.em }}/>
+              <span style={{ fontSize:10, fontWeight:700, color:t.em, letterSpacing:"0.03em" }}>Збережено</span>
             </div>
           )}
           {fileData && (
-            <button onClick={clear} style={{ padding:"5px 12px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.text, fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}><X size={11} /> Скинути</button>
+            <button onClick={clear} style={{ padding:"6px 12px", borderRadius:8, background:"transparent", border:`1px solid ${t.border}`, color:t.sub, fontSize:11, fontWeight:500, cursor:"pointer", display:"flex", alignItems:"center", gap:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}><X size={11} /> Скинути</button>
           )}
-          <button onClick={()=>fileRef.current?.click()} style={{ padding:"6px 16px", borderRadius:4, background:t.blue, color:"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
+          <button onClick={()=>fileRef.current?.click()} style={{ padding:"7px 16px", borderRadius:8, background:t.blue, color:t.dark?"#0B0C10":"#ffffff", fontSize:12, fontWeight:700, cursor:"pointer", border:"none", display:"flex", alignItems:"center", gap:6, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif", boxShadow:t.dark?"0 6px 18px rgba(139,130,240,0.30)":"none" }}>
             <Upload size={12} /> Генерація звіту
           </button>
-          <button onClick={()=>setDarkMode(v=>!v)} title={darkMode?"Режим День":"Режим Ніч"} style={{ padding:"6px 8px", borderRadius:4, background:"transparent", border:`1px solid ${t.border}`, color:t.text, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <button onClick={()=>setDarkMode(v=>!v)} title={darkMode?"Режим День":"Режим Ніч"} style={{ padding:"7px 9px", borderRadius:8, background:"transparent", border:`1px solid ${t.border}`, color:t.sub, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
             {darkMode ? <Sun size={14}/> : <Moon size={14}/>}
           </button>
         </div>
@@ -3595,16 +3604,16 @@ export default function Dashboard() {
             onDragLeave={()=>setIsDragging(false)}
             onDrop={handleDrop}
             onClick={()=>fileRef.current?.click()}
-            style={{ border:`1px dashed ${isDragging?t.blue:t.blue}`, borderRadius:6, padding:"90px 40px", display:"flex", flexDirection:"column", alignItems:"center", gap:20, cursor:"pointer", transition:"all 0.15s", background:t.bg }}
+            style={{ border:`1px dashed ${isDragging?t.blue:t.border}`, borderRadius:14, padding:"90px 40px", display:"flex", flexDirection:"column", alignItems:"center", gap:20, cursor:"pointer", transition:"all 0.15s", background:isDragging?(t.dark?"rgba(139,130,240,0.06)":"rgba(109,95,232,0.04)"):t.card }}
           >
-                        <div style={{ width:64, height:64, borderRadius:6, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <div style={{ width:64, height:64, borderRadius:14, border:`1px solid ${t.border}`, background:t.dark?"rgba(139,130,240,0.08)":"rgba(109,95,232,0.06)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <Upload size={26} style={{ color:t.blue }}/>
             </div>
             <div style={{ textAlign:"center" }}>
               <p style={{ color:t.text, fontSize:18, fontWeight:800, margin:0, letterSpacing:"0.02em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Завантажте дані звітності</p>
-              <p style={{ color:t.text, fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
+              <p style={{ color:t.dim, fontSize:13, marginTop:6, fontWeight:400 }}>Підтримуються стандартні формати звітності</p>
             </div>
-            <div style={{ padding:"9px 28px", background:t.blue, borderRadius:4, color:"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Завантажити дані</div>
+            <div style={{ padding:"10px 28px", background:t.blue, borderRadius:10, color:t.dark?"#0B0C10":"#ffffff", fontSize:13, fontWeight:700, letterSpacing:"0.03em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif", boxShadow:t.dark?"0 6px 18px rgba(139,130,240,0.30)":"none" }}>Завантажити дані</div>
           </div>
         )}
 
