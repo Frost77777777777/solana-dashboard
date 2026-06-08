@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback, memo, Component } from "react";
 import { createPortal } from "react-dom";
-import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, Store, CalendarDays, Building2, ChevronDown, HardDrive, Menu, AlertTriangle } from "lucide-react";
+import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, CalendarDays, ChevronDown, HardDrive, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AreaChart, Area, BarChart, Bar, ComposedChart, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 
@@ -40,7 +40,6 @@ interface FileData {
 const STORAGE_KEY   = "orbit_analytics_v26"; // v26: row-fill-color transit logic (invalidates pre-color cache)
 const HUBBER_KEY    = "orbit_hubber_v1";
 const FILTERS_KEY   = "orbit_filters_v1";
-const PRESET_BRANDS = ["Каста", "Розетка", "Хаббер", "Шафа"];
 
 /* ─── Base Blue design-system palette ───────────────────────── */
 // Index 0 = leader (Deep Navy), index 1 = Electric Blue, rest lighter
@@ -1033,7 +1032,6 @@ const DK: T = { bg:"#070A12", card:"rgba(18,25,42,0.72)", nav:"rgba(9,13,23,0.82
 const LT: T = { bg:"#F6F7F9", card:"#FFFFFF", nav:"#FFFFFF", border:"#E6E8EE", text:"#13141A", sub:"#3A3C44", dim:"#8A8C99", in:"#FFFFFF", blue:"#6D5FE8", em:"#16A34A", red:"#E11D48", amb:"#13141A", dark:false };
 
 // Lime highlight used for the dominant "top performer" outline.
-const PILL_HI = "#D7F23E";
 
 function glass(t: T): React.CSSProperties {
   return {
@@ -1399,7 +1397,15 @@ const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks
 interface BMEdge { brand:string; mkt:string; gross:number; orders:number; }
 type FlowSel = { side:"brand"|"mkt"; name:string } | null;
 interface FlowBand { name:string; color:string; total:number; pct:number; y0:number; y1:number; }
-const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdge[]; fmt:(n:number)=>string }) {
+const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
+  edges:BMEdge[];
+  fmt:(n:number)=>string;
+  dateCtl?:{
+    years:string[]; visibleMonths:string[]; hasNoDate:boolean;
+    yearFilter:string; monthFilter:string;
+    setYearFilter:(y:string)=>void; setMonthFilter:(m:string)=>void;
+  };
+}) {
   const [mode, setMode] = useState<"volume"|"orders">("volume");
   const [sel, setSel] = useState<FlowSel>(null);
   const val = (e:{gross:number;orders:number}) => mode==="volume" ? e.gross : e.orders;
@@ -1410,6 +1416,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdg
     text:"#ECECF4", sub:"#9A9AAE", dim:"#62627A", line:"rgba(255,255,255,0.07)",
     pillBg:"rgba(255,255,255,0.05)", pillBorder:"rgba(255,255,255,0.09)", pillText:"#9A9AAE",
     hi:"#DCF25B", hiText:"#1C2406", selBorder:"rgba(150,140,255,0.55)", selBg:"rgba(132,122,240,0.08)",
+    yellow:"#FFD93D",
   };
 
   const eList = edges.map(e=>({ ...e, v:val(e) })).filter(e=>e.v>0);
@@ -1473,14 +1480,17 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdg
   const rightActive = (n:string)=> selTarget ? n===selTarget : true;
   const toggle = (side:"brand"|"mkt", name:string)=> setSel(p=> p && p.side===side && p.name===name ? null : { side, name });
 
-  const Pill = ({ pct, on }:{ pct:number; on:boolean }) => (
+  const Pill = ({ pct, on, hl }:{ pct:number; on:boolean; hl?:boolean }) => (
     <span style={{ fontSize:10.5, fontWeight:800, fontFamily:MONO, padding:"2.5px 8px", borderRadius:999, lineHeight:1.35, flexShrink:0, letterSpacing:"0.02em",
-      color: on ? C.hiText : C.pillText, background: on ? C.hi : C.pillBg, border:`1px solid ${on ? C.hi : C.pillBorder}` }}>
+      color: on ? C.hiText : hl ? C.yellow : C.pillText,
+      background: on ? C.hi : hl ? "rgba(255,217,61,0.12)" : C.pillBg,
+      border:`1px solid ${on ? C.hi : hl ? "rgba(255,217,61,0.5)" : C.pillBorder}`,
+      transition:"color .16s, background .16s, border-color .16s" }}>
       {pct.toFixed(2).replace(".",",")}%
     </span>
   );
 
-  const NodeRow = ({ b, side, on, seld }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean }) => (
+  const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => (
     <button onClick={()=>toggle(side,b.name)} title={b.name}
       style={{ position:"absolute", left:0, right:0, top:`${(b.y0+b.y1)/2*100}%`, transform:"translateY(-50%)",
         display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor:"pointer",
@@ -1489,12 +1499,12 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdg
       <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>
       <span style={{ fontSize:13, fontWeight:650, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{b.name}</span>
       <span style={{ fontSize:12.5, color:C.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(b.total)}</span>
-      <Pill pct={b.pct} on={seld}/>
+      <Pill pct={b.pct} on={seld} hl={hl && !seld}/>
     </button>
   );
 
   return (
-    <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:20, padding:"16px 22px 26px", display:"flex", flexDirection:"column", boxShadow:"0 16px 50px rgba(0,0,0,0.45)" }}>
+    <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:22, padding:"24px 32px 38px", display:"flex", flexDirection:"column", boxShadow:"0 22px 64px rgba(0,0,0,0.5)" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6, gap:10, flexWrap:"wrap" }}>
         <div style={{ display:"inline-flex", padding:3, borderRadius:9, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)" }}>
           {([["volume","Оборот"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
@@ -1505,19 +1515,48 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdg
           ? <button onClick={()=>setSel(null)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 13px", borderRadius:8, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", cursor:"pointer", fontSize:11, fontWeight:700, color:C.text }}><X size={13}/> Скинути виділення</button>
           : <span style={{ fontSize:11, color:C.dim, fontWeight:600 }}>Клікніть вузол, щоб виділити його потоки</span>}
       </div>
+      {/* ── Date filters relocated into the flow block ── */}
+      {dateCtl && (dateCtl.years.length>1 || dateCtl.visibleMonths.length>0) && (
+        <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", margin:"10px 2px 4px", paddingBottom:12, borderBottom:`1px solid ${C.line}` }}>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:10, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase", color:C.dim, fontFamily:MONO }}><CalendarDays size={12}/> Період</span>
+          {dateCtl.years.length>1 && (
+            <div style={{ display:"inline-flex", gap:5, flexWrap:"wrap" }}>
+              {(["All",...dateCtl.years] as const).map(y=>{
+                const active = dateCtl.yearFilter===y;
+                return (
+                  <button key={y} onClick={()=>{ dateCtl.setYearFilter(y as string); if(y!=="All" && dateCtl.monthFilter!=="All" && dateCtl.monthFilter!=="No Date" && !dateCtl.monthFilter.startsWith(y as string)) dateCtl.setMonthFilter("All"); }}
+                    style={{ padding:"4px 11px", borderRadius:7, cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO,
+                      color: active ? "#0B0B16" : C.sub, background: active ? C.hi : "rgba(255,255,255,0.04)",
+                      border:`1px solid ${active ? C.hi : "rgba(255,255,255,0.1)"}`, transition:"all .15s" }}>{y==="All"?"Всі роки":y}</button>
+                );
+              })}
+            </div>
+          )}
+          <select value={dateCtl.monthFilter} onChange={e=>dateCtl.setMonthFilter(e.target.value)}
+            style={{ padding:"5px 12px", borderRadius:7, fontSize:11, fontWeight:700, fontFamily:MONO, color:C.text, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.12)", cursor:"pointer", outline:"none" }}>
+            <option value="All" style={{ background:"#14132A" }}>Всі місяці</option>
+            {dateCtl.visibleMonths.map(m=>(<option key={m} value={m} style={{ background:"#14132A" }}>{toMonthLabel(m)}</option>))}
+            {dateCtl.hasNoDate && <option value="No Date" style={{ background:"#14132A" }}>Без дати</option>}
+          </select>
+          {(dateCtl.yearFilter!=="All" || dateCtl.monthFilter!=="All") && (
+            <button onClick={()=>{ dateCtl.setYearFilter("All"); dateCtl.setMonthFilter("All"); }}
+              style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"5px 11px", borderRadius:7, cursor:"pointer", fontSize:10.5, fontWeight:700, color:C.sub, background:"transparent", border:"1px solid rgba(255,255,255,0.12)" }}><RefreshCw size={11}/> Скинути</button>
+          )}
+        </div>
+      )}
       <div style={{ display:"flex", justifyContent:"space-between", margin:"4px 2px 12px" }}>
         <span style={{ fontSize:12.5, fontWeight:800, letterSpacing:"0.02em", color:C.text }}>Source</span>
         <span style={{ fontSize:12.5, fontWeight:800, letterSpacing:"0.02em", color:C.text }}>Target</span>
       </div>
       {leftBands.length===0 || rightBands.length===0 ? (
-        <div style={{ flex:1, minHeight:460, display:"flex", alignItems:"center", justifyContent:"center", color:C.dim, fontSize:13 }}>Недостатньо даних для діаграми потоку</div>
+        <div style={{ flex:1, minHeight:540, display:"flex", alignItems:"center", justifyContent:"center", color:C.dim, fontSize:13 }}>Недостатньо даних для діаграми потоку</div>
       ) : (
-      <div className="flow-hero-grid" style={{ display:"grid", gridTemplateColumns:"minmax(210px,330px) 9px 1fr 9px minmax(210px,330px)", flex:1, minHeight:500, position:"relative" }}>
+      <div className="flow-hero-grid" style={{ display:"grid", gridTemplateColumns:"minmax(240px,380px) 11px 1fr 11px minmax(240px,380px)", flex:1, minHeight:640, position:"relative" }}>
         {/* watermark */}
         <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:"rgba(255,255,255,0.05)", pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
-          {leftBands.map((b,i)=><NodeRow key={i} b={b} side="brand" on={leftActive(b.name)} seld={b.name===selSource}/>)}
+          {leftBands.map((b,i)=><NodeRow key={i} b={b} side="brand" on={leftActive(b.name)} seld={b.name===selSource} hl={!!selTarget}/>)}
         </div>
         {/* left bars */}
         <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
@@ -1530,9 +1569,22 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdg
           <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
             <defs>
               <linearGradient id="wh-flow" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#5EEAFF"/>
-                <stop offset="50%" stopColor="#4C7BFF"/>
-                <stop offset="100%" stopColor="#A77BFF"/>
+                <stop offset="0%" stopColor="#5EEAFF">
+                  <animate attributeName="stop-color" values="#5EEAFF;#4C7BFF;#A77BFF;#5EEAFF" dur="6s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="50%" stopColor="#4C7BFF">
+                  <animate attributeName="stop-color" values="#4C7BFF;#A77BFF;#5EEAFF;#4C7BFF" dur="6s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="100%" stopColor="#A77BFF">
+                  <animate attributeName="stop-color" values="#A77BFF;#5EEAFF;#4C7BFF;#A77BFF" dur="6s" repeatCount="indefinite"/>
+                </stop>
+              </linearGradient>
+              {/* moving light streak that travels along the streams */}
+              <linearGradient id="wh-shine" x1="0" y1="0" x2="0.32" y2="0" spreadMethod="repeat" gradientUnits="objectBoundingBox">
+                <stop offset="0" stopColor="#FFFFFF" stopOpacity="0"/>
+                <stop offset="0.5" stopColor="#D6F7FF" stopOpacity="0.5"/>
+                <stop offset="1" stopColor="#FFFFFF" stopOpacity="0"/>
+                <animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="0.32 0" dur="2.4s" repeatCount="indefinite"/>
               </linearGradient>
               <filter id="wh-glow" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation="0.004" result="b"/>
@@ -1540,7 +1592,10 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdg
               </filter>
             </defs>
             {ribbons.map(r=>(
-              <path key={r.key} d={r.d} fill="url(#wh-flow)" fillOpacity={sel?0.82:0.6} filter="url(#wh-glow)" style={{ transition:"fill-opacity .16s" }}/>
+              <g key={r.key}>
+                <path d={r.d} fill="url(#wh-flow)" fillOpacity={sel?0.82:0.6} filter="url(#wh-glow)" style={{ transition:"fill-opacity .16s" }}/>
+                <path d={r.d} fill="url(#wh-shine)" fillOpacity={sel?0.55:0.4} style={{ pointerEvents:"none" }}/>
+              </g>
             ))}
           </svg>
         </div>
@@ -1552,7 +1607,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdg
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
-          {rightBands.map((b,j)=><NodeRow key={j} b={b} side="mkt" on={rightActive(b.name)} seld={b.name===selTarget}/>)}
+          {rightBands.map((b,j)=><NodeRow key={j} b={b} side="mkt" on={rightActive(b.name)} seld={b.name===selTarget} hl={!!selSource}/>)}
         </div>
       </div>
       )}
@@ -1590,131 +1645,6 @@ const DetailTable = memo(function DetailTable({ title, cols, rows, t }:{ title:s
   );
 });
 
-/* ─── sidebar filter button ─────────────────────────────────── */
-const SidebarFilterBtn = memo(function SidebarFilterBtn({
-  label, active, onClick, t, logo, compact,
-}: {
-  label:string; active:boolean; onClick:()=>void; t:T; logo?:React.ReactNode; compact?:boolean;
-}) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={()=>setHovered(true)}
-      onMouseLeave={()=>setHovered(false)}
-      style={{
-        display:"flex", alignItems:"center", gap:7, width:"100%",
-        padding: compact ? "5px 10px" : "7px 10px",
-        borderRadius:6, border:"none",
-        borderLeft: active ? `2px solid ${t.blue}` : `2px solid transparent`,
-        background: active ? `${t.blue}12` : hovered ? "rgba(0,0,0,0.04)" : "transparent",
-        color: active ? t.blue : (compact ? t.dim : t.text),
-        fontSize: compact ? 11 : 12,
-        fontWeight: active ? 700 : (compact ? 400 : 500),
-        cursor:"pointer", textAlign:"left",
-        transition:"background 0.15s ease, color 0.15s ease",
-      }}>
-      {logo && <span style={{ flexShrink:0, opacity: active ? 1 : 0.55, display:"flex", alignItems:"center" }}>{logo}</span>}
-      <span style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{label}</span>
-      {active && <div style={{ width:5, height:5, borderRadius:"50%", background:t.blue, flexShrink:0 }}/>}
-    </button>
-  );
-});
-
-/* ── Collapsible sidebar section ─────────────────────────────── */
-function SidebarSection({ icon, label, open, onToggle, children, st }: {
-  icon: React.ReactNode; label: string; open: boolean;
-  onToggle: ()=>void; children: React.ReactNode; st: T;
-}) {
-  return (
-    <div style={{ display:"flex", flexDirection:"column" }}>
-      <button className="sidebar-section-header" onClick={onToggle}>
-        <span style={{ color:st.dim, flexShrink:0, display:"flex", alignItems:"center" }}>{icon}</span>
-        <span style={{
-          fontSize:11, fontWeight:800, letterSpacing:"0.08em",
-          textTransform:"uppercase" as const, color:st.text, flex:1, textAlign:"left" as const,
-        }}>{label}</span>
-        <ChevronDown size={12} style={{
-          color:st.dim, flexShrink:0,
-          transform: open ? "rotate(0deg)" : "rotate(-90deg)",
-          transition:"transform 0.22s cubic-bezier(0.22,1,0.36,1)",
-        }}/>
-      </button>
-      <div className="sidebar-section-body" data-open={String(open)}
-        style={{ display:"flex", flexDirection:"column", gap:2 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/* ─── MiniSparkline — tiny SVG sparkline for brand grid ─────────── */
-function MiniSparkline({ data, color }: { data: number[]; color: string }) {
-  if (data.length < 2) return null;
-  const minV = Math.min(...data);
-  const maxV = Math.max(...data);
-  const range = maxV - minV || 1;
-  const W = 40, H = 14;
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * W;
-    const y = H - ((v - minV) / range) * (H - 2) - 1;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-  const lastV = data[data.length - 1];
-  const lastX = W;
-  const lastY = H - ((lastV - minV) / range) * (H - 2) - 1;
-  return (
-    <svg width={W} height={H} style={{ flexShrink:0, overflow:"visible" }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" opacity={0.8}/>
-      <circle cx={lastX} cy={lastY} r={2.5} fill={color}/>
-    </svg>
-  );
-}
-
-/* ─── BrandGridCell — 2-col icon grid ──────────────────────────── */
-interface BrandTrend { pct:number|null; sparkData:number[]; badge:"rising"|"stable"|"risk"|"none"; curr:number }
-function BrandGridCell({ brand, active, onClick, t, logo, isTop, trend }: { brand:string; active:boolean; onClick:()=>void; t:T; logo?: React.ReactNode; isTop?: boolean; trend?: BrandTrend }) {
-  const [hov, setHov] = React.useState(false);
-  const short = brand.length > 9 ? brand.slice(0,8)+"…" : brand;
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={()=>setHov(true)}
-      onMouseLeave={()=>setHov(false)}
-      style={{
-        position:"relative", display:"flex", flexDirection:"column", alignItems:"center",
-        padding:"7px 4px 5px", borderRadius:6, border:"none",
-        background: active ? `${t.blue}15` : hov ? "rgba(0,0,0,0.04)" : "transparent",
-        cursor:"pointer", gap:3,
-        outline: active ? `2px solid ${t.blue}` : isTop ? `2px solid ${PILL_HI}` : "2px solid transparent",
-        outlineOffset:-1,
-        transition:"all 0.15s ease",
-      }}
-    >
-      {isTop && (
-        <span style={{ position:"absolute", top:2, right:3, fontSize:8, lineHeight:1, pointerEvents:"none" }} title="Top Performer">🏆</span>
-      )}
-      {logo ?? <BrandLogo brand={brand} size={22}/>}
-      <span style={{ fontSize:9, fontWeight:active?700:500, color:active?t.blue:t.sub, textAlign:"center", lineHeight:1.2 }}>{short}</span>
-      {trend && trend.sparkData.length >= 2 && (
-        <MiniSparkline
-          data={trend.sparkData}
-          color={trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":t.text}
-        />
-      )}
-      {trend && trend.badge !== "none" && (
-        <span style={{
-          fontSize:7.5, fontWeight:700, letterSpacing:"0.03em",
-          padding:"1px 5px", borderRadius:3, lineHeight:1.6,
-          background:trend.badge==="rising"?"rgba(22,163,74,0.12)":trend.badge==="risk"?"rgba(255,77,77,0.1)":"rgba(156,163,175,0.12)",
-          color:trend.badge==="rising"?"#16A34A":trend.badge==="risk"?"#FF4D4D":t.text,
-        }}>
-          {trend.badge==="rising"?`↑ +${trend.pct!.toFixed(0)}%`:trend.badge==="risk"?`↓ Ризик`:`→ Стаб.`}
-        </span>
-      )}
-    </button>
-  );
-}
 
 /* ─── HubberSidebarPanel — sidebar card + portal modal ─────────── */
 function HubberSidebarPanel({
@@ -2410,242 +2340,8 @@ function _SkeletonBar({ w = "100%", h = 14, r = 6 }: { w?: string|number; h?: nu
   return <div className="orbit-skel" style={{ width: w, height: h, borderRadius: r, flexShrink: 0 }}/>;
 }
 
-function MktLogo({ brand, size = 16 }: { brand: string; size?: number }) {
-  const b = brand.toLowerCase();
-  const s = size;
-  if (b === "каста" || b === "kasta") return (
-    <svg width={s} height={s} viewBox="0 0 20 20" style={{flexShrink:0}}>
-      <circle cx="10" cy="10" r="10" fill="#00B0A8"/>
-      <text x="10" y="14.5" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" fontFamily="sans-serif">К</text>
-    </svg>
-  );
-  if (b === "розетка" || b === "rozetka") return (
-    <svg width={s} height={s} viewBox="0 0 20 20" style={{flexShrink:0}}>
-      <circle cx="10" cy="10" r="10" fill="#00A046"/>
-      <circle cx="7.2" cy="8.2" r="1.3" fill="white"/>
-      <circle cx="12.8" cy="8.2" r="1.3" fill="white"/>
-      <path d="M6.2 12 Q10 16 13.8 12" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-    </svg>
-  );
-  if (b === "хаббер" || b === "hubber") return (
-    <svg width={s} height={s} viewBox="0 0 20 20" style={{flexShrink:0}}>
-      <rect width="20" height="20" rx="5" fill="#1B4F8B"/>
-      <text x="10" y="14.5" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" fontFamily="sans-serif">H</text>
-    </svg>
-  );
-  if (b === "шафа" || b === "shafa") return (
-    <svg width={s} height={s} viewBox="0 0 20 20" style={{flexShrink:0}}>
-      <circle cx="10" cy="10" r="10" fill="#8BA89E"/>
-      <path d="M10 15.5 C10 15.5 4.5 11.8 4.5 8.2 A3.6 3.6 0 0 1 10 6.8 A3.6 3.6 0 0 1 15.5 8.2 C15.5 11.8 10 15.5 10 15.5Z" fill="white"/>
-    </svg>
-  );
-  return (
-    <div style={{ width:s, height:s, borderRadius:"50%", background:"#2B4559", display:"flex", alignItems:"center", justifyContent:"center", fontSize:Math.round(s*0.55), fontWeight:700, color:"#ffffff", flexShrink:0 }}>
-      {brand.charAt(0)}
-    </div>
-  );
-}
 
-function BrandLogo({ brand, size = 18 }: { brand: string; size?: number }) {
-  const b = brand.toLowerCase().replace(/[\s\-_]/g, "");
-  const s = size;
 
-  /* ── Білий Халат — white coat on soft blue ── */
-  if (b.includes("білий") || b.includes("halat") || b.includes("халат") || b.includes("bilyi")) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <circle cx="12" cy="12" r="12" fill="#3A7BD5"/>
-      {/* coat collar + body */}
-      <path d="M9 5 L9 8 L12 10 L15 8 L15 5 L13.5 5 L12 7 L10.5 5 Z" fill="white"/>
-      <rect x="8" y="9.5" width="8" height="9" rx="1.5" fill="white"/>
-      {/* pocket */}
-      <rect x="13" y="13" width="2.5" height="2.5" rx="0.5" fill="#3A7BD5"/>
-      {/* buttons */}
-      <circle cx="12" cy="11.5" r="0.6" fill="#3A7BD5"/>
-      <circle cx="12" cy="13.5" r="0.6" fill="#3A7BD5"/>
-    </svg>
-  );
-
-  /* ── Kalyna / Калина — red berry cluster ── */
-  if (b.includes("калин") || b.includes("kalyn") || b.includes("kalina")) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <circle cx="12" cy="12" r="12" fill="#1A1A2E"/>
-      {/* stem */}
-      <line x1="12" y1="18" x2="12" y2="11" stroke="#4A7C35" strokeWidth="1.5" strokeLinecap="round"/>
-      <line x1="12" y1="14" x2="9" y2="11.5" stroke="#4A7C35" strokeWidth="1.2" strokeLinecap="round"/>
-      <line x1="12" y1="13" x2="15" y2="10.5" stroke="#4A7C35" strokeWidth="1.2" strokeLinecap="round"/>
-      {/* berries */}
-      <circle cx="12" cy="8.5" r="2.2" fill="#E8192C"/>
-      <circle cx="7.8" cy="10.2" r="1.8" fill="#E8192C"/>
-      <circle cx="16.2" cy="9.2" r="1.8" fill="#E8192C"/>
-      <circle cx="9.5" cy="7.5" r="1.6" fill="#C0111F"/>
-      <circle cx="14.5" cy="7.8" r="1.6" fill="#C0111F"/>
-      {/* berry highlights */}
-      <circle cx="11.4" cy="7.8" r="0.6" fill="rgba(255,255,255,0.45)"/>
-      <circle cx="7.3" cy="9.6" r="0.5" fill="rgba(255,255,255,0.4)"/>
-      <circle cx="15.7" cy="8.6" r="0.5" fill="rgba(255,255,255,0.4)"/>
-    </svg>
-  );
-
-  /* ── Elita / Еліта — red flower ── */
-  if (b.includes("еліт") || b.includes("elit") || b.includes("elita")) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <circle cx="12" cy="12" r="12" fill="#FFF0F0"/>
-      {/* petals */}
-      {[0,60,120,180,240,300].map(deg=>{
-        const rad = (deg * Math.PI) / 180;
-        const cx = 12 + 4.2 * Math.sin(rad);
-        const cy = 12 - 4.2 * Math.cos(rad);
-        return <ellipse key={deg} cx={cx} cy={cy} rx="2.4" ry="3.2"
-          transform={`rotate(${deg},${cx},${cy})`} fill="#E8192C" opacity="0.92"/>;
-      })}
-      {/* centre */}
-      <circle cx="12" cy="12" r="3" fill="#FFD700"/>
-      <circle cx="12" cy="12" r="1.5" fill="#E8A800"/>
-    </svg>
-  );
-
-  /* ── Afina / Афіна — green daisy ── */
-  if (b.includes("афін") || b.includes("afin") || b.includes("afina")) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <circle cx="12" cy="12" r="12" fill="#E8F5E9"/>
-      {/* petals */}
-      {[0,40,80,120,160,200,240,280,320].map(deg=>{
-        const rad = (deg * Math.PI) / 180;
-        const cx = 12 + 4 * Math.sin(rad);
-        const cy = 12 - 4 * Math.cos(rad);
-        return <ellipse key={deg} cx={cx} cy={cy} rx="1.8" ry="3.0"
-          transform={`rotate(${deg},${cx},${cy})`} fill="#2E7D32" opacity="0.85"/>;
-      })}
-      {/* centre */}
-      <circle cx="12" cy="12" r="3" fill="#FFD700"/>
-      <circle cx="12" cy="12" r="1.6" fill="#F9A825"/>
-    </svg>
-  );
-
-  /* ── Artmon / EL-ARTMON — black/dark rounded rect with "A" ── */
-  if (b.includes("artmon") || b.includes("артмон")) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#111111"/>
-      {/* stylised A */}
-      <path d="M12 5.5 L16.5 18 H14.5 L13.4 14.5 H10.6 L9.5 18 H7.5 Z M12 9 L11.2 13 H12.8 Z" fill="white"/>
-    </svg>
-  );
-
-  /* ── Erka / Ерка — red rounded rect with ERKA ── */
-  if (b.includes("ерка") || b.includes("erka")) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#D32F2F"/>
-      <text x="12" y="16" textAnchor="middle" fill="white" fontSize="9" fontWeight="800"
-        fontFamily="Arial,sans-serif" letterSpacing="0.5">ERKA</text>
-    </svg>
-  );
-
-  /* ── Iglen / IGLEN — swan + UA flag colours ── */
-  if (b.includes("iglen") || b.includes("іглен") || b.includes("iгlen")) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      {/* upper half blue (sky), lower half yellow (wheat) */}
-      <clipPath id="iglen-clip"><circle cx="12" cy="12" r="12"/></clipPath>
-      <g clipPath="url(#iglen-clip)">
-        <rect x="0" y="0" width="24" height="12" fill="#005BBB"/>
-        <rect x="0" y="12" width="24" height="12" fill="#FFD500"/>
-      </g>
-      {/* swan body */}
-      <ellipse cx="13" cy="14.5" rx="5.5" ry="3" fill="white" opacity="0.95"/>
-      {/* swan neck */}
-      <path d="M9 14 C8 12 9 9 12 8.5 C13 8.3 13.5 9 12.5 9.5 C11 10 10 12 10.5 14Z" fill="white" opacity="0.95"/>
-      {/* swan head */}
-      <ellipse cx="12.5" cy="8" rx="1.4" ry="1.1" fill="white" opacity="0.95"/>
-      {/* beak */}
-      <path d="M13.8 8 L15.4 8.2 L13.6 8.5Z" fill="#FFA000"/>
-      {/* eye */}
-      <circle cx="12.3" cy="7.7" r="0.4" fill="#1A1A2E"/>
-    </svg>
-  );
-
-  /* ── Brozell / Brозель ── */
-  if (b.includes("brozell") || b.includes("брозел") || b.includes("brozel")) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <circle cx="12" cy="12" r="12" fill="#6A1B9A"/>
-      <text x="12" y="16" textAnchor="middle" fill="white" fontSize="8.5" fontWeight="800"
-        fontFamily="Arial,sans-serif" letterSpacing="0.3">BRZ</text>
-    </svg>
-  );
-
-  /* ── generic fallback: first letter initial ── */
-  const hue = Math.abs(brand.split("").reduce((a,c)=>a+c.charCodeAt(0),0)) % 360;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <circle cx="12" cy="12" r="12" fill={`hsl(${hue},55%,42%)`}/>
-      <text x="12" y="16.5" textAnchor="middle" fill="white" fontSize="11" fontWeight="700"
-        fontFamily="sans-serif">{brand.charAt(0).toUpperCase()}</text>
-    </svg>
-  );
-}
-
-function Chip({ label, active, onClick, t, variant = "default", logo }: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  t: T;
-  variant?: "default" | "meta";
-  logo?: React.ReactNode;
-}) {
-  const [hovered, setHovered] = useState(false);
-
-  const metaInactiveColor  = "rgba(100,160,255,0.10)";
-  const metaBorderInactive = "rgba(100,160,255,0.22)";
-  const metaTextInactive   = "#7ab4ff";
-
-  let bg: string, border: string, color: string, shadow: string;
-  if (active) {
-    bg     = t.blue;
-    border = t.blue;
-    color  = "#ffffff";
-    shadow = `0 2px 10px ${t.blue}55`;
-  } else if (variant === "meta") {
-    bg     = hovered ? metaInactiveColor + "cc" : metaInactiveColor;
-    border = metaBorderInactive;
-    color  = metaTextInactive;
-    shadow = "none";
-  } else {
-    bg     = hovered
-      ? ("rgba(255,255,255,0.07)")
-      : "transparent";
-    border = "rgba(255,255,255,0.16)";
-    color  = t.sub;
-    shadow = "none";
-  }
-
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        padding: logo ? "5px 13px 5px 9px" : "5px 14px",
-        borderRadius: 9,
-        fontSize: 12,
-        fontWeight: active ? 700 : 500,
-        cursor: "pointer",
-        transition: "all 0.15s ease",
-        background: bg,
-        border: `1px solid ${border}`,
-        color,
-        boxShadow: shadow,
-        transform: hovered && !active ? "translateY(-1px)" : "none",
-        whiteSpace: "nowrap",
-        flexShrink: 0,
-        letterSpacing: active ? "0.01em" : "normal",
-        display: "flex",
-        alignItems: "center",
-        gap: logo ? 6 : 0,
-      }}
-    >
-      {logo}
-      {label}
-    </button>
-  );
-}
 
 function TipBox({ active, payload, label, t }: { active?:boolean; payload?:{value:number;name:string;color:string}[]; label?:string; t:T }) {
   if (!active || !payload?.length) return null;
@@ -2699,14 +2395,11 @@ export default function Dashboard() {
   const [productSearch, setProductSearch] = useState("");
   const [productSort,   setProductSort]   = useState<{col:"qty"|"net"|"name"; dir:"asc"|"desc"}>({col:"qty",dir:"desc"});
   const [yearFilter,    setYearFilter]    = useState<string>(()=>_fc.yearFilter);
-  const [mktOpen,     setMktOpen]     = useState(true);
-  const [dateOpen,    setDateOpen]    = useState(true);
-  const [brandsOpen,  setBrandsOpen]  = useState(true);
   const [hubberQuick, setHubberQuick] = useState<HubberQuick|null>(readHubberCache);
   const [hubberQYear, setHubberQYear] = useState(()=>_fc.hubberQYear);
   const [rejTooltip,  setRejTooltip]  = useState<{ reason:string; rect:DOMRect } | null>(null);
   const [cityFilter,  setCityFilter]  = useState<string|null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [lowerOpen, setLowerOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(()=>_fc.darkMode);
   const fileRef = useRef<HTMLInputElement>(null);
   const t = darkMode ? DK : LT;
@@ -3000,22 +2693,6 @@ export default function Dashboard() {
     if (fileData.isMultiSheet) return String(row["_sheet_"] ?? "");
     return "";
   }
-
-  /* ── marketplace values — from pre-stamped _mkt ── */
-  const brands = useMemo(()=>{
-    if (!fileData) return [];
-    const s = new Set(fileData.rows.map(r=>String(r._mkt??"")));
-    s.delete("");
-    return Array.from(s).sort();
-  },[fileData]);
-
-  // Preset brands shown first
-  const brandChips = useMemo(()=>{
-    const inData = new Set(brands);
-    const pre = PRESET_BRANDS.filter(b=>inData.has(b));
-    const rest = brands.filter(b=>!PRESET_BRANDS.includes(b));
-    return [...pre, ...rest];
-  },[brands]);
 
   /* ── current month key e.g. "2026-05" ── */
   const CURRENT_MONTH_KEY = useMemo(()=>toMonthKey(new Date()),[]);
@@ -3379,70 +3056,6 @@ export default function Dashboard() {
       .slice(0, 10);
   },[filtered, fileData, cityFilter]);
 
-  /* ── brand MoM trend + sparkline — reactive to ALL active filters ── */
-  const brandTrend = useMemo(()=>{
-    const result = new Map<string, BrandTrend>();
-    if (!fileData) return result;
-
-    /* rows respecting company filter but NOT brand filter (we need all brands) */
-    const baseRows = fileData.rows.filter(r=>{
-      if (!r._mkt) return false;
-      if (companyFilter!=="All" && String(r["_sheet_"]??"").trim()!==companyFilter) return false;
-      return true;
-    });
-
-    /* determine the visible month keys based on year/month filters */
-    const allMks = Array.from(new Set(
-      baseRows.map(r=>String(r._monthKey??"")).filter(k=>k && k!=="No Date")
-    )).sort();
-
-    let activeMks: string[];
-    if (monthFilter!=="All" && monthFilter!=="No Date") {
-      activeMks = [monthFilter];
-    } else if (yearFilter!=="All") {
-      activeMks = allMks.filter(mk=>mk.startsWith(yearFilter));
-    } else {
-      activeMks = allMks;
-    }
-
-    /* previous period: for single month → previous month; for multi-month → same-length window before */
-    let prevMks: string[];
-    if (activeMks.length === 1) {
-      prevMks = [prevMonthKey(activeMks[0])];
-    } else if (activeMks.length > 1) {
-      const firstIdx = allMks.indexOf(activeMks[0]);
-      const len = activeMks.length;
-      prevMks = firstIdx >= len ? allMks.slice(firstIdx - len, firstIdx) : [];
-    } else {
-      prevMks = [];
-    }
-    const prevMkSet = new Set(prevMks);
-    const activeMkSet = new Set(activeMks);
-
-    /* sparkline months: use up to last 6 months from visible range (or all if ≤6) */
-    const sparkMks = activeMks.slice(-6);
-
-    for (const brand of brandChips) {
-      const byMonth = new Map<string,number>();
-      let currTotal = 0, prevTotal = 0;
-      for (const r of baseRows) {
-        if (r._mkt !== brand) continue;
-        const mk = String(r._monthKey ?? "");
-        if (!mk || mk === "No Date") continue;
-        byMonth.set(mk, (byMonth.get(mk)??0) + (r._net as number));
-        if (activeMkSet.has(mk)) currTotal += (r._net as number);
-        if (prevMkSet.has(mk)) prevTotal += (r._net as number);
-      }
-      const pct = prevTotal !== 0 ? ((currTotal-prevTotal)/Math.abs(prevTotal))*100 : null;
-      const sparkData = sparkMks.map(mk => byMonth.get(mk) ?? 0);
-      const badge: BrandTrend["badge"] =
-        currTotal < 0 || (pct !== null && pct < -5) ? "risk" :
-        pct !== null && pct > 15 ? "rising" :
-        pct !== null ? "stable" : "none";
-      result.set(brand, { pct, sparkData, badge, curr: currTotal });
-    }
-    return result;
-  }, [fileData, brandChips, companyFilter, monthFilter, yearFilter]);
 
   /* ── bar chart show-trend toggle ── */
   const [showBarTrend, setShowBarTrend] = useState(false);
@@ -3741,11 +3354,6 @@ export default function Dashboard() {
       <div style={{ background:t.nav, ...(t.dark ? { backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)" } : {}), borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"fixed", top:0, left:0, right:0, zIndex:100, flexWrap:"nowrap" }}>
         {/* Left: Brand + Nav */}
         <div style={{ display:"flex", alignItems:"center", gap:20, flexShrink:0 }}>
-          {fileData && (
-            <button className="sidebar-toggle-btn" onClick={()=>setSidebarOpen(v=>!v)} aria-label="Toggle sidebar">
-              <Menu size={18}/>
-            </button>
-          )}
           <div style={{ display:"flex", alignItems:"baseline", gap:5 }}>
             <span style={{ color:t.text, fontSize:16, fontWeight:800, letterSpacing:"0.08em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>SOLANA</span>
             <span style={{ color:t.blue, fontSize:13, fontWeight:400 }}>|</span>
@@ -3783,138 +3391,10 @@ export default function Dashboard() {
       {/* ── Body: sidebar (fixed) + main content ─────────────── */}
       <div style={{ paddingTop:56 }}>
 
-        {/* Mobile overlay */}
-        {fileData && sidebarOpen && (
-          <div className={`sidebar-overlay${sidebarOpen ? " sidebar-open" : ""}`} onClick={()=>setSidebarOpen(false)}/>
-        )}
-
-        {/* ── LEFT SIDEBAR — position:fixed via CSS, never shifts content ── */}
-        {fileData && (()=>{
-          const st: T = t;
-          return (
-          <nav className={`orbit-sidebar${sidebarOpen ? " sidebar-open" : ""}`} style={{
-            background: t.bg,
-            borderRight: `1px solid ${t.border}`,
-            padding: "14px 8px 36px",
-            display:"flex", flexDirection:"column", gap:4,
-          }}>
-
-            {/* Status indicator */}
-            <div style={{
-              padding:"9px 12px", borderRadius:4, marginBottom:8,
-              border:`1px solid ${t.border}`,
-            }}>
-              <p style={{ fontSize:11, fontWeight:700, color:t.blue, margin:0, fontFamily:"'JetBrains Mono', 'Inter', sans-serif", letterSpacing:"0.06em" }}>● Аналіз активний</p>
-              <p style={{ fontSize:10, color:t.text, opacity:0.7, margin:"2px 0 0", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Solana // Core</p>
-            </div>
-
-
-            {/* Marketplace — collapsible + 2-col icon grid */}
-            {brandChips.length>0 && (
-              <SidebarSection
-                icon={<Store size={12}/>}
-                label="Маркетплейс"
-                open={mktOpen}
-                onToggle={()=>setMktOpen(v=>!v)}
-                st={st}
-              >
-                <SidebarFilterBtn label="Всі маркетплейси" active={brandFilter==="All"} onClick={()=>setBrandFilter("All")} t={st}/>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:4, marginTop:2 }}>
-                  {brandChips.map(b=>(
-                    <BrandGridCell key={b} brand={b} active={brandFilter===b} onClick={()=>setBrandFilter(b)} t={st} logo={<MktLogo brand={b} size={22}/>} isTop={b===(marketplaceBar[0]?.name??"")} trend={brandTrend.get(b)}/>
-                  ))}
-                </div>
-              </SidebarSection>
-            )}
-
-            {/* Divider */}
-            {brandChips.length>0 && companies.length>0 && <div style={{ height:1, background:st.border, margin:"4px 10px" }}/>}
-
-            {/* Collections — collapsible + 2-col icon grid */}
-            {companies.length>0 && (
-              <SidebarSection
-                icon={<Building2 size={12}/>}
-                label="Колекції SOLANA"
-                open={brandsOpen}
-                onToggle={()=>setBrandsOpen(v=>!v)}
-                st={st}
-              >
-                <SidebarFilterBtn label="Всі бренди" active={companyFilter==="All"} onClick={()=>setCompanyFilter("All")} t={st}/>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:4, marginTop:2 }}>
-                  {companies.map(c=>(
-                    <BrandGridCell key={c} brand={c} active={companyFilter===c} onClick={()=>setCompanyFilter(c)} t={st}/>
-                  ))}
-                </div>
-              </SidebarSection>
-            )}
-
-            {/* Divider */}
-            {months.length>0 && <div style={{ height:1, background:st.border, margin:"4px 10px" }}/>}
-
-            {/* Date — collapsible (moved to bottom) */}
-            {months.length>0 && (
-              <SidebarSection
-                icon={<CalendarDays size={12}/>}
-                label="Дата"
-                open={dateOpen}
-                onToggle={()=>setDateOpen(v=>!v)}
-                st={st}
-              >
-                {years.length>1 && (
-                  <div style={{ padding:"2px 10px 8px" }}>
-                    <span style={{ fontSize:9, color:st.dim, display:"block", marginBottom:4, fontWeight:600, letterSpacing:"0.06em", textTransform:"uppercase" }}>Рік:</span>
-                    <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
-                      <Chip label="Всі" active={yearFilter==="All"} onClick={()=>setYearFilter("All")} t={st} variant="meta"/>
-                      {years.map(y=>(
-                        <Chip key={y} label={y} active={yearFilter===y} onClick={()=>{setYearFilter(y); if(monthFilter!=="All"&&monthFilter!=="No Date"&&!monthFilter.startsWith(y)) setMonthFilter("All");}} t={st}/>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <SidebarFilterBtn label="Всі місяці" active={monthFilter==="All"} onClick={()=>setMonthFilter("All")} t={st}/>
-                {visibleMonths.map(m=>(
-                  <SidebarFilterBtn key={m} label={toMonthLabel(m)} active={monthFilter===m} onClick={()=>setMonthFilter(m)} t={st}/>
-                ))}
-                {months.includes("No Date") && (
-                  <SidebarFilterBtn label="Без дати" active={monthFilter==="No Date"} onClick={()=>setMonthFilter("No Date")} t={st}/>
-                )}
-              </SidebarSection>
-            )}
-
-            {/* Reset — minimal/discreet */}
-            {(brandFilter!=="All"||monthFilter!=="All"||companyFilter!=="All"||yearFilter!=="All") && (
-              <button
-                onClick={()=>{setBrandFilter("All");setMonthFilter("All");setCompanyFilter("All");setYearFilter("All");}}
-                style={{
-                  marginTop:10, padding:"5px 10px", borderRadius:5,
-                  background:"transparent", border:`1px solid ${st.border}`,
-                  color:st.dim, fontSize:9.5, fontWeight:600, cursor:"pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center", gap:4,
-                  transition:"background 0.15s ease", letterSpacing:"0.03em",
-                }}>
-                <RefreshCw size={9}/> Скинути фільтри
-              </button>
-            )}
-
-            {/* Hubber archive quick panel */}
-            <HubberSidebarPanel
-              data={hubberQuick}
-              setData={setHubberQuick}
-              selYear={hubberQYear}
-              setSelYear={setHubberQYear}
-              t={st}
-              mktBreakdown={mktBreakdownForArchive}
-            />
-
-            {/* СКЛАД — Inventory Management */}
-            <InventorySkladPanel t={st} />
-
-          </nav>
-          );
-        })()}
+        {/* sidebar removed — filters relocated into the flow block; archive/inventory moved to the collapsible lower section */}
 
         {/* ── MAIN CONTENT — offset by 252px when sidebar is fixed ── */}
-        <div className={`orbit-content${fileData ? " orbit-main-offset" : ""}`} style={{ minWidth:0, padding:"14px 16px 40px" }}>
+        <div className="orbit-content" style={{ minWidth:0, padding:"14px 24px 40px", maxWidth:1680, margin:"0 auto" }}>
 
           {/* error */}
         {parseError && (
@@ -3978,7 +3458,10 @@ export default function Dashboard() {
                 ]}/>
 
                 {/* Hero flow — primary screen element, full width */}
-                <BrandMktSankey edges={premium.edges} fmt={fmt}/>
+                <BrandMktSankey edges={premium.edges} fmt={fmt} dateCtl={{
+                  years, visibleMonths, hasNoDate: months.includes("No Date"),
+                  yearFilter, monthFilter, setYearFilter, setMonthFilter,
+                }}/>
 
                 {/* Supporting metric cards below the flow */}
                 <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0,1fr))", gap:14, alignItems:"start" }}>
@@ -4241,6 +3724,33 @@ export default function Dashboard() {
               );
             })()}
             </ChartErrorBoundary>
+
+            {/* ── Collapse toggle — everything below the monthly trend ── */}
+            <button onClick={()=>setLowerOpen(v=>!v)} style={{
+              display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%",
+              padding:"12px 16px", marginTop:2, borderRadius:10, cursor:"pointer",
+              background:t.card, border:`1px solid ${t.border}`, color:t.text,
+              fontSize:12, fontWeight:700, letterSpacing:"0.04em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif",
+            }}>
+              <ChevronDown size={15} style={{ transform: lowerOpen ? "rotate(0deg)" : "rotate(-90deg)", transition:"transform .2s" }}/>
+              {lowerOpen ? "Згорнути додаткову аналітику" : "Показати додаткову аналітику"}
+            </button>
+
+            {/* ── Collapsible lower section ── */}
+            <div style={{ display: lowerOpen ? "flex" : "none", flexDirection:"column", gap:10 }}>
+
+            {/* Archive + Inventory (relocated from the removed sidebar) */}
+            <div className="premium-tables-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, alignItems:"start" }}>
+              <HubberSidebarPanel
+                data={hubberQuick}
+                setData={setHubberQuick}
+                selYear={hubberQYear}
+                setSelYear={setHubberQYear}
+                t={t}
+                mktBreakdown={mktBreakdownForArchive}
+              />
+              <InventorySkladPanel t={t} />
+            </div>
 
             {/* ── Row 2: Bar chart by marketplace + Donut + Pie chart ── */}
             <ChartErrorBoundary t={t} label="Аналітика маркетплейсів">
@@ -5138,6 +4648,8 @@ export default function Dashboard() {
                 </table>
               </div>
             </div>
+
+            </div>{/* /collapsible lower section */}
 
           {/* ── Last Updated footer ── */}
           {uploadedAt && (
