@@ -244,16 +244,22 @@ body.dashboard-pinned {
   .pkpi-grid {
     grid-template-columns: repeat(3, 1fr) !important;
   }
-  .premium-flow-grid {
-    grid-template-columns: 1fr !important;
+  .flow-hero-grid {
+    grid-template-columns: minmax(150px,230px) 11px 1fr 11px minmax(150px,230px) !important;
   }
 }
 @media (max-width: 768px) {
   .pkpi-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+  .premium-flow-grid {
+    grid-template-columns: 1fr !important;
+  }
   .premium-tables-grid {
     grid-template-columns: 1fr !important;
+  }
+  .flow-hero-grid {
+    grid-template-columns: minmax(120px,1fr) 8px 1.2fr 8px minmax(120px,1fr) !important;
   }
 }
 @media (max-width: 480px) {
