@@ -1383,148 +1383,164 @@ const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks
   );
 });
 
-/* ── bipartite Sankey: brands (Source, left) → marketplaces (Target, right) ──
-   Interactive hero element. Click a node to highlight only its flows;
-   click again (or "Скинути") to clear. Pure presentational — selection is
-   local UI state and never touches parsing / formulas / app state. ── */
+/* ── Wormhole-style bipartite flow: brands (Source, left) → marketplaces (Target, right) ──
+   Self-contained dark hero panel modeled 1:1 on the Wormhole Scan flow.
+   Click a Source node → the Target column recomputes to that node's own
+   distribution (and vice-versa); click again (or "Скинути") to clear.
+   Pure presentational — selection is local UI state and only re-aggregates
+   the same edges; it never touches parsing / formulas / app state. ── */
 interface BMEdge { brand:string; mkt:string; gross:number; orders:number; }
 type FlowSel = { side:"brand"|"mkt"; name:string } | null;
-const BrandMktSankey = memo(function BrandMktSankey({ edges, t, fmt }:{ edges:BMEdge[]; t:T; fmt:(n:number)=>string }) {
+interface FlowBand { name:string; color:string; total:number; pct:number; y0:number; y1:number; }
+const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdge[]; fmt:(n:number)=>string }) {
   const [mode, setMode] = useState<"volume"|"orders">("volume");
   const [sel, setSel] = useState<FlowSel>(null);
   const val = (e:{gross:number;orders:number}) => mode==="volume" ? e.gross : e.orders;
   const fmtV = (n:number) => mode==="volume" ? fmt(n) : Math.round(n).toLocaleString("uk-UA").replace(/,/g," ");
 
-  // aggregate per brand / per mkt, keep edge list with value
-  const eList = edges.map(e=>({ ...e, v:val(e) })).filter(e=>e.v>0);
+  // dark Wormhole palette (independent of dashboard theme so the panel stays 1:1)
+  const C = {
+    text:"#ECECF4", sub:"#9A9AAE", dim:"#62627A", line:"rgba(255,255,255,0.07)",
+    pillBg:"rgba(255,255,255,0.05)", pillBorder:"rgba(255,255,255,0.09)", pillText:"#9A9AAE",
+    hi:"#DCF25B", hiText:"#1C2406", selBorder:"rgba(150,140,255,0.55)", selBg:"rgba(132,122,240,0.08)",
+  };
 
-  const brandAgg = new Map<string,number>();
-  const mktAgg   = new Map<string,number>();
+  const eList = edges.map(e=>({ ...e, v:val(e) })).filter(e=>e.v>0);
+  const brandAgg = new Map<string,number>(); const mktAgg = new Map<string,number>();
   for (const e of eList) { brandAgg.set(e.brand,(brandAgg.get(e.brand)??0)+e.v); mktAgg.set(e.mkt,(mktAgg.get(e.mkt)??0)+e.v); }
 
-  const TOPB = 8, TOPM = 8;
-  const brands = [...brandAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOPB).map(([name],i)=>({ name, color:VIVID[i%VIVID.length] }));
-  const mkts   = [...mktAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOPM).map(([name],i)=>({ name, color:VIVID[(i+3)%VIVID.length] }));
-  const brandSet = new Set(brands.map(b=>b.name)); const mktSet = new Set(mkts.map(m=>m.name));
+  const TOP = 10;
+  const brandOrder = [...brandAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOP).map(([n])=>n);
+  const mktOrder   = [...mktAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOP).map(([n])=>n);
+  const brandColor = new Map(brandOrder.map((n,i)=>[n,VIVID[i%VIVID.length]]));
+  const mktColor   = new Map(mktOrder.map((n,i)=>[n,VIVID[(i+3)%VIVID.length]]));
+  const brandSet = new Set(brandOrder); const mktSet = new Set(mktOrder);
   const shown = eList.filter(e=>brandSet.has(e.brand) && mktSet.has(e.mkt));
-  const gShown = shown.reduce((a,e)=>a+e.v,0) || 1;
-
+  const G = shown.reduce((a,e)=>a+e.v,0) || 1;
+  const edge = (b:string,m:string)=>shown.filter(e=>e.brand===b && e.mkt===m).reduce((a,e)=>a+e.v,0);
   const bTot = (n:string)=>shown.filter(e=>e.brand===n).reduce((a,e)=>a+e.v,0);
   const mTot = (n:string)=>shown.filter(e=>e.mkt===n).reduce((a,e)=>a+e.v,0);
 
-  let cumL=0; const leftBands = brands.filter(b=>bTot(b.name)>0).map(b=>{ const h=bTot(b.name)/gShown; const band={ name:b.name, color:b.color, total:bTot(b.name), y0:cumL, y1:cumL+h }; cumL+=h; return band; });
-  let cumR=0; const rightBands = mkts.filter(m=>mTot(m.name)>0).map(m=>{ const h=mTot(m.name)/gShown; const band={ name:m.name, color:m.color, total:mTot(m.name), y0:cumR, y1:cumR+h }; cumR+=h; return band; });
+  const selSource = sel?.side==="brand" ? sel.name : null;
+  const selTarget = sel?.side==="mkt"   ? sel.name : null;
 
-  const lCur = new Map(leftBands.map(b=>[b.name,b.y0]));
-  const rCur = new Map(rightBands.map(b=>[b.name,b.y0]));
-  const ribbons:{ d:string; color:string; key:string; brand:string; mkt:string }[] = [];
-  for (const lb of leftBands) for (const rb of rightBands) {
-    const e = shown.find(x=>x.brand===lb.name && x.mkt===rb.name); if (!e) continue;
-    const h = e.v/gShown;
-    const lY0=lCur.get(lb.name)!, lY1=lY0+h; lCur.set(lb.name,lY1);
-    const rY0=rCur.get(rb.name)!, rY1=rY0+h; rCur.set(rb.name,rY1);
-    ribbons.push({ key:`${lb.name}-${rb.name}`, color:lb.color, brand:lb.name, mkt:rb.name, d:`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z` });
-  }
-  const dim = t.dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
+  // helper: stack a list of {name,color,total} into bands [0..1], pct relative to their own sum
+  const stack = (items:{name:string;color:string;total:number}[]):FlowBand[] => {
+    const sum = items.reduce((a,x)=>a+x.total,0) || 1; let cur=0;
+    return items.map(x=>{ const h=x.total/sum; const b={ name:x.name, color:x.color, total:x.total, pct:x.total/sum*100, y0:cur, y1:cur+h }; cur+=h; return b; });
+  };
 
-  // selection → related sets on the opposite side
-  const relBrands = new Set<string>(); const relMkts = new Set<string>();
-  if (sel) for (const e of shown) {
-    if (sel.side==="brand" && e.brand===sel.name) relMkts.add(e.mkt);
-    if (sel.side==="mkt"   && e.mkt===sel.name)   relBrands.add(e.brand);
+  // overall bands (used when its side is not the recomputed one)
+  const leftAll  = stack(brandOrder.filter(n=>bTot(n)>0).map(n=>({ name:n, color:brandColor.get(n)!, total:bTot(n) })));
+  const rightAll = stack(mktOrder.filter(n=>mTot(n)>0).map(n=>({ name:n, color:mktColor.get(n)!, total:mTot(n) })));
+
+  // when a Source is selected, the Target column shows that source's breakdown (full height)
+  const rightSel = selSource ? stack(mktOrder.map(n=>({ name:n, color:mktColor.get(n)!, total:edge(selSource,n) })).filter(x=>x.total>0).sort((a,b)=>b.total-a.total)) : null;
+  // when a Target is selected, the Source column shows that target's breakdown (full height)
+  const leftSel  = selTarget ? stack(brandOrder.map(n=>({ name:n, color:brandColor.get(n)!, total:edge(n,selTarget) })).filter(x=>x.total>0).sort((a,b)=>b.total-a.total)) : null;
+
+  const leftBands  = leftSel  ?? leftAll;
+  const rightBands = rightSel ?? rightAll;
+
+  // ribbons
+  const pathD = (lY0:number,lY1:number,rY0:number,rY1:number)=>`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z`;
+  const ribbons:{ key:string; d:string }[] = [];
+  if (selSource) {
+    const sb = leftAll.find(b=>b.name===selSource);
+    if (sb) { const span=sb.y1-sb.y0; let cur=sb.y0; for (const rb of rightBands) { const lh=(rb.y1-rb.y0)*span; ribbons.push({ key:`${selSource}-${rb.name}`, d:pathD(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
+  } else if (selTarget) {
+    const tb = rightAll.find(b=>b.name===selTarget);
+    if (tb) { const span=tb.y1-tb.y0; let cur=tb.y0; for (const lb of leftBands) { const rh=(lb.y1-lb.y0)*span; ribbons.push({ key:`${lb.name}-${selTarget}`, d:pathD(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
+  } else {
+    const lCur = new Map(leftBands.map(b=>[b.name,b.y0]));
+    const rCur = new Map(rightBands.map(b=>[b.name,b.y0]));
+    for (const lb of leftBands) for (const rb of rightBands) {
+      const ev = edge(lb.name,rb.name); if (!ev) continue; const h=ev/G;
+      const lY0=lCur.get(lb.name)!, lY1=lY0+h; lCur.set(lb.name,lY1);
+      const rY0=rCur.get(rb.name)!, rY1=rY0+h; rCur.set(rb.name,rY1);
+      ribbons.push({ key:`${lb.name}-${rb.name}`, d:pathD(lY0,lY1,rY0,rY1) });
+    }
   }
-  const brandActive = (n:string)=> !sel || (sel.side==="brand" ? sel.name===n : relBrands.has(n));
-  const mktActive   = (n:string)=> !sel || (sel.side==="mkt"   ? sel.name===n : relMkts.has(n));
-  const isSelBrand  = (n:string)=> sel?.side==="brand" && sel.name===n;
-  const isSelMkt    = (n:string)=> sel?.side==="mkt"   && sel.name===n;
-  const ribbonActive= (r:{brand:string;mkt:string})=> !sel || (sel.side==="brand" ? r.brand===sel.name : r.mkt===sel.name);
+
+  const leftActive  = (n:string)=> selSource ? n===selSource : true;
+  const rightActive = (n:string)=> selTarget ? n===selTarget : true;
   const toggle = (side:"brand"|"mkt", name:string)=> setSel(p=> p && p.side===side && p.name===name ? null : { side, name });
 
-  const Pill = ({ pct, accent }:{ pct:number; accent?:boolean }) => (
-    <span style={{ fontSize:10, fontWeight:800, fontFamily:MONO, padding:"2px 7px", borderRadius:999, lineHeight:1.4, flexShrink:0,
-      color: accent ? "#1A2E05" : t.sub, background: accent ? PILL_HI : dim, border:`1px solid ${accent ? PILL_HI : t.border}` }}>
-      {pct.toFixed(2)}%
+  const Pill = ({ pct, on }:{ pct:number; on:boolean }) => (
+    <span style={{ fontSize:10.5, fontWeight:800, fontFamily:MONO, padding:"2.5px 8px", borderRadius:999, lineHeight:1.35, flexShrink:0, letterSpacing:"0.02em",
+      color: on ? C.hiText : C.pillText, background: on ? C.hi : C.pillBg, border:`1px solid ${on ? C.hi : C.pillBorder}` }}>
+      {pct.toFixed(2).replace(".",",")}%
     </span>
   );
 
+  const NodeRow = ({ b, side, on, seld }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean }) => (
+    <button onClick={()=>toggle(side,b.name)} title={b.name}
+      style={{ position:"absolute", left:0, right:0, top:`${(b.y0+b.y1)/2*100}%`, transform:"translateY(-50%)",
+        display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor:"pointer",
+        background: seld ? C.selBg : "transparent", border:`1.5px solid ${seld ? C.selBorder : "transparent"}`,
+        opacity: on?1:0.34, transition:"opacity .16s, background .16s, border-color .16s" }}>
+      <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>
+      <span style={{ fontSize:13, fontWeight:650, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{b.name}</span>
+      <span style={{ fontSize:12.5, color:C.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(b.total)}</span>
+      <Pill pct={b.pct} on={seld}/>
+    </button>
+  );
+
   return (
-    <div style={{ ...glass(t), padding:"18px 22px 24px", display:"flex", flexDirection:"column" }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:10 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
-          <span style={{ fontSize:16, fontWeight:800, color:t.text, letterSpacing:"-0.01em" }}>Грошовий потік</span>
-          <div style={{ display:"inline-flex", padding:3, borderRadius:8, background:dim, border:`1px solid ${t.border}` }}>
-            {([["volume","Оборот"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
-              <button key={m} onClick={()=>setMode(m)} style={{ padding:"5px 15px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? "#fff" : t.dim, background: mode===m ? t.blue : "transparent", transition:"all .15s" }}>{lbl}</button>
-            ))}
-          </div>
+    <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:20, padding:"16px 22px 26px", display:"flex", flexDirection:"column", boxShadow:"0 16px 50px rgba(0,0,0,0.45)" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6, gap:10, flexWrap:"wrap" }}>
+        <div style={{ display:"inline-flex", padding:3, borderRadius:9, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)" }}>
+          {([["volume","Оборот"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
+            <button key={m} onClick={()=>setMode(m)} style={{ padding:"5px 16px", borderRadius:7, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? "#0B0B16" : C.sub, background: mode===m ? C.hi : "transparent", transition:"all .15s" }}>{lbl}</button>
+          ))}
         </div>
         {sel
-          ? <button onClick={()=>setSel(null)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.border}`, background:t.in, cursor:"pointer", fontSize:11, fontWeight:700, color:t.text }}><X size={13}/> Скинути виділення</button>
-          : <span style={{ fontSize:11, color:t.dim, fontWeight:600 }}>Клікніть вузол, щоб виділити його потоки</span>}
+          ? <button onClick={()=>setSel(null)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 13px", borderRadius:8, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", cursor:"pointer", fontSize:11, fontWeight:700, color:C.text }}><X size={13}/> Скинути виділення</button>
+          : <span style={{ fontSize:11, color:C.dim, fontWeight:600 }}>Клікніть вузол, щоб виділити його потоки</span>}
       </div>
-      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10, padding:"0 2px" }}>
-        <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.16em", textTransform:"uppercase", color:t.dim }}>Source · Бренди</span>
-        <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.16em", textTransform:"uppercase", color:t.dim }}>Маркетплейси · Target</span>
+      <div style={{ display:"flex", justifyContent:"space-between", margin:"4px 2px 12px" }}>
+        <span style={{ fontSize:12.5, fontWeight:800, letterSpacing:"0.02em", color:C.text }}>Source</span>
+        <span style={{ fontSize:12.5, fontWeight:800, letterSpacing:"0.02em", color:C.text }}>Target</span>
       </div>
       {leftBands.length===0 || rightBands.length===0 ? (
-        <div style={{ flex:1, minHeight:420, display:"flex", alignItems:"center", justifyContent:"center", color:t.dim, fontSize:13 }}>Недостатньо даних для діаграми потоку</div>
+        <div style={{ flex:1, minHeight:460, display:"flex", alignItems:"center", justifyContent:"center", color:C.dim, fontSize:13 }}>Недостатньо даних для діаграми потоку</div>
       ) : (
-      <div className="flow-hero-grid" style={{ display:"grid", gridTemplateColumns:"minmax(180px,300px) 11px 1fr 11px minmax(180px,300px)", flex:1, minHeight:480, position:"relative" }}>
+      <div className="flow-hero-grid" style={{ display:"grid", gridTemplateColumns:"minmax(210px,330px) 9px 1fr 9px minmax(210px,330px)", flex:1, minHeight:500, position:"relative" }}>
+        {/* watermark */}
+        <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:"rgba(255,255,255,0.05)", pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
-          {leftBands.map((lb,i)=>{
-            const active=brandActive(lb.name), seld=isSelBrand(lb.name);
-            return (
-            <button key={i} onClick={()=>toggle("brand",lb.name)} title={lb.name}
-              style={{ position:"absolute", right:0, top:`${(lb.y0+lb.y1)/2*100}%`, transform:"translateY(-50%)", width:"100%",
-                display:"flex", alignItems:"center", gap:9, justifyContent:"flex-end", padding:"5px 11px 5px 8px",
-                background: seld ? (t.dark?"rgba(139,130,240,0.12)":"rgba(109,95,232,0.07)") : "transparent",
-                border:`1.5px solid ${seld ? t.blue : "transparent"}`, borderRadius:9, cursor:"pointer",
-                opacity: active?1:0.32, transition:"opacity .15s, background .15s, border-color .15s" }}>
-              <span style={{ width:9, height:9, borderRadius:3, background:lb.color, flexShrink:0 }}/>
-              <span style={{ fontSize:13, fontWeight:700, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{lb.name}</span>
-              <span style={{ fontSize:12, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(lb.total)}</span>
-              <Pill pct={lb.total/gShown*100} accent={seld}/>
-            </button>
-          );})}
+          {leftBands.map((b,i)=><NodeRow key={i} b={b} side="brand" on={leftActive(b.name)} seld={b.name===selSource}/>)}
         </div>
         {/* left bars */}
-        <div style={{ position:"relative" }}>
-          {leftBands.map((lb,i)=>(
-            <div key={i} style={{ position:"absolute", left:0, right:0, top:`calc(${lb.y0*100}% + 1.5px)`, height:`calc(${(lb.y1-lb.y0)*100}% - 3px)`, background:lb.color, borderRadius:3, opacity:brandActive(lb.name)?1:0.28, transition:"opacity .15s" }}/>
+        <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
+          {leftBands.map((b,i)=>(
+            <div key={i} style={{ position:"absolute", left:0, right:0, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`, background:b.color, borderRadius:2, opacity:leftActive(b.name)?1:0.26, transition:"opacity .16s" }}/>
           ))}
         </div>
         {/* ribbons */}
         <div style={{ position:"relative" }}>
           <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
-            {ribbons.map(r=>{ const on=ribbonActive(r); return (
-              <path key={r.key} d={r.d} fill={r.color} fillOpacity={ sel ? (on?0.62:0.05) : 0.4 } style={{ transition:"fill-opacity .15s" }}/>
-            );})}
+            <defs>
+              <linearGradient id="wh-flow" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#9088F2"/>
+                <stop offset="100%" stopColor="#5B51B8"/>
+              </linearGradient>
+            </defs>
+            {ribbons.map(r=>(
+              <path key={r.key} d={r.d} fill="url(#wh-flow)" fillOpacity={sel?0.72:0.5} style={{ transition:"fill-opacity .16s" }}/>
+            ))}
           </svg>
         </div>
         {/* right bars */}
-        <div style={{ position:"relative" }}>
-          {rightBands.map((rb,j)=>(
-            <div key={j} style={{ position:"absolute", left:0, right:0, top:`calc(${rb.y0*100}% + 1.5px)`, height:`calc(${(rb.y1-rb.y0)*100}% - 3px)`, background:rb.color, borderRadius:3, opacity:mktActive(rb.name)?1:0.28, transition:"opacity .15s" }}/>
+        <div style={{ position:"relative", borderLeft:`1px solid ${C.line}` }}>
+          {rightBands.map((b,j)=>(
+            <div key={j} style={{ position:"absolute", left:0, right:0, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`, background:b.color, borderRadius:2, opacity:rightActive(b.name)?1:0.26, transition:"opacity .16s" }}/>
           ))}
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
-          {rightBands.map((rb,j)=>{
-            const active=mktActive(rb.name), seld=isSelMkt(rb.name);
-            return (
-            <button key={j} onClick={()=>toggle("mkt",rb.name)} title={rb.name}
-              style={{ position:"absolute", left:0, top:`${(rb.y0+rb.y1)/2*100}%`, transform:"translateY(-50%)", width:"100%",
-                display:"flex", alignItems:"center", gap:9, justifyContent:"flex-start", padding:"5px 8px 5px 11px",
-                background: seld ? (t.dark?"rgba(139,130,240,0.12)":"rgba(109,95,232,0.07)") : "transparent",
-                border:`1.5px solid ${seld ? t.blue : "transparent"}`, borderRadius:9, cursor:"pointer",
-                opacity: active?1:0.32, transition:"opacity .15s, background .15s, border-color .15s" }}>
-              <span style={{ width:9, height:9, borderRadius:3, background:rb.color, flexShrink:0 }}/>
-              <span style={{ fontSize:13, fontWeight:700, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{rb.name}</span>
-              <span style={{ fontSize:12, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(rb.total)}</span>
-              <Pill pct={rb.total/gShown*100} accent={seld}/>
-            </button>
-          );})}
+          {rightBands.map((b,j)=><NodeRow key={j} b={b} side="mkt" on={rightActive(b.name)} seld={b.name===selTarget}/>)}
         </div>
       </div>
       )}
@@ -3950,7 +3966,7 @@ export default function Dashboard() {
                 ]}/>
 
                 {/* Hero flow — primary screen element, full width */}
-                <BrandMktSankey edges={premium.edges} t={t} fmt={fmt}/>
+                <BrandMktSankey edges={premium.edges} fmt={fmt}/>
 
                 {/* Supporting metric cards below the flow */}
                 <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0,1fr))", gap:14, alignItems:"start" }}>
