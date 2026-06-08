@@ -1383,10 +1383,15 @@ const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks
   );
 });
 
-/* ── bipartite Sankey: brands (left) → marketplaces (right) ── */
+/* ── bipartite Sankey: brands (Source, left) → marketplaces (Target, right) ──
+   Interactive hero element. Click a node to highlight only its flows;
+   click again (or "Скинути") to clear. Pure presentational — selection is
+   local UI state and never touches parsing / formulas / app state. ── */
 interface BMEdge { brand:string; mkt:string; gross:number; orders:number; }
+type FlowSel = { side:"brand"|"mkt"; name:string } | null;
 const BrandMktSankey = memo(function BrandMktSankey({ edges, t, fmt }:{ edges:BMEdge[]; t:T; fmt:(n:number)=>string }) {
   const [mode, setMode] = useState<"volume"|"orders">("volume");
+  const [sel, setSel] = useState<FlowSel>(null);
   const val = (e:{gross:number;orders:number}) => mode==="volume" ? e.gross : e.orders;
   const fmtV = (n:number) => mode==="volume" ? fmt(n) : Math.round(n).toLocaleString("uk-UA").replace(/,/g," ");
 
@@ -1397,10 +1402,10 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, t, fmt }:{ edges:BM
   const mktAgg   = new Map<string,number>();
   for (const e of eList) { brandAgg.set(e.brand,(brandAgg.get(e.brand)??0)+e.v); mktAgg.set(e.mkt,(mktAgg.get(e.mkt)??0)+e.v); }
 
-  const TOPB = 7, TOPM = 7;
+  const TOPB = 8, TOPM = 8;
   const brands = [...brandAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOPB).map(([name],i)=>({ name, color:VIVID[i%VIVID.length] }));
-  const mkts   = [...mktAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOPM).map(([name])=>name);
-  const brandSet = new Set(brands.map(b=>b.name)); const mktSet = new Set(mkts);
+  const mkts   = [...mktAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOPM).map(([name],i)=>({ name, color:VIVID[(i+3)%VIVID.length] }));
+  const brandSet = new Set(brands.map(b=>b.name)); const mktSet = new Set(mkts.map(m=>m.name));
   const shown = eList.filter(e=>brandSet.has(e.brand) && mktSet.has(e.mkt));
   const gShown = shown.reduce((a,e)=>a+e.v,0) || 1;
 
@@ -1408,80 +1413,118 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, t, fmt }:{ edges:BM
   const mTot = (n:string)=>shown.filter(e=>e.mkt===n).reduce((a,e)=>a+e.v,0);
 
   let cumL=0; const leftBands = brands.filter(b=>bTot(b.name)>0).map(b=>{ const h=bTot(b.name)/gShown; const band={ name:b.name, color:b.color, total:bTot(b.name), y0:cumL, y1:cumL+h }; cumL+=h; return band; });
-  let cumR=0; const rightBands = mkts.filter(m=>mTot(m)>0).map(m=>{ const h=mTot(m)/gShown; const band={ name:m, total:mTot(m), y0:cumR, y1:cumR+h }; cumR+=h; return band; });
+  let cumR=0; const rightBands = mkts.filter(m=>mTot(m.name)>0).map(m=>{ const h=mTot(m.name)/gShown; const band={ name:m.name, color:m.color, total:mTot(m.name), y0:cumR, y1:cumR+h }; cumR+=h; return band; });
 
   const lCur = new Map(leftBands.map(b=>[b.name,b.y0]));
   const rCur = new Map(rightBands.map(b=>[b.name,b.y0]));
-  const ribbons:{ d:string; color:string; key:string }[] = [];
+  const ribbons:{ d:string; color:string; key:string; brand:string; mkt:string }[] = [];
   for (const lb of leftBands) for (const rb of rightBands) {
     const e = shown.find(x=>x.brand===lb.name && x.mkt===rb.name); if (!e) continue;
     const h = e.v/gShown;
     const lY0=lCur.get(lb.name)!, lY1=lY0+h; lCur.set(lb.name,lY1);
     const rY0=rCur.get(rb.name)!, rY1=rY0+h; rCur.set(rb.name,rY1);
-    ribbons.push({ key:`${lb.name}-${rb.name}`, color:lb.color, d:`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z` });
+    ribbons.push({ key:`${lb.name}-${rb.name}`, color:lb.color, brand:lb.name, mkt:rb.name, d:`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z` });
   }
   const dim = t.dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
 
+  // selection → related sets on the opposite side
+  const relBrands = new Set<string>(); const relMkts = new Set<string>();
+  if (sel) for (const e of shown) {
+    if (sel.side==="brand" && e.brand===sel.name) relMkts.add(e.mkt);
+    if (sel.side==="mkt"   && e.mkt===sel.name)   relBrands.add(e.brand);
+  }
+  const brandActive = (n:string)=> !sel || (sel.side==="brand" ? sel.name===n : relBrands.has(n));
+  const mktActive   = (n:string)=> !sel || (sel.side==="mkt"   ? sel.name===n : relMkts.has(n));
+  const isSelBrand  = (n:string)=> sel?.side==="brand" && sel.name===n;
+  const isSelMkt    = (n:string)=> sel?.side==="mkt"   && sel.name===n;
+  const ribbonActive= (r:{brand:string;mkt:string})=> !sel || (sel.side==="brand" ? r.brand===sel.name : r.mkt===sel.name);
+  const toggle = (side:"brand"|"mkt", name:string)=> setSel(p=> p && p.side===side && p.name===name ? null : { side, name });
+
+  const Pill = ({ pct, accent }:{ pct:number; accent?:boolean }) => (
+    <span style={{ fontSize:10, fontWeight:800, fontFamily:MONO, padding:"2px 7px", borderRadius:999, lineHeight:1.4, flexShrink:0,
+      color: accent ? "#1A2E05" : t.sub, background: accent ? PILL_HI : dim, border:`1px solid ${accent ? PILL_HI : t.border}` }}>
+      {pct.toFixed(2)}%
+    </span>
+  );
+
   return (
-    <div style={{ ...glass(t), padding:"18px 20px 22px", height:"100%", display:"flex", flexDirection:"column" }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14, flexWrap:"wrap", gap:10 }}>
-        <span style={{ fontSize:15, fontWeight:800, color:t.text, letterSpacing:"-0.01em" }}>Грошовий потік</span>
-        <div style={{ display:"inline-flex", padding:3, borderRadius:8, background:dim, border:`1px solid ${t.border}` }}>
-          {([["volume","Оборот"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
-            <button key={m} onClick={()=>setMode(m)} style={{ padding:"4px 13px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? "#fff" : t.dim, background: mode===m ? t.blue : "transparent", transition:"all .15s" }}>{lbl}</button>
-          ))}
+    <div style={{ ...glass(t), padding:"18px 22px 24px", display:"flex", flexDirection:"column" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap", gap:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+          <span style={{ fontSize:16, fontWeight:800, color:t.text, letterSpacing:"-0.01em" }}>Грошовий потік</span>
+          <div style={{ display:"inline-flex", padding:3, borderRadius:8, background:dim, border:`1px solid ${t.border}` }}>
+            {([["volume","Оборот"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
+              <button key={m} onClick={()=>setMode(m)} style={{ padding:"5px 15px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? "#fff" : t.dim, background: mode===m ? t.blue : "transparent", transition:"all .15s" }}>{lbl}</button>
+            ))}
+          </div>
         </div>
+        {sel
+          ? <button onClick={()=>setSel(null)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.border}`, background:t.in, cursor:"pointer", fontSize:11, fontWeight:700, color:t.text }}><X size={13}/> Скинути виділення</button>
+          : <span style={{ fontSize:11, color:t.dim, fontWeight:600 }}>Клікніть вузол, щоб виділити його потоки</span>}
       </div>
-      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8, padding:"0 2px" }}>
-        <span style={{ fontSize:10, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color:t.dim }}>Бренди</span>
-        <span style={{ fontSize:10, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color:t.dim }}>Маркетплейси</span>
+      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10, padding:"0 2px" }}>
+        <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.16em", textTransform:"uppercase", color:t.dim }}>Source · Бренди</span>
+        <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.16em", textTransform:"uppercase", color:t.dim }}>Маркетплейси · Target</span>
       </div>
       {leftBands.length===0 || rightBands.length===0 ? (
-        <div style={{ flex:1, minHeight:300, display:"flex", alignItems:"center", justifyContent:"center", color:t.dim, fontSize:12 }}>Недостатньо даних для діаграми потоку</div>
+        <div style={{ flex:1, minHeight:420, display:"flex", alignItems:"center", justifyContent:"center", color:t.dim, fontSize:13 }}>Недостатньо даних для діаграми потоку</div>
       ) : (
-      <div style={{ display:"grid", gridTemplateColumns:"minmax(96px,150px) 9px 1fr 9px minmax(96px,150px)", flex:1, minHeight:320, position:"relative" }}>
+      <div className="flow-hero-grid" style={{ display:"grid", gridTemplateColumns:"minmax(180px,300px) 11px 1fr 11px minmax(180px,300px)", flex:1, minHeight:480, position:"relative" }}>
+        {/* left node rows (Source) */}
+        <div style={{ position:"relative" }}>
+          {leftBands.map((lb,i)=>{
+            const active=brandActive(lb.name), seld=isSelBrand(lb.name);
+            return (
+            <button key={i} onClick={()=>toggle("brand",lb.name)} title={lb.name}
+              style={{ position:"absolute", right:0, top:`${(lb.y0+lb.y1)/2*100}%`, transform:"translateY(-50%)", width:"100%",
+                display:"flex", alignItems:"center", gap:9, justifyContent:"flex-end", padding:"5px 11px 5px 8px",
+                background: seld ? (t.dark?"rgba(139,130,240,0.12)":"rgba(109,95,232,0.07)") : "transparent",
+                border:`1.5px solid ${seld ? t.blue : "transparent"}`, borderRadius:9, cursor:"pointer",
+                opacity: active?1:0.32, transition:"opacity .15s, background .15s, border-color .15s" }}>
+              <span style={{ width:9, height:9, borderRadius:3, background:lb.color, flexShrink:0 }}/>
+              <span style={{ fontSize:13, fontWeight:700, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{lb.name}</span>
+              <span style={{ fontSize:12, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(lb.total)}</span>
+              <Pill pct={lb.total/gShown*100} accent={seld}/>
+            </button>
+          );})}
+        </div>
+        {/* left bars */}
         <div style={{ position:"relative" }}>
           {leftBands.map((lb,i)=>(
-            <div key={i} style={{ position:"absolute", right:0, top:`${(lb.y0+lb.y1)/2*100}%`, transform:"translateY(-50%)", maxWidth:"100%", paddingRight:9 }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:6 }}>
-                <span style={{ fontSize:12, fontWeight:700, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:108 }}>{lb.name}</span>
-                <span style={{ width:8, height:8, borderRadius:2, background:lb.color, flexShrink:0 }}/>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", gap:6, marginTop:3 }}>
-                <span style={{ fontSize:11, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap" }}>{fmtV(lb.total)}</span>
-                <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, color:t.dim }}>{(lb.total/gShown*100).toFixed(1)}%</span>
-              </div>
-            </div>
+            <div key={i} style={{ position:"absolute", left:0, right:0, top:`calc(${lb.y0*100}% + 1.5px)`, height:`calc(${(lb.y1-lb.y0)*100}% - 3px)`, background:lb.color, borderRadius:3, opacity:brandActive(lb.name)?1:0.28, transition:"opacity .15s" }}/>
           ))}
         </div>
-        <div style={{ position:"relative" }}>
-          {leftBands.map((lb,i)=>(
-            <div key={i} style={{ position:"absolute", left:0, right:0, top:`calc(${lb.y0*100}% + 1px)`, height:`calc(${(lb.y1-lb.y0)*100}% - 2px)`, background:lb.color, borderRadius:2 }}/>
-          ))}
-        </div>
+        {/* ribbons */}
         <div style={{ position:"relative" }}>
           <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
-            {ribbons.map(r=>(<path key={r.key} d={r.d} fill={r.color} fillOpacity={0.42}/>))}
+            {ribbons.map(r=>{ const on=ribbonActive(r); return (
+              <path key={r.key} d={r.d} fill={r.color} fillOpacity={ sel ? (on?0.62:0.05) : 0.4 } style={{ transition:"fill-opacity .15s" }}/>
+            );})}
           </svg>
         </div>
+        {/* right bars */}
         <div style={{ position:"relative" }}>
           {rightBands.map((rb,j)=>(
-            <div key={j} style={{ position:"absolute", left:0, right:0, top:`calc(${rb.y0*100}% + 1px)`, height:`calc(${(rb.y1-rb.y0)*100}% - 2px)`, background:t.sub, borderRadius:2 }}/>
+            <div key={j} style={{ position:"absolute", left:0, right:0, top:`calc(${rb.y0*100}% + 1.5px)`, height:`calc(${(rb.y1-rb.y0)*100}% - 3px)`, background:rb.color, borderRadius:3, opacity:mktActive(rb.name)?1:0.28, transition:"opacity .15s" }}/>
           ))}
         </div>
+        {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
-          {rightBands.map((rb,j)=>(
-            <div key={j} style={{ position:"absolute", left:0, top:`${(rb.y0+rb.y1)/2*100}%`, transform:"translateY(-50%)", maxWidth:"100%", paddingLeft:9 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ width:8, height:8, borderRadius:2, background:t.sub, flexShrink:0 }}/>
-                <span style={{ fontSize:12, fontWeight:700, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:108 }}>{rb.name}</span>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
-                <span style={{ fontSize:11, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap" }}>{fmtV(rb.total)}</span>
-                <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, color:t.dim }}>{(rb.total/gShown*100).toFixed(1)}%</span>
-              </div>
-            </div>
-          ))}
+          {rightBands.map((rb,j)=>{
+            const active=mktActive(rb.name), seld=isSelMkt(rb.name);
+            return (
+            <button key={j} onClick={()=>toggle("mkt",rb.name)} title={rb.name}
+              style={{ position:"absolute", left:0, top:`${(rb.y0+rb.y1)/2*100}%`, transform:"translateY(-50%)", width:"100%",
+                display:"flex", alignItems:"center", gap:9, justifyContent:"flex-start", padding:"5px 8px 5px 11px",
+                background: seld ? (t.dark?"rgba(139,130,240,0.12)":"rgba(109,95,232,0.07)") : "transparent",
+                border:`1.5px solid ${seld ? t.blue : "transparent"}`, borderRadius:9, cursor:"pointer",
+                opacity: active?1:0.32, transition:"opacity .15s, background .15s, border-color .15s" }}>
+              <span style={{ width:9, height:9, borderRadius:3, background:rb.color, flexShrink:0 }}/>
+              <span style={{ fontSize:13, fontWeight:700, color:t.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{rb.name}</span>
+              <span style={{ fontSize:12, color:t.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(rb.total)}</span>
+              <Pill pct={rb.total/gShown*100} accent={seld}/>
+            </button>
+          );})}
         </div>
       </div>
       )}
@@ -3906,8 +3949,11 @@ export default function Dashboard() {
                   { label:"Дебіторка",        value:fmt(Math.abs(kpi.debt)),                 warn: Math.abs(kpi.debt)>0 ? "УВАГА" : undefined, accent: Math.abs(kpi.debt)>0 ? t.red : undefined },
                 ]}/>
 
-                {/* Center Sankey flanked by side columns */}
-                <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"minmax(180px,220px) 1fr minmax(180px,220px)", gap:14, alignItems:"start" }}>
+                {/* Hero flow — primary screen element, full width */}
+                <BrandMktSankey edges={premium.edges} t={t} fmt={fmt}/>
+
+                {/* Supporting metric cards below the flow */}
+                <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0,1fr))", gap:14, alignItems:"start" }}>
                   <SideColumn t={t} blocks={[
                     { title:"Без причин", rows:[
                       { label:"Замовлення", value:String(premium.blankOrders), strong:true },
@@ -3917,14 +3963,15 @@ export default function Dashboard() {
                     ], note:"Повернення/відмови з порожньою колонкою «причина»." },
                   ]}/>
 
-                  <BrandMktSankey edges={premium.edges} t={t} fmt={fmt}/>
-
-                  <SideColumn t={t} align="left" blocks={[
+                  <SideColumn t={t} blocks={[
                     { title:"У дорозі (Transit)", rows:[
                       { label:"Замовлення", value:String(kpi.transitOrders), strong:true },
                       { label:"Гроші", value:fmt(kpi.moneyInTransit) },
                       { label:"Опис", value:"Логістика" },
                     ], note:"Кошти за відправленими COD-замовленнями в очікуванні." },
+                  ]}/>
+
+                  <SideColumn t={t} blocks={[
                     { title:"Повернення", rows:[
                       { label:"Замовлення", value:String(premium.returnsOrders), strong:true },
                       { label:"Гроші", value:fmt(premium.returnsMoney) },
