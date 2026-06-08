@@ -1026,9 +1026,10 @@ function parseHubberQuick(file: File): Promise<HubberQuick> {
 
 /* ─── theme ──────────────────────────────────────────────────── */
 interface T { bg:string; card:string; nav:string; border:string; text:string; sub:string; dim:string; in:string; blue:string; em:string; red:string; amb:string; dark:boolean }
-// Premium Wormhole-style dark aesthetic: near-black page, slightly elevated
-// panels, hairline borders, violet accent + lime highlight pill.
-const DK: T = { bg:"#0B0C10", card:"#15161D", nav:"#0B0C10", border:"#23252E", text:"#ECEDF1", sub:"#B9BBC6", dim:"#7E808C", in:"#15161D", blue:"#8B82F0", em:"#5BD68A", red:"#F2728C", amb:"#ECEDF1", dark:true };
+// Wormhole Scan aesthetic: deep navy/slate sci-fi page, dark semi-transparent
+// glass panels, neon-cyan hairline borders, cyan/purple accents, neon-green
+// positives and crimson warnings.
+const DK: T = { bg:"#070A12", card:"rgba(18,25,42,0.72)", nav:"rgba(9,13,23,0.82)", border:"rgba(94,234,255,0.16)", text:"#EAF2FF", sub:"#9DB0CF", dim:"#5C6A86", in:"rgba(15,21,36,0.85)", blue:"#5EEAFF", em:"#3DF5B0", red:"#FF4D6D", amb:"#C7B8FF", dark:true };
 const LT: T = { bg:"#F6F7F9", card:"#FFFFFF", nav:"#FFFFFF", border:"#E6E8EE", text:"#13141A", sub:"#3A3C44", dim:"#8A8C99", in:"#FFFFFF", blue:"#6D5FE8", em:"#16A34A", red:"#E11D48", amb:"#13141A", dark:false };
 
 // Lime highlight used for the dominant "top performer" outline.
@@ -1040,8 +1041,9 @@ function glass(t: T): React.CSSProperties {
     border: `1px solid ${t.border}`,
     borderRadius: 12,
     boxShadow: t.dark
-      ? "0 1px 0 rgba(255,255,255,0.025) inset, 0 10px 30px rgba(0,0,0,0.35)"
+      ? "0 1px 0 rgba(255,255,255,0.04) inset, 0 0 0 1px rgba(94,234,255,0.04), 0 18px 40px rgba(0,0,0,0.5)"
       : "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)",
+    ...(t.dark ? { backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" } : {}),
   };
 }
 
@@ -1063,9 +1065,14 @@ function LflBadge({ current, previous, fmt: fmtFn, t }: { current: number; previ
   const up    = delta >= 0;
   const sign  = up ? "+" : "";
   const subColor = t?.dark ? "rgba(255,255,255,0.35)" : t?.dim ?? "#6B7280";
-  // Pastel green chip for positive, soft red chip for negative
-  const chipBg    = up ? "#DCFCE7" : "rgba(239,68,68,0.08)";
-  const chipColor = up ? "#15803D" : "#DC2626";
+  // Neon-green chip for positive, crimson chip for negative (Wormhole dark);
+  // pastel chips on the light theme.
+  const chipBg    = t?.dark
+    ? (up ? "rgba(61,245,176,0.12)" : "rgba(255,77,109,0.14)")
+    : (up ? "#DCFCE7" : "rgba(239,68,68,0.08)");
+  const chipColor = t?.dark
+    ? (up ? "#3DF5B0" : "#FF4D6D")
+    : (up ? "#15803D" : "#DC2626");
   return (
     <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:4 }}>
       <span style={{ display:"inline-flex", alignItems:"center", padding:"2px 7px", borderRadius:4, background:chipBg, fontSize:11, fontWeight:700, color:chipColor, letterSpacing:"-0.01em" }}>
@@ -1523,12 +1530,17 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt }:{ edges:BMEdg
           <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
             <defs>
               <linearGradient id="wh-flow" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#9088F2"/>
-                <stop offset="100%" stopColor="#5B51B8"/>
+                <stop offset="0%" stopColor="#5EEAFF"/>
+                <stop offset="50%" stopColor="#4C7BFF"/>
+                <stop offset="100%" stopColor="#A77BFF"/>
               </linearGradient>
+              <filter id="wh-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="0.004" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
             </defs>
             {ribbons.map(r=>(
-              <path key={r.key} d={r.d} fill="url(#wh-flow)" fillOpacity={sel?0.72:0.5} style={{ transition:"fill-opacity .16s" }}/>
+              <path key={r.key} d={r.d} fill="url(#wh-flow)" fillOpacity={sel?0.82:0.6} filter="url(#wh-glow)" style={{ transition:"fill-opacity .16s" }}/>
             ))}
           </svg>
         </div>
@@ -2662,9 +2674,9 @@ function getReasonAdvice(reason: string) {
 function readFiltersCache(): { brandFilter:string; monthFilter:string; companyFilter:string; yearFilter:string; hubberQYear:string; darkMode:boolean } {
   try {
     const s = localStorage.getItem(FILTERS_KEY);
-    if (s) return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:false, ...JSON.parse(s) };
+    if (s) return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:true, ...JSON.parse(s) };
   } catch {}
-  return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:false };
+  return { brandFilter:"All", monthFilter:"All", companyFilter:"All", yearFilter:"All", hubberQYear:"2025", darkMode:true };
 }
 function readHubberCache(): HubberQuick|null {
   try {
@@ -3723,10 +3735,10 @@ export default function Dashboard() {
 
   /* ─── render ──────────────────────────────────────────────── */
   return (
-    <div style={{ background:t.bg, minHeight:"100vh", height: fileData ? "100vh" : undefined, overflow: fileData ? "auto" : undefined, fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
+    <div style={{ background: t.dark ? "transparent" : t.bg, minHeight:"100vh", height: fileData ? "100vh" : undefined, overflow: fileData ? "auto" : undefined, fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace", letterSpacing:"-0.01em" }}>
 
       {/* ── Professional Trading Terminal navbar ─────────────────── */}
-      <div style={{ background:t.bg, borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"fixed", top:0, left:0, right:0, zIndex:100, flexWrap:"nowrap" }}>
+      <div style={{ background:t.nav, ...(t.dark ? { backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)" } : {}), borderBottom:`1px solid ${t.border}`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"fixed", top:0, left:0, right:0, zIndex:100, flexWrap:"nowrap" }}>
         {/* Left: Brand + Nav */}
         <div style={{ display:"flex", alignItems:"center", gap:20, flexShrink:0 }}>
           {fileData && (

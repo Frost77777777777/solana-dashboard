@@ -10,8 +10,14 @@
 html, body, #root {
   margin: 0;
   padding: 0;
-  background: #0B0C10;
-  color: #ECEDF1;
+  background-color: #070A12;
+  background-image:
+    radial-gradient(900px 600px at 18% -10%, rgba(94,234,255,0.10), transparent 60%),
+    radial-gradient(1000px 700px at 100% 0%, rgba(139,124,255,0.12), transparent 55%),
+    radial-gradient(800px 600px at 50% 120%, rgba(61,245,176,0.06), transparent 60%),
+    linear-gradient(180deg, #080B14 0%, #070A12 100%);
+  background-attachment: fixed;
+  color: #EAF2FF;
   min-height: 100vh;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
