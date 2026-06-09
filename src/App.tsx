@@ -1408,7 +1408,10 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
 }) {
   const [mode, setMode] = useState<"volume"|"profit"|"orders">("volume");
   const [sel, setSel] = useState<FlowSel>(null);
+  const [hov, setHov] = useState<FlowSel>(null);
   const [monthOpen, setMonthOpen] = useState(false);
+  // effective focus = persistent click selection, or transient hover preview
+  const act = sel ?? hov;
   const val = (e:{gross:number;orders:number;net:number}) => mode==="volume" ? e.gross : mode==="profit" ? e.net : e.orders;
   const fmtV = (n:number) => mode==="orders" ? Math.round(n).toLocaleString("uk-UA").replace(/,/g," ") : fmt(n);
 
@@ -1436,8 +1439,8 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   const bTot = (n:string)=>shown.filter(e=>e.brand===n).reduce((a,e)=>a+e.v,0);
   const mTot = (n:string)=>shown.filter(e=>e.mkt===n).reduce((a,e)=>a+e.v,0);
 
-  const selSource = sel?.side==="brand" ? sel.name : null;
-  const selTarget = sel?.side==="mkt"   ? sel.name : null;
+  const selSource = act?.side==="brand" ? act.name : null;
+  const selTarget = act?.side==="mkt"   ? act.name : null;
 
   // helper: stack a list of {name,color,total} into bands [0..1], pct relative to their own sum
   const stack = (items:{name:string;color:string;total:number}[]):FlowBand[] => {
@@ -1503,10 +1506,11 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
 
   const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => (
     <button onClick={()=>toggle(side,b.name)} title={b.name}
+      onMouseEnter={()=>setHov({ side, name:b.name })} onMouseLeave={()=>setHov(null)}
       style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translateY(-50%)",
         display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor:"pointer",
         background: seld ? C.selBg : "transparent", border:`1.5px solid ${seld ? C.selBorder : "transparent"}`,
-        opacity: on?1:0.34, transition:"opacity .16s, background .16s, border-color .16s" }}>
+        opacity: on?1:0.34, transition:"top .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, border-color .16s" }}>
       <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>
       <span style={{ fontSize:13, fontWeight:650, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{b.name}</span>
       <span style={{ fontSize:12.5, color:C.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(b.total)}</span>
@@ -1515,7 +1519,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   );
 
   return (
-    <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:22, padding:"24px 32px 38px", display:"flex", flexDirection:"column", boxShadow:"0 22px 64px rgba(0,0,0,0.5)" }}>
+    <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:22, padding:"24px 20px 38px", display:"flex", flexDirection:"column", boxShadow:"0 22px 64px rgba(0,0,0,0.5)" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6, gap:10, flexWrap:"wrap" }}>
         <div style={{ display:"inline-flex", padding:3, borderRadius:9, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)" }}>
           {([["volume","Оборот"],["profit","Дохід"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
@@ -1590,58 +1594,47 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:"rgba(255,255,255,0.05)", pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
-          {leftBands.map((b,i)=><NodeRow key={i} b={b} side="brand" on={leftActive(b.name)} seld={b.name===selSource} hl={!!selTarget}/>)}
+          {leftBands.map(b=><NodeRow key={b.name} b={b} side="brand" on={leftActive(b.name)} seld={b.name===selSource} hl={!!selTarget}/>)}
         </div>
         {/* left bars */}
         <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
-          {leftBands.map((b,i)=>(
-            <div key={i} style={{ position:"absolute", left:0, right:0, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`, background:b.color, borderRadius:2, opacity:leftActive(b.name)?1:0.26, transition:"opacity .16s" }}/>
+          {leftBands.map(b=>(
+            <div key={b.name} style={{ position:"absolute", left:0, right:0, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`, background:b.color, borderRadius:2, opacity:leftActive(b.name)?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s" }}/>
           ))}
         </div>
         {/* ribbons */}
         <div style={{ position:"relative" }}>
           <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
             <defs>
+              {/* static structural gradient — shaded left → mid-tone → highlighted right (volume & depth, no animation) */}
               <linearGradient id="wh-flow" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#5EEAFF">
-                  <animate attributeName="stop-color" values="#5EEAFF;#4C7BFF;#A77BFF;#5EEAFF" dur="6s" repeatCount="indefinite"/>
-                </stop>
-                <stop offset="50%" stopColor="#4C7BFF">
-                  <animate attributeName="stop-color" values="#4C7BFF;#A77BFF;#5EEAFF;#4C7BFF" dur="6s" repeatCount="indefinite"/>
-                </stop>
-                <stop offset="100%" stopColor="#A77BFF">
-                  <animate attributeName="stop-color" values="#A77BFF;#5EEAFF;#4C7BFF;#A77BFF" dur="6s" repeatCount="indefinite"/>
-                </stop>
+                <stop offset="0%"   stopColor="#1f1a2e"/>
+                <stop offset="52%"  stopColor="#342d4b"/>
+                <stop offset="100%" stopColor="#443b63"/>
               </linearGradient>
-              {/* moving light streak that travels along the streams */}
-              <linearGradient id="wh-shine" x1="0" y1="0" x2="0.32" y2="0" spreadMethod="repeat" gradientUnits="objectBoundingBox">
-                <stop offset="0" stopColor="#FFFFFF" stopOpacity="0"/>
-                <stop offset="0.5" stopColor="#D6F7FF" stopOpacity="0.5"/>
-                <stop offset="1" stopColor="#FFFFFF" stopOpacity="0"/>
-                <animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="0.32 0" dur="2.4s" repeatCount="indefinite"/>
-              </linearGradient>
-              <filter id="wh-glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="0.004" result="b"/>
-                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              {/* subtle static drop-shadow so streams lift off the dark panel */}
+              <filter id="wh-sep" x="-5%" y="-25%" width="110%" height="150%">
+                <feDropShadow dx="0" dy="0.0026" stdDeviation="0.0026" floodColor="#04030A" floodOpacity="0.6"/>
               </filter>
             </defs>
-            {ribbons.map(r=>(
-              <g key={r.key}>
-                <path d={r.d} fill="url(#wh-flow)" fillOpacity={sel?0.82:0.6} filter="url(#wh-glow)" style={{ transition:"fill-opacity .16s" }}/>
-                <path d={r.d} fill="url(#wh-shine)" fillOpacity={sel?0.55:0.4} style={{ pointerEvents:"none" }}/>
-              </g>
-            ))}
+            <g filter="url(#wh-sep)">
+              {ribbons.map(r=>(
+                <path key={r.key} d={r.d} fill="url(#wh-flow)" fillOpacity={act?0.97:0.9}
+                  stroke="rgba(8,6,16,0.85)" strokeWidth={1.1} vectorEffect="non-scaling-stroke"
+                  strokeLinejoin="round" style={{ transition:"fill-opacity .16s" }}/>
+              ))}
+            </g>
           </svg>
         </div>
         {/* right bars */}
         <div style={{ position:"relative", borderLeft:`1px solid ${C.line}` }}>
-          {rightBands.map((b,j)=>(
-            <div key={j} style={{ position:"absolute", left:0, right:0, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`, background:b.color, borderRadius:2, opacity:rightActive(b.name)?1:0.26, transition:"opacity .16s" }}/>
+          {rightBands.map(b=>(
+            <div key={b.name} style={{ position:"absolute", left:0, right:0, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`, background:b.color, borderRadius:2, opacity:rightActive(b.name)?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s" }}/>
           ))}
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
-          {rightBands.map((b,j)=><NodeRow key={j} b={b} side="mkt" on={rightActive(b.name)} seld={b.name===selTarget} hl={!!selSource}/>)}
+          {rightBands.map(b=><NodeRow key={b.name} b={b} side="mkt" on={rightActive(b.name)} seld={b.name===selTarget} hl={!!selSource}/>)}
         </div>
       </div>
       )}
@@ -3404,7 +3397,7 @@ export default function Dashboard() {
         {/* sidebar removed — filters relocated into the flow block; archive/inventory moved to the collapsible lower section */}
 
         {/* ── MAIN CONTENT — offset by 252px when sidebar is fixed ── */}
-        <div className="orbit-content" style={{ minWidth:0, padding:"14px 24px 40px", maxWidth:1680, margin:"0 auto" }}>
+        <div className="orbit-content" style={{ minWidth:0, padding:"14px 18px 40px", maxWidth:"none", margin:0 }}>
 
           {/* error */}
         {parseError && (
