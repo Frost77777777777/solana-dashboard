@@ -1,8 +1,8 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback, memo, Component } from "react";
 import { createPortal } from "react-dom";
-import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, CalendarDays, ChevronDown, HardDrive, AlertTriangle } from "lucide-react";
+import { Upload, X, Search, Sun, Moon, TrendingUp, TrendingDown, RefreshCw, CalendarDays, ChevronDown, Check, HardDrive, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
-import { AreaChart, Area, BarChart, Bar, ComposedChart, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
+import { AreaChart, Area, BarChart, Bar, ComposedChart, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 /* ─── types ──────────────────────────────────────────────────── */
 interface Row { [key: string]: unknown }
@@ -1394,9 +1394,9 @@ const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks
    distribution (and vice-versa); click again (or "Скинути") to clear.
    Pure presentational — selection is local UI state and only re-aggregates
    the same edges; it never touches parsing / formulas / app state. ── */
-interface BMEdge { brand:string; mkt:string; gross:number; orders:number; }
+interface BMEdge { brand:string; mkt:string; gross:number; orders:number; net:number; }
 type FlowSel = { side:"brand"|"mkt"; name:string } | null;
-interface FlowBand { name:string; color:string; total:number; pct:number; y0:number; y1:number; }
+interface FlowBand { name:string; color:string; total:number; pct:number; y0:number; y1:number; cy?:number; }
 const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   edges:BMEdge[];
   fmt:(n:number)=>string;
@@ -1406,10 +1406,11 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     setYearFilter:(y:string)=>void; setMonthFilter:(m:string)=>void;
   };
 }) {
-  const [mode, setMode] = useState<"volume"|"orders">("volume");
+  const [mode, setMode] = useState<"volume"|"profit"|"orders">("volume");
   const [sel, setSel] = useState<FlowSel>(null);
-  const val = (e:{gross:number;orders:number}) => mode==="volume" ? e.gross : e.orders;
-  const fmtV = (n:number) => mode==="volume" ? fmt(n) : Math.round(n).toLocaleString("uk-UA").replace(/,/g," ");
+  const [monthOpen, setMonthOpen] = useState(false);
+  const val = (e:{gross:number;orders:number;net:number}) => mode==="volume" ? e.gross : mode==="profit" ? e.net : e.orders;
+  const fmtV = (n:number) => mode==="orders" ? Math.round(n).toLocaleString("uk-UA").replace(/,/g," ") : fmt(n);
 
   // dark Wormhole palette (independent of dashboard theme so the panel stays 1:1)
   const C = {
@@ -1444,6 +1445,16 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     return items.map(x=>{ const h=x.total/sum; const b={ name:x.name, color:x.color, total:x.total, pct:x.total/sum*100, y0:cur, y1:cur+h }; cur+=h; return b; });
   };
 
+  // de-clutter labels: bars stay proportional, but label rows are spaced so they never overlap
+  const placeLabels = (bands:FlowBand[]):FlowBand[] => {
+    const n = bands.length; if (!n) return bands;
+    const PAD = 0.03, gap = Math.min(0.052, (1 - 2*PAD) / Math.max(1, n-1));
+    const c = bands.map(b => Math.min(1-PAD, Math.max(PAD, (b.y0+b.y1)/2)));
+    for (let i=1;i<n;i++) if (c[i] < c[i-1]+gap) c[i] = c[i-1]+gap;
+    for (let i=n-2;i>=0;i--) if (c[i] > c[i+1]-gap) c[i] = c[i+1]-gap;
+    return bands.map((b,i)=>({ ...b, cy:c[i] }));
+  };
+
   // overall bands (used when its side is not the recomputed one)
   const leftAll  = stack(brandOrder.filter(n=>bTot(n)>0).map(n=>({ name:n, color:brandColor.get(n)!, total:bTot(n) })));
   const rightAll = stack(mktOrder.filter(n=>mTot(n)>0).map(n=>({ name:n, color:mktColor.get(n)!, total:mTot(n) })));
@@ -1453,8 +1464,8 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   // when a Target is selected, the Source column shows that target's breakdown (full height)
   const leftSel  = selTarget ? stack(brandOrder.map(n=>({ name:n, color:brandColor.get(n)!, total:edge(n,selTarget) })).filter(x=>x.total>0).sort((a,b)=>b.total-a.total)) : null;
 
-  const leftBands  = leftSel  ?? leftAll;
-  const rightBands = rightSel ?? rightAll;
+  const leftBands  = placeLabels(leftSel  ?? leftAll);
+  const rightBands = placeLabels(rightSel ?? rightAll);
 
   // ribbons
   const pathD = (lY0:number,lY1:number,rY0:number,rY1:number)=>`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z`;
@@ -1492,7 +1503,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
 
   const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => (
     <button onClick={()=>toggle(side,b.name)} title={b.name}
-      style={{ position:"absolute", left:0, right:0, top:`${(b.y0+b.y1)/2*100}%`, transform:"translateY(-50%)",
+      style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translateY(-50%)",
         display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor:"pointer",
         background: seld ? C.selBg : "transparent", border:`1.5px solid ${seld ? C.selBorder : "transparent"}`,
         opacity: on?1:0.34, transition:"opacity .16s, background .16s, border-color .16s" }}>
@@ -1507,7 +1518,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:22, padding:"24px 32px 38px", display:"flex", flexDirection:"column", boxShadow:"0 22px 64px rgba(0,0,0,0.5)" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6, gap:10, flexWrap:"wrap" }}>
         <div style={{ display:"inline-flex", padding:3, borderRadius:9, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)" }}>
-          {([["volume","Оборот"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
+          {([["volume","Оборот"],["profit","Дохід"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
             <button key={m} onClick={()=>setMode(m)} style={{ padding:"5px 16px", borderRadius:7, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? "#0B0B16" : C.sub, background: mode===m ? C.hi : "transparent", transition:"all .15s" }}>{lbl}</button>
           ))}
         </div>
@@ -1532,12 +1543,35 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
               })}
             </div>
           )}
-          <select value={dateCtl.monthFilter} onChange={e=>dateCtl.setMonthFilter(e.target.value)}
-            style={{ padding:"5px 12px", borderRadius:7, fontSize:11, fontWeight:700, fontFamily:MONO, color:C.text, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.12)", cursor:"pointer", outline:"none" }}>
-            <option value="All" style={{ background:"#14132A" }}>Всі місяці</option>
-            {dateCtl.visibleMonths.map(m=>(<option key={m} value={m} style={{ background:"#14132A" }}>{toMonthLabel(m)}</option>))}
-            {dateCtl.hasNoDate && <option value="No Date" style={{ background:"#14132A" }}>Без дати</option>}
-          </select>
+          {(()=>{
+            const opts:{v:string;label:string}[] = [{v:"All",label:"Всі місяці"}, ...dateCtl.visibleMonths.map(m=>({v:m,label:toMonthLabel(m)})), ...(dateCtl.hasNoDate?[{v:"No Date",label:"Без дати"}]:[])];
+            const curLabel = opts.find(o=>o.v===dateCtl.monthFilter)?.label ?? "Всі місяці";
+            return (
+              <div style={{ position:"relative" }}>
+                <button onClick={()=>setMonthOpen(o=>!o)}
+                  style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"5px 11px", borderRadius:7, fontSize:11, fontWeight:700, fontFamily:MONO, color:C.text, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.12)", cursor:"pointer", outline:"none" }}>
+                  {curLabel}
+                  <ChevronDown size={12} style={{ transform: monthOpen?"rotate(180deg)":"none", transition:"transform .15s", color:C.sub }}/>
+                </button>
+                {monthOpen && (<>
+                  <div onClick={()=>setMonthOpen(false)} style={{ position:"fixed", inset:0, zIndex:60 }}/>
+                  <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:61, minWidth:190, maxHeight:300, overflowY:"auto", padding:6, borderRadius:11, background:"#14132A", border:"1px solid rgba(255,255,255,0.12)", boxShadow:"0 18px 44px rgba(0,0,0,0.55)" }}>
+                    {opts.map(o=>{
+                      const on = o.v===dateCtl.monthFilter;
+                      return (
+                        <button key={o.v} onClick={()=>{ dateCtl.setMonthFilter(o.v); setMonthOpen(false); }}
+                          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", padding:"7px 10px", borderRadius:7, cursor:"pointer", fontSize:11.5, fontWeight:700, fontFamily:MONO, textAlign:"left", border:"none", color: on?C.hi:C.text, background: on?"rgba(220,242,91,0.12)":"transparent", transition:"background .12s" }}
+                          onMouseEnter={e=>{ if(!on) (e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.05)"; }}
+                          onMouseLeave={e=>{ if(!on) (e.currentTarget as HTMLButtonElement).style.background="transparent"; }}>
+                          {o.label}{on && <Check size={13}/>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>)}
+              </div>
+            );
+          })()}
           {(dateCtl.yearFilter!=="All" || dateCtl.monthFilter!=="All") && (
             <button onClick={()=>{ dateCtl.setYearFilter("All"); dateCtl.setMonthFilter("All"); }}
               style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"5px 11px", borderRadius:7, cursor:"pointer", fontSize:10.5, fontWeight:700, color:C.sub, background:"transparent", border:"1px solid rgba(255,255,255,0.12)" }}><RefreshCw size={11}/> Скинути</button>
@@ -2343,16 +2377,6 @@ function _SkeletonBar({ w = "100%", h = 14, r = 6 }: { w?: string|number; h?: nu
 
 
 
-function TipBox({ active, payload, label, t }: { active?:boolean; payload?:{value:number;name:string;color:string}[]; label?:string; t:T }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{ background:t.dark?"rgba(4,6,14,0.97)":"#FFFFFF", border:`1px solid ${t.border}`, borderRadius:10, padding:"10px 16px", boxShadow:t.dark?"none":"0 4px 16px rgba(0,0,0,0.10)" }}>
-      <p style={{ color:t.dark?t.dim:"#1A1A1B", fontSize:11, fontWeight:600, marginBottom:6 }}>{label}</p>
-      {payload.map((p,i)=><p key={i} style={{ color:p.color, fontSize:13, fontWeight:600, margin:"2px 0" }}>{p.name}: {fmt(p.value)}</p>)}
-    </div>
-  );
-}
-
 /* ─── main component ─────────────────────────────────────────── */
 /* ─── Rejection-reason tooltip advice lookup ──────────────────── */
 const REASON_ADVICE: { match: RegExp; emoji: string; cat: string; text: string }[] = [
@@ -3087,20 +3111,6 @@ export default function Dashboard() {
     return { curr, prev, pct:((curr-prev)/prev)*100, year:yearStr, prevYear:prevYearStr, monthName };
   }, [hubberQuick, monthFilter]);
 
-  /* ── Chart data extended with prev-year Hubber overlay ── */
-  const chartDataWithPrevYear = useMemo(()=>{
-    if (!hubberQuick || !chartData.length) return chartData;
-    return chartData.map(b => {
-      if (!b.key || b.key==="No Date") return { ...b, prevYear:null as number|null };
-      const [yearStr, mStr] = b.key.split("-");
-      const prevYearStr = String(+yearStr - 1);
-      const monthIdx = parseInt(mStr, 10) - 1;
-      const monthName = hubberQuick.months[monthIdx];
-      const v = monthName ? (hubberQuick.values[prevYearStr]?.[monthName] ?? null) : null;
-      return { ...b, prevYear: v !== null && v > 0 ? v : null };
-    });
-  }, [chartData, hubberQuick]);
-
   /* ── return optimisation advice — shown next to Топ Причин Повернень ── */
   const returnAdvice = useMemo(()=>{
     if (!kpi || rejectionReasons.length === 0) return [];
@@ -3187,8 +3197,8 @@ export default function Dashboard() {
 
       const ek = `${brand}\u0000${mkt}`;
       let e = edgeMap.get(ek);
-      if (!e) { e = { brand, mkt, gross:0, orders:0 }; edgeMap.set(ek, e); }
-      e.gross += gross; e.orders++;
+      if (!e) { e = { brand, mkt, gross:0, orders:0, net:0 }; edgeMap.set(ek, e); }
+      e.gross += gross; e.orders++; e.net += gross - cost;
 
       const b = brandMap.get(brand) ?? { orders:0, gross:0, cost:0 };
       b.orders++; b.gross += gross; b.cost += cost; brandMap.set(brand, b);
@@ -3640,90 +3650,6 @@ export default function Dashboard() {
             </div>
               );
             })()}
-
-            {/* area chart — monthly trend — locked 360px */}
-            <ChartErrorBoundary t={t} label="Динаміка по місяцях">
-            {(()=>{
-              const pastBars    = chartData.filter(d=>!d.isFuture && !d.isNoDate);
-              const noDateBar   = chartData.find(d=> d.isNoDate);
-              const futureBars  = chartData.filter(d=> d.isFuture);
-              const pastCount   = pastBars.length;
-              const futureCount = futureBars.length;
-              const noDateCount = noDateBar?.rows ?? 0;
-              const refLabel    = pastBars.length > 0 ? pastBars[pastBars.length - 1].label : undefined;
-              return (
-              <div className="analytics-card analytics-card--trend orbit-fadein" style={{ ...glassBase, padding:"20px 20px 12px", animationDelay:"80ms" }}>
-                {chartData.length < 1 && (
-                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:200, gap:8 }}>
-                    <span style={{ fontSize:28, opacity:0.18 }}>📈</span>
-                    <span style={{ fontSize:13, fontWeight:600, color:t.sub }}>Динаміка по місяцях</span>
-                    <span style={{ fontSize:11, color:t.dim }}>Немає даних для обраного фільтра</span>
-                  </div>
-                )}
-                {chartData.length >= 1 && (<>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-                  <div>
-                    <p style={{ color:t.text, fontSize:14, fontWeight:700, margin:0 }}>Динаміка по місяцях</p>
-                    <p style={{ color:t.dim, fontSize:11, margin:"3px 0 0" }}>
-                      {pastCount} міс. фактичних{futureCount>0?` · ${futureCount} прогноз`:""}{noDateCount>0?` · ${noDateCount} без дати`:""}
-                    </p>
-                  </div>
-                  <div style={{ display:"flex", gap:14, flexWrap:"wrap" }}>
-                    {[[t.em,"Дохід"],[t.blue,"Логістика"]].map(([c,n])=>(
-                      <div key={n} style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <div style={{ width:10, height:3, borderRadius:2, background:c }}/>
-                        <span style={{ fontSize:11, color:t.sub }}>{n}</span>
-                      </div>
-                    ))}
-                    {hubberQuick && (
-                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <div style={{ width:14, height:0, borderTop:"1.5px dashed #9CA3AF" }}/>
-                        <span style={{ fontSize:11, color:t.sub }}>Хаббер мин. рік</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <ResponsiveContainer width="100%" height={230}>
-                  <AreaChart data={chartDataWithPrevYear} margin={{ top:4, right:8, left:8, bottom:4 }}>
-                    <defs>
-                      <linearGradient id="gE" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={t.em} stopOpacity={0.22}/>
-                        <stop offset="100%" stopColor={t.em} stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={t.blue} stopOpacity={0.18}/>
-                        <stop offset="100%" stopColor={t.blue} stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="1 0" stroke={t.border} vertical={false}/>
-                    <XAxis dataKey="label" tick={{ fontSize:11, fill:t.text }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-                    <YAxis tickFormatter={v=>fmt(v)} tick={{ fontSize:10, fill:t.text }} tickLine={false} axisLine={false} width={96} domain={["auto","auto"]}/>
-                    <Tooltip content={<TipBox t={t}/>} cursor={{ stroke:t.blue, strokeWidth:1, fill:"transparent" }}/>
-                    {refLabel && futureCount>0 && (
-                      <ReferenceLine x={refLabel} stroke={t.dim} strokeDasharray="5 3" strokeWidth={1.5}
-                        label={{ value:"прогноз →", position:"insideTopRight", fontSize:9, fill:t.dim, fontWeight:600 }}/>
-                    )}
-                    <Area isAnimationActive={true} animationDuration={500} animationEasing="ease-out" type="monotone" dataKey="netIncome" name="Дохід" stroke={t.em} strokeWidth={2.5} fill="url(#gE)"
-                      dot={chartData.length<=36 ? (p: Record<string,unknown>) => {
-                        const isND = (chartData[p.index as number] ?? {}).isNoDate;
-                        return <circle key={p.index as number} cx={p.cx as number} cy={p.cy as number} r={isND?5:3} fill={isND?"#f59e0b":t.em} stroke="none"/>;
-                      } : false}
-                      activeDot={{ r:5, fill:t.em, strokeWidth:0 }}/>
-                    <Area isAnimationActive={true} animationDuration={500} animationEasing="ease-out" type="monotone" dataKey="logistics" name="Логістика" stroke={t.blue} strokeWidth={2.5} fill="url(#gB)"
-                      dot={chartData.length<=36?{r:3,fill:t.blue,strokeWidth:0}:false}
-                      activeDot={{ r:5, fill:t.blue, strokeWidth:0 }}/>
-                    {hubberQuick && (
-                      <Line isAnimationActive={false} type="monotone" dataKey="prevYear" name="Хаббер мин. рік"
-                        stroke={t.text} strokeWidth={1.5} strokeDasharray="5 3"
-                        dot={false} activeDot={{ r:3, fill:t.text, strokeWidth:0 }} connectNulls/>
-                    )}
-                  </AreaChart>
-                </ResponsiveContainer>
-                </>)}
-              </div>
-              );
-            })()}
-            </ChartErrorBoundary>
 
             {/* ── Collapse toggle — everything below the monthly trend ── */}
             <button onClick={()=>setLowerOpen(v=>!v)} style={{
