@@ -1492,7 +1492,10 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
 
   const leftActive  = (n:string)=> selSource ? n===selSource : true;
   const rightActive = (n:string)=> selTarget ? n===selTarget : true;
-  const toggle = (side:"brand"|"mkt", name:string)=> setSel(p=> p && p.side===side && p.name===name ? null : { side, name });
+  // click is authoritative: also clear the transient hover preview so deselect/reset can't be
+  // left stranded by a hov value whose onPointerLeave never fired (node buttons remount on render)
+  const toggle = (side:"brand"|"mkt", name:string)=> { setHov(null); setSel(p=> p && p.side===side && p.name===name ? null : { side, name }); };
+  const clearSel = ()=> { setSel(null); setHov(null); };
 
   const Pill = ({ pct, on, hl }:{ pct:number; on:boolean; hl?:boolean }) => (
     <span style={{ fontSize:10.5, fontWeight:800, fontFamily:MONO, padding:"2.5px 8px", borderRadius:999, lineHeight:1.35, flexShrink:0, letterSpacing:"0.02em",
@@ -1530,7 +1533,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
           ))}
         </div>
         {sel
-          ? <button onClick={()=>setSel(null)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 13px", borderRadius:8, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", cursor:"pointer", fontSize:11, fontWeight:700, color:C.text }}><X size={13}/> Скинути виділення</button>
+          ? <button onClick={clearSel} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 13px", borderRadius:8, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", cursor:"pointer", fontSize:11, fontWeight:700, color:C.text }}><X size={13}/> Скинути виділення</button>
           : <span style={{ fontSize:11, color:C.dim, fontWeight:600 }}>Клікніть вузол, щоб виділити його потоки</span>}
       </div>
       {/* ── Date filters relocated into the flow block ── */}
