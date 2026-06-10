@@ -1353,6 +1353,8 @@ const NODE_LOGOS: Record<string,string> = {
   [normLogoKey("AFINA")]: "/logos/afina.png",
   [normLogoKey("ERKA")]: "/logos/erka.png",
   [normLogoKey("ELITA")]: "/logos/elita.jpg",
+  [normLogoKey("Білий Халат")]: "/logos/bilyi-halat.jpeg",
+  [normLogoKey("Калина")]: "/logos/kalyna.jpg",
 };
 const logoFor = (name:string): string | undefined => NODE_LOGOS[normLogoKey(name)];
 
