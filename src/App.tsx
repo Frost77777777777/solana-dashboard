@@ -1436,6 +1436,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   const [sel, setSel] = useState<FlowSel>(null);
   const [hov, setHov] = useState<FlowSel>(null);
   const [monthOpen, setMonthOpen] = useState(false);
+  const [othersOpen, setOthersOpen] = useState<{ brand:boolean; mkt:boolean }>({ brand:false, mkt:false });
   // effective focus = persistent click selection, or transient hover preview
   const act = sel ?? hov;
   const val = (e:{gross:number;orders:number;net:number}) => mode==="volume" ? e.gross : mode==="profit" ? e.net : e.orders;
@@ -1451,22 +1452,56 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
 
   const eList = edges.map(e=>({ ...e, v:val(e) })).filter(e=>e.v>0);
   const brandAgg = new Map<string,number>(); const mktAgg = new Map<string,number>();
-  for (const e of eList) { brandAgg.set(e.brand,(brandAgg.get(e.brand)??0)+e.v); mktAgg.set(e.mkt,(mktAgg.get(e.mkt)??0)+e.v); }
+  const edgeMap = new Map<string,number>();
+  for (const e of eList) {
+    brandAgg.set(e.brand,(brandAgg.get(e.brand)??0)+e.v);
+    mktAgg.set(e.mkt,(mktAgg.get(e.mkt)??0)+e.v);
+    const k = e.brand+"\u0000"+e.mkt; edgeMap.set(k,(edgeMap.get(k)??0)+e.v);
+  }
 
-  const TOP = 10;
-  const brandOrder = [...brandAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOP).map(([n])=>n);
-  const mktOrder   = [...mktAgg.entries()].sort((a,b)=>b[1]-a[1]).slice(0,TOP).map(([n])=>n);
-  const brandColor = new Map(brandOrder.map((n,i)=>[n,VIVID[i%VIVID.length]]));
-  const mktColor   = new Map(mktOrder.map((n,i)=>[n,VIVID[(i+3)%VIVID.length]]));
-  const brandSet = new Set(brandOrder); const mktSet = new Set(mktOrder);
-  const shown = eList.filter(e=>brandSet.has(e.brand) && mktSet.has(e.mkt));
-  const G = shown.reduce((a,e)=>a+e.v,0) || 1;
-  const edge = (b:string,m:string)=>shown.filter(e=>e.brand===b && e.mkt===m).reduce((a,e)=>a+e.v,0);
-  const bTot = (n:string)=>shown.filter(e=>e.brand===n).reduce((a,e)=>a+e.v,0);
-  const mTot = (n:string)=>shown.filter(e=>e.mkt===n).reduce((a,e)=>a+e.v,0);
+  // ── threshold grouping: items below THRESH of their side collapse into a single "Інші" node ──
+  const OTHERS = "Інші"; const OTHERS_COLOR = "#6B7280";
+  const THRESH = 0.02;     // share-of-side cutoff (~2%)
+  const MAX_MAIN = 14;     // hard cap so a column never overflows
+  const groupSide = (agg:Map<string,number>) => {
+    const sum = [...agg.values()].reduce((a,b)=>a+b,0) || 1;
+    const sorted = [...agg.entries()].sort((a,b)=>b[1]-a[1]).map(([n])=>n);
+    let main = sorted.filter(n=>(agg.get(n)!/sum) >= THRESH);
+    let small = sorted.filter(n=>(agg.get(n)!/sum) <  THRESH);
+    if (main.length > MAX_MAIN) { small = [...main.slice(MAX_MAIN), ...small]; main = main.slice(0,MAX_MAIN); }
+    if (small.length === 1) { main = [...main, small[0]]; small = []; }   // a lone item isn't worth grouping
+    return { main, small };
+  };
+  const { main:brandMain, small:brandSmall } = groupSide(brandAgg);
+  const { main:mktMain,   small:mktSmall   } = groupSide(mktAgg);
 
+  const brandColor = new Map<string,string>(brandMain.map((n,i)=>[n,VIVID[i%VIVID.length]]));
+  brandSmall.forEach((n,i)=>brandColor.set(n,VIVID[(i+brandMain.length)%VIVID.length]));
+  brandColor.set(OTHERS,OTHERS_COLOR);
+  const mktColor = new Map<string,string>(mktMain.map((n,i)=>[n,VIVID[(i+3)%VIVID.length]]));
+  mktSmall.forEach((n,i)=>mktColor.set(n,VIVID[(i+3+mktMain.length)%VIVID.length]));
+  mktColor.set(OTHERS,OTHERS_COLOR);
+  const bColor = (n:string)=> brandColor.get(n) ?? OTHERS_COLOR;
+  const mColor = (n:string)=> mktColor.get(n)   ?? OTHERS_COLOR;
+
+  const G = eList.reduce((a,e)=>a+e.v,0) || 1;
+  // edge / totals resolve the "Інші" aggregate to its underlying small members
+  const edge = (b:string,m:string)=> {
+    const bs = b===OTHERS ? brandSmall : [b];
+    const ms = m===OTHERS ? mktSmall   : [m];
+    let s=0; for (const x of bs) for (const y of ms) s += edgeMap.get(x+"\u0000"+y) ?? 0; return s;
+  };
+  const bTot = (n:string)=> n===OTHERS ? brandSmall.reduce((a,x)=>a+(brandAgg.get(x)??0),0) : (brandAgg.get(n)??0);
+  const mTot = (n:string)=> n===OTHERS ? mktSmall.reduce((a,x)=>a+(mktAgg.get(x)??0),0)     : (mktAgg.get(n)??0);
+
+  const leftDisplay  = [...brandMain, ...(brandSmall.length?[OTHERS]:[])];
+  const rightDisplay = [...mktMain,   ...(mktSmall.length?[OTHERS]:[])];
+
+  // act drives the opposite-side breakdown (hover preview or click); sel drives same-side full-height collapse
   const selSource = act?.side==="brand" ? act.name : null;
   const selTarget = act?.side==="mkt"   ? act.name : null;
+  const clickSource = sel?.side==="brand" ? sel.name : null;
+  const clickTarget = sel?.side==="mkt"   ? sel.name : null;
 
   // helper: stack a list of {name,color,total} into bands [0..1], pct relative to their own sum
   const stack = (items:{name:string;color:string;total:number}[]):FlowBand[] => {
@@ -1484,27 +1519,31 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     return bands.map((b,i)=>({ ...b, cy:c[i] }));
   };
 
-  // overall bands (used when its side is not the recomputed one)
-  const leftAll  = stack(brandOrder.filter(n=>bTot(n)>0).map(n=>({ name:n, color:brandColor.get(n)!, total:bTot(n) })));
-  const rightAll = stack(mktOrder.filter(n=>mTot(n)>0).map(n=>({ name:n, color:mktColor.get(n)!, total:mTot(n) })));
+  // overall bands (main nodes + a single aggregated Інші band at the tail)
+  const leftAll  = stack(leftDisplay.map(n=>({ name:n, color:bColor(n), total:bTot(n) })).filter(x=>x.total>0));
+  const rightAll = stack(rightDisplay.map(n=>({ name:n, color:mColor(n), total:mTot(n) })).filter(x=>x.total>0));
 
-  // when a Source is selected, the Target column shows that source's breakdown (full height)
-  const rightSel = selSource ? stack(mktOrder.map(n=>({ name:n, color:mktColor.get(n)!, total:edge(selSource,n) })).filter(x=>x.total>0).sort((a,b)=>b.total-a.total)) : null;
-  // when a Target is selected, the Source column shows that target's breakdown (full height)
-  const leftSel  = selTarget ? stack(brandOrder.map(n=>({ name:n, color:brandColor.get(n)!, total:edge(n,selTarget) })).filter(x=>x.total>0).sort((a,b)=>b.total-a.total)) : null;
+  // a clicked node occupies its whole side at full height (full-volume highlight); pct = real share of G
+  const fullBand = (name:string, total:number, color:string):FlowBand[] => {
+    const b = stack([{ name, color, total }]); b[0].pct = total/G*100; return b;
+  };
+  // opposite-side breakdown for the focused node (re-ranked, full height) — responds to hover & click
+  const rightSel = selSource ? stack(rightDisplay.map(n=>({ name:n, color:mColor(n), total:edge(selSource,n) })).filter(x=>x.total>0).sort((a,b)=>b.total-a.total)) : null;
+  const leftSel  = selTarget ? stack(leftDisplay.map(n=>({ name:n, color:bColor(n), total:edge(n,selTarget) })).filter(x=>x.total>0).sort((a,b)=>b.total-a.total)) : null;
 
-  const leftBands  = placeLabels(leftSel  ?? leftAll);
-  const rightBands = placeLabels(rightSel ?? rightAll);
+  const leftBands  = placeLabels(clickSource ? fullBand(clickSource, bTot(clickSource), bColor(clickSource)) : (leftSel  ?? leftAll));
+  const rightBands = placeLabels(clickTarget ? fullBand(clickTarget, mTot(clickTarget), mColor(clickTarget)) : (rightSel ?? rightAll));
 
   // ribbons
   const pathD = (lY0:number,lY1:number,rY0:number,rY1:number)=>`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z`;
   const ribbons:{ key:string; d:string }[] = [];
   if (selSource) {
-    const sb = leftAll.find(b=>b.name===selSource);
-    if (sb) { const span=sb.y1-sb.y0; let cur=sb.y0; for (const rb of rightBands) { const lh=(rb.y1-rb.y0)*span; ribbons.push({ key:`${selSource}-${rb.name}`, d:pathD(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
+    // origin = the focused source band in the CURRENT layout (full height when clicked, its slice when hovered)
+    const sb = leftBands.find(b=>b.name===selSource);
+    if (sb) { const span=sb.y1-sb.y0; let cur=sb.y0; for (const rb of rightBands) { const lh=(rb.y1-rb.y0)*span; ribbons.push({ key:`${selSource}->${rb.name}`, d:pathD(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
   } else if (selTarget) {
-    const tb = rightAll.find(b=>b.name===selTarget);
-    if (tb) { const span=tb.y1-tb.y0; let cur=tb.y0; for (const lb of leftBands) { const rh=(lb.y1-lb.y0)*span; ribbons.push({ key:`${lb.name}-${selTarget}`, d:pathD(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
+    const tb = rightBands.find(b=>b.name===selTarget);
+    if (tb) { const span=tb.y1-tb.y0; let cur=tb.y0; for (const lb of leftBands) { const rh=(lb.y1-lb.y0)*span; ribbons.push({ key:`${lb.name}->${selTarget}`, d:pathD(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
   } else {
     const lCur = new Map(leftBands.map(b=>[b.name,b.y0]));
     const rCur = new Map(rightBands.map(b=>[b.name,b.y0]));
@@ -1512,7 +1551,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
       const ev = edge(lb.name,rb.name); if (!ev) continue; const h=ev/G;
       const lY0=lCur.get(lb.name)!, lY1=lY0+h; lCur.set(lb.name,lY1);
       const rY0=rCur.get(rb.name)!, rY1=rY0+h; rCur.set(rb.name,rY1);
-      ribbons.push({ key:`${lb.name}-${rb.name}`, d:pathD(lY0,lY1,rY0,rY1) });
+      ribbons.push({ key:`${lb.name}->${rb.name}`, d:pathD(lY0,lY1,rY0,rY1) });
     }
   }
 
@@ -1520,8 +1559,13 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   const rightActive = (n:string)=> selTarget ? n===selTarget : true;
   // click is authoritative: also clear the transient hover preview so deselect/reset can't be
   // left stranded by a hov value whose onPointerLeave never fired (node buttons remount on render)
-  const toggle = (side:"brand"|"mkt", name:string)=> { setHov(null); setSel(p=> p && p.side===side && p.name===name ? null : { side, name }); };
-  const clearSel = ()=> { setSel(null); setHov(null); };
+  const toggle = (side:"brand"|"mkt", name:string)=> {
+    setHov(null);
+    if (name===OTHERS) { setOthersOpen(o=>({ brand:false, mkt:false, [side]:!o[side] })); return; }
+    setOthersOpen({ brand:false, mkt:false });
+    setSel(p=> p && p.side===side && p.name===name ? null : { side, name });
+  };
+  const clearSel = ()=> { setSel(null); setHov(null); setOthersOpen({ brand:false, mkt:false }); };
 
   const Pill = ({ pct, on, hl }:{ pct:number; on:boolean; hl?:boolean }) => (
     <span style={{ fontSize:10.5, fontWeight:800, fontFamily:MONO, padding:"2.5px 8px", borderRadius:999, lineHeight:1.35, flexShrink:0, letterSpacing:"0.02em",
@@ -1538,24 +1582,71 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   // node button on each state change — which loses pointerleave events (stranded hover) and even
   // drops clicks (mousedown/mouseup land on different instances). Returning an intrinsic <button>
   // keeps a stable element type so React reconciles in place.
-  const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => (
-    <button type="button" title={b.name} key={b.name}
-      onClick={()=>toggle(side,b.name)}
-      onPointerEnter={e=>{ if(e.pointerType!=="touch") setHov({ side, name:b.name }); }}
-      onPointerLeave={e=>{ if(e.pointerType!=="touch") setHov(null); }}
-      style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translateY(-50%)",
-        display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor:"pointer",
+  const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => {
+    const isOthers = b.name===OTHERS;
+    const expandable = isOthers && !sel;                       // only group-expand from the global view
+    const expanded = isOthers && (side==="brand" ? othersOpen.brand : othersOpen.mkt);
+    const count = isOthers ? (side==="brand" ? brandSmall.length : mktSmall.length) : 0;
+    return (
+    <button type="button" title={isOthers?`Інші · ${count}`:b.name} key={b.name}
+      onClick={()=>{ if (isOthers && !expandable) return; toggle(side,b.name); }}
+      onPointerEnter={e=>{ if(e.pointerType!=="touch" && !isOthers) setHov({ side, name:b.name }); }}
+      onPointerLeave={e=>{ if(e.pointerType!=="touch" && !isOthers) setHov(null); }}
+      style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translate3d(0,-50%,0)", willChange:"top",
+        display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor: (isOthers && !expandable) ? "default" : "pointer",
         WebkitAppearance:"none", appearance:"none", font:"inherit", textAlign:"left", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", userSelect:"none",
-        background: seld ? C.selBg : "transparent", border:`1.5px solid ${seld ? C.selBorder : "transparent"}`,
+        background: seld||expanded ? C.selBg : "transparent", border:`1.5px solid ${seld||expanded ? C.selBorder : "transparent"}`,
         opacity: on?1:0.34, transition:"top .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, border-color .16s" }}>
-      {logoFor(b.name)
-        ? <img src={logoFor(b.name)} alt={b.name} loading="lazy" style={{ width:24, height:24, borderRadius:6, flexShrink:0, objectFit:"cover", background:"#fff", padding:1.5, boxShadow:`0 0 0 1.5px ${b.color}, 0 0 0 4px ${b.color}1f` }}/>
-        : <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>}
-      <span style={{ fontSize:13, fontWeight:650, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{b.name}</span>
+      {isOthers
+        ? <span style={{ width:24, height:24, borderRadius:7, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10.5, fontWeight:800, fontFamily:MONO, color:C.sub, background:"rgba(255,255,255,0.06)", border:`1.5px solid ${C.pillBorder}` }}>{count}</span>
+        : logoFor(b.name)
+          ? <img src={logoFor(b.name)} alt={b.name} loading="lazy" style={{ width:24, height:24, borderRadius:6, flexShrink:0, objectFit:"cover", background:"#fff", padding:1.5, boxShadow:`0 0 0 1.5px ${b.color}, 0 0 0 4px ${b.color}1f` }}/>
+          : <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>}
+      <span style={{ fontSize:13, fontWeight:650, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{isOthers?"Інші":b.name}</span>
       <span style={{ fontSize:12.5, color:C.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(b.total)}</span>
-      {Pill({ pct:b.pct, on:seld, hl:hl && !seld })}
+      {isOthers && expandable
+        ? <ChevronDown size={15} style={{ color:C.sub, flexShrink:0, transform: expanded?"rotate(180deg)":"none", transition:"transform .2s" }}/>
+        : Pill({ pct:b.pct, on:seld, hl:hl && !seld })}
     </button>
-  );
+    );
+  };
+
+  // accordion overlay listing the small items grouped under "Інші" (global view only)
+  const OthersPanel = ({ side }:{ side:"brand"|"mkt" }) => {
+    const open = side==="brand" ? othersOpen.brand : othersOpen.mkt;
+    if (!open || sel) return null;
+    const bands = side==="brand" ? leftBands : rightBands;
+    const ob = bands.find(b=>b.name===OTHERS); if (!ob) return null;
+    const smalls = side==="brand" ? brandSmall : mktSmall;
+    const totF = side==="brand" ? bTot : mTot;
+    const colF = side==="brand" ? bColor : mColor;
+    const sideSum = smalls.reduce((a,n)=>a+totF(n),0) || 1;
+    const cyTop = (ob.cy ?? (ob.y0+ob.y1)/2);
+    const items = smalls.map(n=>({ name:n, total:totF(n), pct:totF(n)/sideSum*100, color:colF(n) })).sort((a,b)=>b.total-a.total);
+    return (<>
+      <div onClick={()=>setOthersOpen({ brand:false, mkt:false })} style={{ position:"fixed", inset:0, zIndex:70 }}/>
+      <div style={{ position:"absolute", top:`min(${(cyTop*100).toFixed(2)}%, calc(100% - 230px))`, [side==="brand"?"left":"right"]:0, zIndex:71,
+        width:330, maxWidth:"96vw", maxHeight:320, overflowY:"auto", padding:6, borderRadius:12, background:"#14132A", border:"1px solid rgba(255,255,255,0.14)", boxShadow:"0 22px 60px rgba(0,0,0,0.6)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 8px 8px", borderBottom:`1px solid ${C.line}`, marginBottom:4 }}>
+          <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.06em", textTransform:"uppercase", color:C.sub, fontFamily:MONO }}>Інші · {smalls.length}</span>
+          <button type="button" onClick={()=>setOthersOpen({ brand:false, mkt:false })} style={{ display:"inline-flex", padding:2, border:"none", background:"transparent", color:C.sub, cursor:"pointer" }}><X size={13}/></button>
+        </div>
+        {items.map(it=>(
+          <button type="button" key={it.name} title={it.name} onClick={()=>toggle(side, it.name)}
+            style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"7px 9px", borderRadius:8, cursor:"pointer", border:"none", background:"transparent", textAlign:"left", font:"inherit" }}
+            onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.05)"; }}
+            onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.background="transparent"; }}>
+            {logoFor(it.name)
+              ? <img src={logoFor(it.name)} alt={it.name} loading="lazy" style={{ width:20, height:20, borderRadius:5, flexShrink:0, objectFit:"cover", background:"#fff", padding:1 }}/>
+              : <span style={{ width:13, height:13, borderRadius:"50%", background:it.color, flexShrink:0 }}/>}
+            <span style={{ fontSize:12.5, fontWeight:600, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{it.name}</span>
+            <span style={{ fontSize:11.5, color:C.sub, fontFamily:MONO, flexShrink:0 }}>{fmtV(it.total)}</span>
+            <span style={{ fontSize:10.5, fontWeight:800, fontFamily:MONO, color:C.pillText, flexShrink:0 }}>{it.pct.toFixed(2).replace(".",",")}%</span>
+          </button>
+        ))}
+      </div>
+    </>);
+  };
 
   return (
     <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:22, padding:"24px 20px 38px", display:"flex", flexDirection:"column", boxShadow:"0 22px 64px rgba(0,0,0,0.5)" }}>
@@ -1634,6 +1725,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
           {leftBands.map(b=>NodeRow({ b, side:"brand", on:leftActive(b.name), seld:b.name===selSource, hl:!!selTarget }))}
+          {OthersPanel({ side:"brand" })}
         </div>
         {/* left bars — premium Wormhole node rectangles: dark fill, sharp glowing border, proportional height */}
         <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
@@ -1646,7 +1738,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         </div>
         {/* ribbons */}
         <div style={{ position:"relative" }}>
-          <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
+          <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible", transform:"translateZ(0)", WebkitTransform:"translateZ(0)" }}>
             <defs>
               {/* static structural gradient — shaded left → mid-tone → highlighted right (volume & depth, no animation) */}
               <linearGradient id="wh-flow" x1="0" y1="0" x2="1" y2="0">
@@ -1654,20 +1746,19 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
                 <stop offset="52%"  stopColor="#342d4b"/>
                 <stop offset="100%" stopColor="#443b63"/>
               </linearGradient>
-              {/* subtle static drop-shadow so streams lift off the dark panel */}
-              <filter id="wh-sep" x="-5%" y="-25%" width="110%" height="150%">
-                <feDropShadow dx="0" dy="0.0026" stdDeviation="0.0026" floodColor="#04030A" floodOpacity="0.6"/>
-              </filter>
             </defs>
             {/* connecting-wire: remount-keyed on selection so active streams morph/extend across,
-               originating from the selected side; inactive paths are simply not rendered (fade via key swap) */}
-            <g filter="url(#wh-sep)"
-               key={selSource ? `s:${selSource}` : selTarget ? `t:${selTarget}` : "all"}
+               originating from the selected side; inactive paths are simply not rendered (fade via key swap).
+               No SVG filter here — separation comes from each path's dark stroke. Animating a filtered
+               <g> forces WebKit to re-rasterise the filter every frame (Safari stutter); the GPU hints
+               below keep the one-shot draw on the compositor at 60fps. */}
+            <g key={selSource ? `s:${selSource}` : selTarget ? `t:${selTarget}` : "all"}
                style={{ transformBox:"fill-box", transformOrigin: selSource ? "0% 50%" : selTarget ? "100% 50%" : "50% 50%",
+                 willChange:"transform, opacity", backfaceVisibility:"hidden",
                  animation: (selSource||selTarget) ? "whWireDraw .5s cubic-bezier(.4,0,.2,1) both" : "whWireFade .34s ease both" }}>
               {ribbons.map(r=>(
                 <path key={r.key} d={r.d} fill="url(#wh-flow)" fillOpacity={act?0.97:0.9}
-                  stroke="rgba(8,6,16,0.85)" strokeWidth={1.1} vectorEffect="non-scaling-stroke"
+                  stroke="rgba(8,6,16,0.9)" strokeWidth={1.2} vectorEffect="non-scaling-stroke"
                   strokeLinejoin="round" style={{ transition:"fill-opacity .16s" }}/>
               ))}
             </g>
@@ -1685,6 +1776,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
           {rightBands.map(b=>NodeRow({ b, side:"mkt", on:rightActive(b.name), seld:b.name===selTarget, hl:!!selSource }))}
+          {OthersPanel({ side:"mkt" })}
         </div>
       </div>
       )}
@@ -3137,19 +3229,6 @@ export default function Dashboard() {
   /* ── bar chart show-trend toggle ── */
   const [showBarTrend, setShowBarTrend] = useState(false);
 
-  /* ── 2026 projection from Hubber YTD ── */
-  const hubberProj2026 = useMemo(()=>{
-    if (!hubberQuick) return null;
-    const vals = hubberQuick.values["2026"] ?? {};
-    const entries = Object.values(vals).filter((v): v is number => typeof v === "number" && v > 0);
-    if (entries.length === 0) return null;
-    const ytd = entries.reduce((s,v)=>s+v,0);
-    const monthsIn = entries.length;
-    const projected = (ytd / monthsIn) * 12;
-    const bestY = Object.entries(hubberQuick.yearTotals).reduce((b,[y,v])=>v>(b[1]??0)?[y,v]:b, ["",0] as [string,number]);
-    return { ytd, monthsIn, projected, bestYear:bestY[0], bestTotal:bestY[1] as number };
-  }, [hubberQuick]);
-
   /* ── Hubber LFL: same month vs same month of previous year ── */
   const hubberLfl = useMemo(()=>{
     if (!hubberQuick || monthFilter==="All" || monthFilter==="No Date") return null;
@@ -3523,16 +3602,7 @@ export default function Dashboard() {
                 }}/>
 
                 {/* Supporting metric cards below the flow */}
-                <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0,1fr))", gap:14, alignItems:"stretch" }}>
-                  <SideColumn t={t} blocks={[
-                    { title:"Без причин", rows:[
-                      { label:"Замовлення", value:String(premium.blankOrders), strong:true },
-                      { label:"Гроші", value:fmt(premium.blankMoney) },
-                      { label:"Опис", value:"Без причини" },
-                      { label:premium.brandLabel, value:premium.topBlankBrand },
-                    ], note:"Повернення/відмови з порожньою колонкою «причина»." },
-                  ]}/>
-
+                <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:14, alignItems:"stretch" }}>
                   <SideColumn t={t} blocks={[
                     { title:"У дорозі (Transit)", rows:[
                       { label:"Замовлення", value:String(kpi.transitOrders), strong:true },
@@ -3618,75 +3688,6 @@ export default function Dashboard() {
               t={t}
               fmt={fmt}
             />
-
-            {/* ── Revenue Performance Panel ── */}
-            {hubberProj2026 && (()=>{
-              const fmtWhole = (n: number) => Math.round(n).toLocaleString("uk-UA").replace(/,/g," ");
-              const vsRec = hubberProj2026.bestTotal > 0
-                ? ((hubberProj2026.projected - hubberProj2026.bestTotal) / hubberProj2026.bestTotal * 100)
-                : null;
-              const avgMonthly = hubberProj2026.monthsIn > 0 ? hubberProj2026.ytd / hubberProj2026.monthsIn : 0;
-              const projectedYearEnd = avgMonthly * 12;
-              const progressPct = hubberProj2026.bestTotal > 0
-                ? Math.min((hubberProj2026.ytd / hubberProj2026.bestTotal) * 100, 100)
-                : 0;
-              return (
-                <div className="orbit-fadein" style={{ ...glassBase, padding:0, animationDelay:"60ms", overflow:"hidden", background:t.bg, border:`1px solid ${t.border}` }}>
-                  {/* Panel header */}
-                  <div style={{ padding:"16px 24px 12px", borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ width:3, height:20, borderRadius:2, background:t.blue }}/>
-                      <div>
-                        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" as const, color:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Revenue Performance</div>
-                        <div style={{ fontSize:9, color:t.text, marginTop:1, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Дохід за рік · YTD vs Record</div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize:9, padding:"3px 8px", borderRadius:3, background:"#2B455914", color:t.blue, fontWeight:700, letterSpacing:"0.06em", fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-                      {hubberProj2026.monthsIn}/12 міс.
-                    </div>
-                  </div>
-
-                  {/* Main metrics row */}
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:0 }}>
-                    {/* YTD Fact */}
-                    <div style={{ padding:"16px 24px", borderRight:`1px solid ${t.border}` }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>YTD факт</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:t.text, letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{fmtWhole(hubberProj2026.ytd)} ₴</div>
-                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{hubberProj2026.monthsIn} міс. даних</div>
-                    </div>
-                    {/* Projected Year-End */}
-                    <div style={{ padding:"16px 24px", borderRight:`1px solid ${t.border}` }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Прогноз до кінця року</div>
-                      <div style={{ fontSize:24, fontWeight:800, color:t.blue, letterSpacing:"-0.03em", lineHeight:1, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{fmtWhole(projectedYearEnd)} ₴</div>
-                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Сер. {fmtWhole(avgMonthly)} ₴/міс.</div>
-                    </div>
-                    {/* vs Record */}
-                    <div style={{ padding:"16px 24px" }}>
-                      <div style={{ fontSize:8, fontWeight:700, letterSpacing:"0.10em", textTransform:"uppercase" as const, color:t.text, marginBottom:6, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>vs рекорд {hubberProj2026.bestYear}</div>
-                      <div style={{ fontSize:24, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1, color:vsRec!==null?(vsRec>=0?"#22C55E":t.red):t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-                        {vsRec!==null ? (vsRec>=0?"+":"")+vsRec.toFixed(1)+"%" : "—"}
-                      </div>
-                      <div style={{ fontSize:9, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Рекорд: {fmtWhole(hubberProj2026.bestTotal)} ₴</div>
-                    </div>
-                  </div>
-
-                  {/* Progress bar: YTD vs Record */}
-                  <div style={{ padding:"12px 24px 16px", borderTop:`1px solid ${t.border}` }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                      <span style={{ fontSize:8, fontWeight:700, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>YTD vs Record {hubberProj2026.bestYear}</span>
-                      <span style={{ fontSize:10, fontWeight:800, color:progressPct>=100?"#22C55E":t.blue, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{progressPct.toFixed(0)}%</span>
-                    </div>
-                    <div style={{ position:"relative", height:6, borderRadius:3, background:t.blue, overflow:"hidden" }}>
-                      <div style={{ width:`${progressPct}%`, height:"100%", borderRadius:3, background: progressPct>=100 ? "linear-gradient(90deg, #22C55E, #16A34A)" : "linear-gradient(90deg, #2B4559, #2563EB)", transition:"width 0.8s ease" }}/>
-                    </div>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-                      <span style={{ fontSize:8, color:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>0</span>
-                      <span style={{ fontSize:8, color:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>{fmtWhole(hubberProj2026.bestTotal)} ₴</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
 
             {/* ── Performance Snapshot Grid ────────────────────────── */}
             {(()=>{
