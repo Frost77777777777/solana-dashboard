@@ -1492,7 +1492,10 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
 
   const leftActive  = (n:string)=> selSource ? n===selSource : true;
   const rightActive = (n:string)=> selTarget ? n===selTarget : true;
-  const toggle = (side:"brand"|"mkt", name:string)=> setSel(p=> p && p.side===side && p.name===name ? null : { side, name });
+  // click is authoritative: also clear the transient hover preview so deselect/reset can't be
+  // left stranded by a hov value whose onPointerLeave never fired (node buttons remount on render)
+  const toggle = (side:"brand"|"mkt", name:string)=> { setHov(null); setSel(p=> p && p.side===side && p.name===name ? null : { side, name }); };
+  const clearSel = ()=> { setSel(null); setHov(null); };
 
   const Pill = ({ pct, on, hl }:{ pct:number; on:boolean; hl?:boolean }) => (
     <span style={{ fontSize:10.5, fontWeight:800, fontFamily:MONO, padding:"2.5px 8px", borderRadius:999, lineHeight:1.35, flexShrink:0, letterSpacing:"0.02em",
@@ -1504,8 +1507,13 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     </span>
   );
 
+  // NB: invoked as a plain function (NodeRow({...})), NOT as <NodeRow/>. Because the parent
+  // re-creates this closure every render, using it as a JSX component type would remount every
+  // node button on each state change — which loses pointerleave events (stranded hover) and even
+  // drops clicks (mousedown/mouseup land on different instances). Returning an intrinsic <button>
+  // keeps a stable element type so React reconciles in place.
   const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => (
-    <button type="button" title={b.name}
+    <button type="button" title={b.name} key={b.name}
       onClick={()=>toggle(side,b.name)}
       onPointerEnter={e=>{ if(e.pointerType!=="touch") setHov({ side, name:b.name }); }}
       onPointerLeave={e=>{ if(e.pointerType!=="touch") setHov(null); }}
@@ -1517,7 +1525,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
       <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>
       <span style={{ fontSize:13, fontWeight:650, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{b.name}</span>
       <span style={{ fontSize:12.5, color:C.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(b.total)}</span>
-      <Pill pct={b.pct} on={seld} hl={hl && !seld}/>
+      {Pill({ pct:b.pct, on:seld, hl:hl && !seld })}
     </button>
   );
 
@@ -1530,7 +1538,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
           ))}
         </div>
         {sel
-          ? <button onClick={()=>setSel(null)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 13px", borderRadius:8, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", cursor:"pointer", fontSize:11, fontWeight:700, color:C.text }}><X size={13}/> Скинути виділення</button>
+          ? <button onClick={clearSel} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 13px", borderRadius:8, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", cursor:"pointer", fontSize:11, fontWeight:700, color:C.text }}><X size={13}/> Скинути виділення</button>
           : <span style={{ fontSize:11, color:C.dim, fontWeight:600 }}>Клікніть вузол, щоб виділити його потоки</span>}
       </div>
       {/* ── Date filters relocated into the flow block ── */}
@@ -1597,7 +1605,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:"rgba(255,255,255,0.05)", pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
-          {leftBands.map(b=><NodeRow key={b.name} b={b} side="brand" on={leftActive(b.name)} seld={b.name===selSource} hl={!!selTarget}/>)}
+          {leftBands.map(b=>NodeRow({ b, side:"brand", on:leftActive(b.name), seld:b.name===selSource, hl:!!selTarget }))}
         </div>
         {/* left bars — premium Wormhole node rectangles: dark fill, sharp glowing border, proportional height */}
         <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
@@ -1648,7 +1656,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
-          {rightBands.map(b=><NodeRow key={b.name} b={b} side="mkt" on={rightActive(b.name)} seld={b.name===selTarget} hl={!!selSource}/>)}
+          {rightBands.map(b=>NodeRow({ b, side:"mkt", on:rightActive(b.name), seld:b.name===selTarget, hl:!!selSource }))}
         </div>
       </div>
       )}
