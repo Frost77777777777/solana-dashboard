@@ -1348,10 +1348,13 @@ const NODE_LOGOS: Record<string,string> = {
   // brands (match when real branded data is loaded)
   [normLogoKey("ARTMON")]: "/logos/artmon.png",
   [normLogoKey("АРТМОН")]: "/logos/artmon.png",
+  [normLogoKey("SL-Artmon")]: "/logos/artmon.png",
   [normLogoKey("IGLEN")]: "/logos/iglen.jpeg",
   [normLogoKey("BRIZOLL")]: "/logos/brizoll.png",
   [normLogoKey("AFINA")]: "/logos/afina.png",
+  [normLogoKey("АФІНА")]: "/logos/afina.png",
   [normLogoKey("ERKA")]: "/logos/erka.png",
+  [normLogoKey("ЕРКА")]: "/logos/erka.png",
   [normLogoKey("ELITA")]: "/logos/elita.jpg",
   [normLogoKey("Білий Халат")]: "/logos/bilyi-halat.jpeg",
   [normLogoKey("Калина")]: "/logos/kalyna.jpg",
