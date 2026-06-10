@@ -1369,9 +1369,9 @@ const PremiumKpiCards = memo(function PremiumKpiCards({ cards, t }:{ cards:PKpi[
 interface SideBlock { title:string; rows:{ label:string; value:string; strong?:boolean }[]; note?:string; }
 const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks:SideBlock[]; t:T; align?:"left"|"right" }) {
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:14, height:"100%" }}>
       {blocks.map((b,i)=>(
-        <div key={i} style={{ ...glass(t), padding:"14px 16px", display:"flex", flexDirection:"column", gap:9 }}>
+        <div key={i} style={{ ...glass(t), padding:"14px 16px", display:"flex", flexDirection:"column", gap:9, flex:1 }}>
           <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.08em", textTransform:"uppercase", color:t.text, textAlign:align }}>{b.title}</span>
           <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
             {b.rows.map((r,j)=>(
@@ -1505,10 +1505,13 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   );
 
   const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => (
-    <button onClick={()=>toggle(side,b.name)} title={b.name}
-      onMouseEnter={()=>setHov({ side, name:b.name })} onMouseLeave={()=>setHov(null)}
+    <button type="button" title={b.name}
+      onClick={()=>toggle(side,b.name)}
+      onPointerEnter={e=>{ if(e.pointerType!=="touch") setHov({ side, name:b.name }); }}
+      onPointerLeave={e=>{ if(e.pointerType!=="touch") setHov(null); }}
       style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translateY(-50%)",
         display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor:"pointer",
+        WebkitAppearance:"none", appearance:"none", font:"inherit", textAlign:"left", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", userSelect:"none",
         background: seld ? C.selBg : "transparent", border:`1.5px solid ${seld ? C.selBorder : "transparent"}`,
         opacity: on?1:0.34, transition:"top .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, border-color .16s" }}>
       <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>
@@ -1596,11 +1599,14 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         <div style={{ position:"relative" }}>
           {leftBands.map(b=><NodeRow key={b.name} b={b} side="brand" on={leftActive(b.name)} seld={b.name===selSource} hl={!!selTarget}/>)}
         </div>
-        {/* left bars */}
+        {/* left bars — premium Wormhole node rectangles: dark fill, sharp glowing border, proportional height */}
         <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
-          {leftBands.map(b=>(
-            <div key={b.name} style={{ position:"absolute", left:0, right:0, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`, background:b.color, borderRadius:2, opacity:leftActive(b.name)?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s" }}/>
-          ))}
+          {leftBands.map(b=>{ const on=leftActive(b.name); return (
+            <div key={b.name} style={{ position:"absolute", left:-1, right:-1, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`,
+              background:"#0B0B16", border:`1.5px solid ${b.color}`, borderRadius:3,
+              boxShadow: on ? `0 0 9px ${b.color}, inset 0 0 5px ${b.color}66` : `0 0 0 ${b.color}`,
+              opacity: on?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, box-shadow .2s" }}/>
+          ); })}
         </div>
         {/* ribbons */}
         <div style={{ position:"relative" }}>
@@ -1617,7 +1623,12 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
                 <feDropShadow dx="0" dy="0.0026" stdDeviation="0.0026" floodColor="#04030A" floodOpacity="0.6"/>
               </filter>
             </defs>
-            <g filter="url(#wh-sep)">
+            {/* connecting-wire: remount-keyed on selection so active streams morph/extend across,
+               originating from the selected side; inactive paths are simply not rendered (fade via key swap) */}
+            <g filter="url(#wh-sep)"
+               key={selSource ? `s:${selSource}` : selTarget ? `t:${selTarget}` : "all"}
+               style={{ transformBox:"fill-box", transformOrigin: selSource ? "0% 50%" : selTarget ? "100% 50%" : "50% 50%",
+                 animation: (selSource||selTarget) ? "whWireDraw .5s cubic-bezier(.4,0,.2,1) both" : "whWireFade .34s ease both" }}>
               {ribbons.map(r=>(
                 <path key={r.key} d={r.d} fill="url(#wh-flow)" fillOpacity={act?0.97:0.9}
                   stroke="rgba(8,6,16,0.85)" strokeWidth={1.1} vectorEffect="non-scaling-stroke"
@@ -1626,11 +1637,14 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
             </g>
           </svg>
         </div>
-        {/* right bars */}
+        {/* right bars — premium Wormhole node rectangles: dark fill, sharp glowing border, proportional height */}
         <div style={{ position:"relative", borderLeft:`1px solid ${C.line}` }}>
-          {rightBands.map(b=>(
-            <div key={b.name} style={{ position:"absolute", left:0, right:0, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`, background:b.color, borderRadius:2, opacity:rightActive(b.name)?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s" }}/>
-          ))}
+          {rightBands.map(b=>{ const on=rightActive(b.name); return (
+            <div key={b.name} style={{ position:"absolute", left:-1, right:-1, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`,
+              background:"#0B0B16", border:`1.5px solid ${b.color}`, borderRadius:3,
+              boxShadow: on ? `0 0 9px ${b.color}, inset 0 0 5px ${b.color}66` : `0 0 0 ${b.color}`,
+              opacity: on?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, box-shadow .2s" }}/>
+          ); })}
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
@@ -1644,7 +1658,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
 
 /* ── generic detail table ── */
 interface DetailCol { key:string; label:string; align?:"left"|"right"; }
-const DetailTable = memo(function DetailTable({ title, cols, rows, t }:{ title:string; cols:DetailCol[]; rows:Record<string,string>[]; t:T }) {
+const DetailTable = memo(function DetailTable({ title, cols, rows, t, totalRow }:{ title:string; cols:DetailCol[]; rows:Record<string,string>[]; t:T; totalRow?:Record<string,string> }) {
   return (
     <div style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:12 }}>
       <span style={{ fontSize:13, fontWeight:800, letterSpacing:"0.02em", color:t.text }}>{title}</span>
@@ -1667,6 +1681,15 @@ const DetailTable = memo(function DetailTable({ title, cols, rows, t }:{ title:s
             </tr>
           ))}
         </tbody>
+        {totalRow && rows.length>0 && (
+          <tfoot>
+            <tr style={{ borderTop:`2px solid ${t.dark?"rgba(255,255,255,0.18)":t.border}` }}>
+              {cols.map((c,ci)=>(
+                <td key={c.key} style={{ textAlign:c.align||"left", padding:"10px 8px", fontSize:12.5, fontWeight:800, color:t.text, fontFamily: ci===0?undefined:MONO, whiteSpace:"nowrap", letterSpacing: ci===0?"0.04em":undefined, textTransform: ci===0?"uppercase" as const:undefined }}>{totalRow[c.key] ?? ""}</td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );
@@ -2739,12 +2762,13 @@ export default function Dashboard() {
     return sorted;
   },[fileData]);
 
-  /* ── years derived from months (for hierarchical date filter) ── */
+  /* ── years derived 100% dynamically from the data's own timestamps ──
+     Every unique YYYY present in the parsed months becomes a chip; no
+     hardcoded current/future years, so any future date in the Excel
+     (e.g. 2031-06) appears automatically and stale years never linger. ── */
   const years = useMemo(()=>{
     const s = new Set<string>();
     months.filter(m=>m!=="No Date").forEach(m=>s.add(m.slice(0,4)));
-    const currentYear = new Date().getFullYear();
-    for (let y = currentYear; y <= currentYear + 2; y++) s.add(String(y));
     return Array.from(s).sort();
   },[months]);
 
@@ -3174,7 +3198,7 @@ export default function Dashboard() {
     const mktOf = (r:Row):string => String(r._mkt ?? "") || "Інше";
 
     const edgeMap = new Map<string,BMEdge>();
-    const brandMap = new Map<string,{orders:number;gross:number;cost:number}>();
+    const brandMap = new Map<string,{orders:number;gross:number;cost:number;net:number}>();
     const mktMap   = new Map<string,{orders:number;gross:number;refs:number}>();
     let blankOrders=0, blankMoney=0, returnsOrders=0, returnsMoney=0, retCount=0, refCount=0;
     const blankByBrand = new Map<string,number>();
@@ -3193,8 +3217,8 @@ export default function Dashboard() {
       if (!e) { e = { brand, mkt, gross:0, orders:0, net:0 }; edgeMap.set(ek, e); }
       e.gross += gross; e.orders++; e.net += gross - cost;
 
-      const b = brandMap.get(brand) ?? { orders:0, gross:0, cost:0 };
-      b.orders++; b.gross += gross; b.cost += cost; brandMap.set(brand, b);
+      const b = brandMap.get(brand) ?? { orders:0, gross:0, cost:0, net:0 };
+      b.orders++; b.gross += gross; b.cost += cost; b.net += gross - cost; brandMap.set(brand, b);
 
       const m = mktMap.get(mkt) ?? { orders:0, gross:0, refs:0 };
       m.orders++; m.gross += gross; if (refusal) m.refs++; mktMap.set(mkt, m);
@@ -3368,10 +3392,6 @@ export default function Dashboard() {
         </div>
         {/* Right: Actions */}
         <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 14px", borderRadius:10, border:`1px solid ${t.border}`, background:t.card }}>
-            <span style={{ fontSize:10, fontWeight:700, color:t.dim, letterSpacing:"0.12em" }}>ВИРУЧКА</span>
-            <span style={{ fontSize:15, fontWeight:800, color:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif", letterSpacing:"-0.02em" }}>{kpi ? fmt(kpi.grossIncome) : "—"}</span>
-          </div>
           {(fileData || hubberQuick) && (
             <div title={[fileData?"Аналітика збережена":"", hubberQuick?"Hubber архів збережено":""].filter(Boolean).join(" · ")}
               style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 10px", borderRadius:8, border:`1px solid ${t.border}`, background:t.card }}>
@@ -3467,7 +3487,7 @@ export default function Dashboard() {
                 }}/>
 
                 {/* Supporting metric cards below the flow */}
-                <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0,1fr))", gap:14, alignItems:"start" }}>
+                <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0,1fr))", gap:14, alignItems:"stretch" }}>
                   <SideColumn t={t} blocks={[
                     { title:"Без причин", rows:[
                       { label:"Замовлення", value:String(premium.blankOrders), strong:true },
@@ -3502,13 +3522,22 @@ export default function Dashboard() {
                       { key:"orders", label:"Замовлення", align:"right" },
                       { key:"gross",  label:"Оборот ₴",   align:"right" },
                       { key:"cost",   label:"Витрати ₴",  align:"right" },
+                      { key:"net",    label:"Дохід ₴",    align:"right" },
                     ]}
                     rows={premium.brandRows.slice(0,12).map(b=>({
                       name:b.name,
                       orders:String(b.orders),
                       gross:fmt(b.gross),
                       cost:fmt(b.cost),
+                      net:fmt(b.net),
                     }))}
+                    totalRow={{
+                      name:"Загалом",
+                      orders:String(premium.brandRows.reduce((s,b)=>s+b.orders,0)),
+                      gross:fmt(premium.brandRows.reduce((s,b)=>s+b.gross,0)),
+                      cost:fmt(premium.brandRows.reduce((s,b)=>s+b.cost,0)),
+                      net:fmt(premium.brandRows.reduce((s,b)=>s+b.net,0)),
+                    }}
                   />
                   <DetailTable t={t}
                     title="Деталі по маркетплейсах"
@@ -3517,13 +3546,26 @@ export default function Dashboard() {
                       { key:"orders", label:"Замовлення",   align:"right" },
                       { key:"gross",  label:"Оборот ₴",     align:"right" },
                       { key:"ret",    label:"Повернення %", align:"right" },
+                      { key:"refs",   label:"К-сть відмов", align:"right" },
                     ]}
                     rows={premium.mktRows.slice(0,12).map(m=>({
                       name:m.name,
                       orders:String(m.orders),
                       gross:fmt(m.gross),
                       ret:m.returnRate.toFixed(1)+"%",
+                      refs:String(m.refs),
                     }))}
+                    totalRow={(()=>{
+                      const O=premium.mktRows.reduce((s,m)=>s+m.orders,0);
+                      const R=premium.mktRows.reduce((s,m)=>s+m.refs,0);
+                      return {
+                        name:"Загалом",
+                        orders:String(O),
+                        gross:fmt(premium.mktRows.reduce((s,m)=>s+m.gross,0)),
+                        ret:(O? (R/O)*100 : 0).toFixed(1)+"%",
+                        refs:String(R),
+                      };
+                    })()}
                   />
                 </div>
               </div>
