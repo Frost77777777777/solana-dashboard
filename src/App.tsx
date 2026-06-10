@@ -1335,6 +1335,27 @@ const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _f
    formula logic. ───────────────────────────────────────────────── */
 const MONO = "'JetBrains Mono', 'Inter', sans-serif";
 
+/* Brand / marketplace logos shown on flow nodes. Keyed by a normalized node
+   name (lowercased, punctuation/size-suffix stripped). Files live in /public/logos.
+   A node with no match falls back to its colored dot. */
+const normLogoKey = (s:string) => s.toLowerCase().replace(/[,.].*$/,"").replace(/[^a-zа-яіїєґ0-9]/gi,"").trim();
+const NODE_LOGOS: Record<string,string> = {
+  // marketplaces (match sample data)
+  [normLogoKey("Каста")]: "/logos/kasta.webp",
+  [normLogoKey("Хаббер")]: "/logos/hubber.jpg",
+  [normLogoKey("Розетка")]: "/logos/rozetka.png",
+  [normLogoKey("Шафа")]: "/logos/shafa.png",
+  // brands (match when real branded data is loaded)
+  [normLogoKey("ARTMON")]: "/logos/artmon.png",
+  [normLogoKey("АРТМОН")]: "/logos/artmon.png",
+  [normLogoKey("IGLEN")]: "/logos/iglen.jpeg",
+  [normLogoKey("BRIZOLL")]: "/logos/brizoll.png",
+  [normLogoKey("AFINA")]: "/logos/afina.png",
+  [normLogoKey("ERKA")]: "/logos/erka.png",
+  [normLogoKey("ELITA")]: "/logos/elita.jpg",
+};
+const logoFor = (name:string): string | undefined => NODE_LOGOS[normLogoKey(name)];
+
 /* ─── Premium light-mode dashboard primitives ───────────────────
    Pure presentational. They receive already-computed financial
    aggregates as props and never touch parsing / state / formulas.
@@ -1522,7 +1543,9 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         WebkitAppearance:"none", appearance:"none", font:"inherit", textAlign:"left", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", userSelect:"none",
         background: seld ? C.selBg : "transparent", border:`1.5px solid ${seld ? C.selBorder : "transparent"}`,
         opacity: on?1:0.34, transition:"top .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, border-color .16s" }}>
-      <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>
+      {logoFor(b.name)
+        ? <img src={logoFor(b.name)} alt={b.name} loading="lazy" style={{ width:24, height:24, borderRadius:6, flexShrink:0, objectFit:"cover", background:"#fff", padding:1.5, boxShadow:`0 0 0 1.5px ${b.color}, 0 0 0 4px ${b.color}1f` }}/>
+        : <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>}
       <span style={{ fontSize:13, fontWeight:650, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{b.name}</span>
       <span style={{ fontSize:12.5, color:C.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(b.total)}</span>
       {Pill({ pct:b.pct, on:seld, hl:hl && !seld })}
