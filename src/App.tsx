@@ -3618,10 +3618,10 @@ export default function Dashboard() {
                 {/* Top KPI cards */}
                 <PremiumKpiCards t={t} cards={[
                   { label:"Чистий дохід",     value:fmt(kpi.net),                            trend: kpi.net>=0?"up":"down", accent: kpi.net>=0 ? t.em : t.red },
-                  { label:"Повернення",       value:premium.retRate.toFixed(2)+"%",          trend:"down", accent: premium.retRate>0 ? t.red : undefined },
+                  { label:"Замовлення",       value:Math.round(kpi.orders).toLocaleString(), accent: t.blue },
                   { label:"Оборот (Дохід)",   value:fmt(kpi.grossIncome) },
-                  { label:"Відмови %",        value:premium.refRate.toFixed(2)+"%",          trend:"down", accent: premium.refRate>0 ? t.red : undefined },
-                  { label:"Сервісні витрати", value:fmt(kpi.com),                            sub:`${fmt(kpi.orders ? kpi.com/kpi.orders : 0)} / замовлення` },
+                  { label:"Відмови %",        value:kpi.returnRate.toFixed(1)+"%",           trend:"down", accent: kpi.returnRate>0 ? t.red : undefined, sub:`${kpi.refs} замовлень відмовлено` },
+                  { label:"Сервісні витрати", value:fmt(kpi.logistics),                      sub:"Доставка + Комісія" },
                   { label:"Дебіторка",        value:fmt(Math.abs(kpi.debt)),                 warn: Math.abs(kpi.debt)>0 ? "УВАГА" : undefined, accent: Math.abs(kpi.debt)>0 ? t.red : undefined },
                 ]}/>
 
