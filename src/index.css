@@ -188,20 +188,12 @@ body.dashboard-pinned {
   50% { opacity: 0.4; }
 }
 
-/* Flow "connecting-wire": active streams extend/plug-in from the selected side */
+/* Flow "connecting-wire": one-shot connect animation when a node is selected.
+   No idle/looping stream animation — the diagram is fully static at rest. */
 @keyframes whWireDraw {
   from { opacity: 0; transform: scaleX(0.03); }
   60%  { opacity: 1; }
   to   { opacity: 1; transform: scaleX(1); }
-}
-@keyframes whWireFade {
-  from { opacity: 0.25; }
-  to   { opacity: 1; }
-}
-/* Subtle "alive" pulse for active (selected) streams — runs on a single group, not per-path */
-@keyframes whWirePulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.8; }
 }
 
 /* Subtle premium hover for the primary dashboard button */
