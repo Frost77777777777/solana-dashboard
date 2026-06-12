@@ -1545,13 +1545,17 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     return pathD(lY0+lp, lY1-lp, rY0+rp, rY1-rp);
   };
   const ribbons:{ key:string; d:string }[] = [];
+  // EMIT_CAP compresses the focused node's wire origins into a central "port": when the node spans full
+  // height (clicked) the wires fan out to each opposite node as distinct wavy streams instead of flat
+  // parallel bands. The node rectangle itself still renders full height. min() leaves the hover state
+  // (already-compact band) untouched.
+  const EMIT_CAP = 0.36;
   if (selSource) {
-    // origin = the focused source band in the CURRENT layout (full height when clicked, its slice when hovered)
     const sb = leftBands.find(b=>b.name===selSource);
-    if (sb) { const span=sb.y1-sb.y0; let cur=sb.y0; for (const rb of rightBands) { const lh=(rb.y1-rb.y0)*span; ribbons.push({ key:`${selSource}->${rb.name}`, d:wire(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
+    if (sb) { const emit=Math.min(sb.y1-sb.y0, EMIT_CAP); let cur=(sb.y0+sb.y1)/2 - emit/2; for (const rb of rightBands) { const lh=(rb.y1-rb.y0)*emit; ribbons.push({ key:`${selSource}->${rb.name}`, d:wire(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
   } else if (selTarget) {
     const tb = rightBands.find(b=>b.name===selTarget);
-    if (tb) { const span=tb.y1-tb.y0; let cur=tb.y0; for (const lb of leftBands) { const rh=(lb.y1-lb.y0)*span; ribbons.push({ key:`${lb.name}->${selTarget}`, d:wire(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
+    if (tb) { const emit=Math.min(tb.y1-tb.y0, EMIT_CAP); let cur=(tb.y0+tb.y1)/2 - emit/2; for (const lb of leftBands) { const rh=(lb.y1-lb.y0)*emit; ribbons.push({ key:`${lb.name}->${selTarget}`, d:wire(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
   } else {
     const lCur = new Map(leftBands.map(b=>[b.name,b.y0]));
     const rCur = new Map(rightBands.map(b=>[b.name,b.y0]));
