@@ -198,6 +198,11 @@ body.dashboard-pinned {
   from { opacity: 0.25; }
   to   { opacity: 1; }
 }
+/* Subtle "alive" pulse for active (selected) streams — runs on a single group, not per-path */
+@keyframes whWirePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.8; }
+}
 
 /* Subtle premium hover for the primary dashboard button */
 .sidebar-dash-btn:hover {

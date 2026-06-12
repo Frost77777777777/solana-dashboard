@@ -1420,7 +1420,7 @@ const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks
    distribution (and vice-versa); click again (or "Скинути") to clear.
    Pure presentational — selection is local UI state and only re-aggregates
    the same edges; it never touches parsing / formulas / app state. ── */
-interface BMEdge { brand:string; mkt:string; gross:number; orders:number; net:number; }
+interface BMEdge { brand:string; mkt:string; gross:number; orders:number; net:number; refs:number; }
 type FlowSel = { side:"brand"|"mkt"; name:string } | null;
 interface FlowBand { name:string; color:string; total:number; pct:number; y0:number; y1:number; cy?:number; }
 const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
@@ -1432,15 +1432,15 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     setYearFilter:(y:string)=>void; setMonthFilter:(m:string)=>void;
   };
 }) {
-  const [mode, setMode] = useState<"volume"|"profit"|"orders">("volume");
+  const [mode, setMode] = useState<"volume"|"profit"|"orders"|"refusals">("volume");
   const [sel, setSel] = useState<FlowSel>(null);
   const [hov, setHov] = useState<FlowSel>(null);
   const [monthOpen, setMonthOpen] = useState(false);
   const [othersOpen, setOthersOpen] = useState<{ brand:boolean; mkt:boolean }>({ brand:false, mkt:false });
   // effective focus = persistent click selection, or transient hover preview
   const act = sel ?? hov;
-  const val = (e:{gross:number;orders:number;net:number}) => mode==="volume" ? e.gross : mode==="profit" ? e.net : e.orders;
-  const fmtV = (n:number) => mode==="orders" ? Math.round(n).toLocaleString("uk-UA").replace(/,/g," ") : fmt(n);
+  const val = (e:{gross:number;orders:number;net:number;refs:number}) => mode==="volume" ? e.gross : mode==="profit" ? e.net : mode==="refusals" ? e.refs : e.orders;
+  const fmtV = (n:number) => (mode==="orders"||mode==="refusals") ? Math.round(n).toLocaleString("uk-UA").replace(/,/g," ") : fmt(n);
 
   // dark Wormhole palette (independent of dashboard theme so the panel stays 1:1)
   const C = {
@@ -1595,7 +1595,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
       style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translate3d(0,-50%,0)", willChange:"top",
         display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor: (isOthers && !expandable) ? "default" : "pointer",
         WebkitAppearance:"none", appearance:"none", font:"inherit", textAlign:"left", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", userSelect:"none",
-        background: seld||expanded ? C.selBg : "transparent", border:`1.5px solid ${seld||expanded ? C.selBorder : "transparent"}`,
+        background: seld||expanded ? C.selBg : "rgba(255,255,255,0.022)", border:`1.5px solid ${seld||expanded ? C.selBorder : "rgba(255,255,255,0.07)"}`,
         opacity: on?1:0.34, transition:"top .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, border-color .16s" }}>
       {isOthers
         ? <span style={{ width:24, height:24, borderRadius:7, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10.5, fontWeight:800, fontFamily:MONO, color:C.sub, background:"rgba(255,255,255,0.06)", border:`1.5px solid ${C.pillBorder}` }}>{count}</span>
@@ -1652,7 +1652,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:22, padding:"24px 20px 38px", display:"flex", flexDirection:"column", boxShadow:"0 22px 64px rgba(0,0,0,0.5)" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6, gap:10, flexWrap:"wrap" }}>
         <div style={{ display:"inline-flex", padding:3, borderRadius:9, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)" }}>
-          {([["volume","Оборот"],["profit","Дохід"],["orders","Замовлення"]] as const).map(([m,lbl])=>(
+          {([["volume","Оборот"],["profit","Дохід"],["orders","Замовлення"],["refusals","Відмови"]] as const).map(([m,lbl])=>(
             <button key={m} onClick={()=>setMode(m)} style={{ padding:"5px 16px", borderRadius:7, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? "#0B0B16" : C.sub, background: mode===m ? C.hi : "transparent", transition:"all .15s" }}>{lbl}</button>
           ))}
         </div>
@@ -1740,27 +1740,40 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
         <div style={{ position:"relative" }}>
           <svg viewBox="0 0 1 1" preserveAspectRatio="none" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible", transform:"translateZ(0)", WebkitTransform:"translateZ(0)" }}>
             <defs>
-              {/* static structural gradient — shaded left → mid-tone → highlighted right (volume & depth, no animation) */}
+              {/* static structural gradient — shaded left → mid-tone → highlighted right (volume & depth) */}
               <linearGradient id="wh-flow" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%"   stopColor="#1f1a2e"/>
                 <stop offset="52%"  stopColor="#342d4b"/>
                 <stop offset="100%" stopColor="#443b63"/>
               </linearGradient>
+              {/* geometric depth: a soft drop-shadow so overlapping wires read as separate tubes, not one
+                 flat mass. Applied only in the idle (non-animated) state so WebKit never re-rasterises it
+                 per frame during the connect animation (the Safari-stutter trap). */}
+              <filter id="wh-depth" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="0.5" stdDeviation="0.7" floodColor="#05040A" floodOpacity="0.55"/>
+              </filter>
             </defs>
-            {/* connecting-wire: remount-keyed on selection so active streams morph/extend across,
-               originating from the selected side; inactive paths are simply not rendered (fade via key swap).
-               No SVG filter here — separation comes from each path's dark stroke. Animating a filtered
-               <g> forces WebKit to re-rasterise the filter every frame (Safari stutter); the GPU hints
-               below keep the one-shot draw on the compositor at 60fps. */}
+            {/* connecting-wire: remount-keyed on selection so active streams morph/extend and "plug into"
+               the opposite side, originating from the selected node; inactive paths fade via key swap.
+               Each wire is a 2-layer path (gradient body + crisp light top-edge) so streams stay distinct
+               geometric tubes. The subtle pulse runs on ONE nested group (not per-path) to stay alive
+               without the per-frame CPU cost the user flagged earlier. */}
             <g key={selSource ? `s:${selSource}` : selTarget ? `t:${selTarget}` : "all"}
                style={{ transformBox:"fill-box", transformOrigin: selSource ? "0% 50%" : selTarget ? "100% 50%" : "50% 50%",
                  willChange:"transform, opacity", backfaceVisibility:"hidden",
+                 filter: (selSource||selTarget) ? "none" : "url(#wh-depth)",
                  animation: (selSource||selTarget) ? "whWireDraw .5s cubic-bezier(.4,0,.2,1) both" : "whWireFade .34s ease both" }}>
-              {ribbons.map(r=>(
-                <path key={r.key} d={r.d} fill="url(#wh-flow)" fillOpacity={act?0.97:0.9}
-                  stroke="rgba(8,6,16,0.9)" strokeWidth={1.2} vectorEffect="non-scaling-stroke"
-                  strokeLinejoin="round" style={{ transition:"fill-opacity .16s" }}/>
-              ))}
+              <g style={{ animation: (selSource||selTarget) ? "whWirePulse 2.6s ease-in-out infinite" : "none" }}>
+                {ribbons.map(r=>(
+                  <g key={r.key}>
+                    <path d={r.d} fill="url(#wh-flow)" fillOpacity={act?0.96:0.8}
+                      stroke="rgba(8,6,16,0.92)" strokeWidth={1.4} vectorEffect="non-scaling-stroke"
+                      strokeLinejoin="round" style={{ transition:"fill-opacity .16s" }}/>
+                    <path d={r.d} fill="none" stroke="rgba(190,182,255,0.30)" strokeWidth={0.8}
+                      vectorEffect="non-scaling-stroke" strokeLinejoin="round" pointerEvents="none"/>
+                  </g>
+                ))}
+              </g>
             </g>
           </svg>
         </div>
@@ -3329,8 +3342,8 @@ export default function Dashboard() {
 
       const ek = `${brand}\u0000${mkt}`;
       let e = edgeMap.get(ek);
-      if (!e) { e = { brand, mkt, gross:0, orders:0, net:0 }; edgeMap.set(ek, e); }
-      e.gross += gross; e.orders++; e.net += gross - cost;
+      if (!e) { e = { brand, mkt, gross:0, orders:0, net:0, refs:0 }; edgeMap.set(ek, e); }
+      e.gross += gross; e.orders++; e.net += gross - cost; if (refusal) e.refs++;
 
       const b = brandMap.get(brand) ?? { orders:0, gross:0, cost:0, net:0 };
       b.orders++; b.gross += gross; b.cost += cost; b.net += gross - cost; brandMap.set(brand, b);
@@ -3688,40 +3701,6 @@ export default function Dashboard() {
               t={t}
               fmt={fmt}
             />
-
-            {/* ── Performance Snapshot Grid ────────────────────────── */}
-            {(()=>{
-              const lflPct = hubberLfl ? hubberLfl.pct : (prevKpi && prevKpi.net !== 0 ? ((kpi.net - prevKpi.net) / Math.abs(prevKpi.net)) * 100 : null);
-              const marginPct = kpi.grossIncome > 0 ? (kpi.net / kpi.grossIncome) * 100 : null;
-              const roiVal = kpi.logistics > 0 ? kpi.net / kpi.logistics : null;
-              return (
-            <div className="orbit-fadein" style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10, animationDelay:"65ms" }}>
-              <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:t.text }}>LFL %</div>
-                <div style={{ ...KPI_NUM, color:lflPct!==null?(lflPct>=0?"#22C55E":"#EF4444"):t.text, fontSize:28 }}>
-                  {lflPct!==null ? (lflPct>=0?"+":"")+lflPct.toFixed(1)+"%" : "—"}
-                </div>
-                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-                  {hubberLfl ? `vs ${hubberLfl.prevYear} · ${hubberLfl.monthName}` : prevKpi ? "vs попер. місяць" : "Немає даних"}
-                </div>
-              </div>
-              <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:t.text }}>Margin %</div>
-                <div style={{ ...KPI_NUM, color:marginPct!==null?(marginPct>=0?t.blue:"#EF4444"):t.text, fontSize:28 }}>
-                  {marginPct!==null ? marginPct.toFixed(1)+"%" : "—"}
-                </div>
-                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Чистий дохід / Виручка</div>
-              </div>
-              <div style={{ ...KPI_CARD_BASE, background:t.bg, border:`1px solid ${t.border}`, minHeight:120 }}>
-                <div style={{ ...KPI_LABEL, color:t.text }}>ROI / Sebe</div>
-                <div style={{ ...KPI_NUM, color:roiVal!==null?(roiVal>=0?t.blue:"#EF4444"):t.text, fontSize:28 }}>
-                  {roiVal!==null ? roiVal.toFixed(2)+"x" : "—"}
-                </div>
-                <div style={{ fontSize:10, color:t.text, marginTop:4, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Net / Логістика</div>
-              </div>
-            </div>
-              );
-            })()}
 
             {/* ── Collapse toggle — everything below the monthly trend ── */}
             <button onClick={()=>setLowerOpen(v=>!v)} style={{
