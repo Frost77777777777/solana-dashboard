@@ -1534,16 +1534,24 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   const leftBands  = placeLabels(clickSource ? fullBand(clickSource, bTot(clickSource), bColor(clickSource)) : (leftSel  ?? leftAll));
   const rightBands = placeLabels(clickTarget ? fullBand(clickTarget, mTot(clickTarget), mColor(clickTarget)) : (rightSel ?? rightAll));
 
-  // ribbons
+  // ribbons — each path is inset top/bottom so adjacent streams keep a dark gap and read as
+  // distinct geometric "wires" (not one merged mass), even when a clicked node spans full height.
+  // Bigger gap in the selected state where there are few, large wires; tiny gap in the busy idle view.
   const pathD = (lY0:number,lY1:number,rY0:number,rY1:number)=>`M0,${lY0} C0.5,${lY0} 0.5,${rY0} 1,${rY0} L1,${rY1} C0.5,${rY1} 0.5,${lY1} 0,${lY1} Z`;
+  const GAP = (selSource||selTarget) ? 0.014 : 0.005;
+  const wire = (lY0:number,lY1:number,rY0:number,rY1:number)=>{
+    const lp = Math.min(GAP, Math.max(0,(lY1-lY0)/2 - 0.0015));
+    const rp = Math.min(GAP, Math.max(0,(rY1-rY0)/2 - 0.0015));
+    return pathD(lY0+lp, lY1-lp, rY0+rp, rY1-rp);
+  };
   const ribbons:{ key:string; d:string }[] = [];
   if (selSource) {
     // origin = the focused source band in the CURRENT layout (full height when clicked, its slice when hovered)
     const sb = leftBands.find(b=>b.name===selSource);
-    if (sb) { const span=sb.y1-sb.y0; let cur=sb.y0; for (const rb of rightBands) { const lh=(rb.y1-rb.y0)*span; ribbons.push({ key:`${selSource}->${rb.name}`, d:pathD(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
+    if (sb) { const span=sb.y1-sb.y0; let cur=sb.y0; for (const rb of rightBands) { const lh=(rb.y1-rb.y0)*span; ribbons.push({ key:`${selSource}->${rb.name}`, d:wire(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
   } else if (selTarget) {
     const tb = rightBands.find(b=>b.name===selTarget);
-    if (tb) { const span=tb.y1-tb.y0; let cur=tb.y0; for (const lb of leftBands) { const rh=(lb.y1-lb.y0)*span; ribbons.push({ key:`${lb.name}->${selTarget}`, d:pathD(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
+    if (tb) { const span=tb.y1-tb.y0; let cur=tb.y0; for (const lb of leftBands) { const rh=(lb.y1-lb.y0)*span; ribbons.push({ key:`${lb.name}->${selTarget}`, d:wire(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
   } else {
     const lCur = new Map(leftBands.map(b=>[b.name,b.y0]));
     const rCur = new Map(rightBands.map(b=>[b.name,b.y0]));
@@ -1551,7 +1559,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
       const ev = edge(lb.name,rb.name); if (!ev) continue; const h=ev/G;
       const lY0=lCur.get(lb.name)!, lY1=lY0+h; lCur.set(lb.name,lY1);
       const rY0=rCur.get(rb.name)!, rY1=rY0+h; rCur.set(rb.name,rY1);
-      ribbons.push({ key:`${lb.name}->${rb.name}`, d:pathD(lY0,lY1,rY0,rY1) });
+      ribbons.push({ key:`${lb.name}->${rb.name}`, d:wire(lY0,lY1,rY0,rY1) });
     }
   }
 
@@ -1584,7 +1592,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   // keeps a stable element type so React reconciles in place.
   const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => {
     const isOthers = b.name===OTHERS;
-    const expandable = isOthers && !sel;                       // only group-expand from the global view
+    const expandable = isOthers;                               // group-expand works in global view AND while a node is selected
     const expanded = isOthers && (side==="brand" ? othersOpen.brand : othersOpen.mkt);
     const count = isOthers ? (side==="brand" ? brandSmall.length : mktSmall.length) : 0;
     return (
@@ -1611,24 +1619,29 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     );
   };
 
-  // accordion overlay listing the small items grouped under "Інші" (global view only)
+  // accordion overlay listing the small items grouped under "Інші" — works in global view and while a node is selected
   const OthersPanel = ({ side }:{ side:"brand"|"mkt" }) => {
     const open = side==="brand" ? othersOpen.brand : othersOpen.mkt;
-    if (!open || sel) return null;
+    if (!open) return null;
     const bands = side==="brand" ? leftBands : rightBands;
     const ob = bands.find(b=>b.name===OTHERS); if (!ob) return null;
     const smalls = side==="brand" ? brandSmall : mktSmall;
-    const totF = side==="brand" ? bTot : mTot;
     const colF = side==="brand" ? bColor : mColor;
-    const sideSum = smalls.reduce((a,n)=>a+totF(n),0) || 1;
+    // when a node on the opposite side is selected, weigh each small item by its flow to that node
+    // (so the list matches the re-ranked breakdown); otherwise use the global side total
+    const itemTot = (n:string) => side==="brand"
+      ? (selTarget ? edge(n, selTarget) : bTot(n))
+      : (selSource ? edge(selSource, n) : mTot(n));
+    const list = smalls.map(n=>({ name:n, total:itemTot(n), color:colF(n) })).filter(x=>x.total>0);
+    const sideSum = list.reduce((a,x)=>a+x.total,0) || 1;
     const cyTop = (ob.cy ?? (ob.y0+ob.y1)/2);
-    const items = smalls.map(n=>({ name:n, total:totF(n), pct:totF(n)/sideSum*100, color:colF(n) })).sort((a,b)=>b.total-a.total);
+    const items = list.map(x=>({ ...x, pct:x.total/sideSum*100 })).sort((a,b)=>b.total-a.total);
     return (<>
       <div onClick={()=>setOthersOpen({ brand:false, mkt:false })} style={{ position:"fixed", inset:0, zIndex:70 }}/>
       <div style={{ position:"absolute", top:`min(${(cyTop*100).toFixed(2)}%, calc(100% - 230px))`, [side==="brand"?"left":"right"]:0, zIndex:71,
         width:330, maxWidth:"96vw", maxHeight:320, overflowY:"auto", padding:6, borderRadius:12, background:"#14132A", border:"1px solid rgba(255,255,255,0.14)", boxShadow:"0 22px 60px rgba(0,0,0,0.6)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 8px 8px", borderBottom:`1px solid ${C.line}`, marginBottom:4 }}>
-          <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.06em", textTransform:"uppercase", color:C.sub, fontFamily:MONO }}>Інші · {smalls.length}</span>
+          <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.06em", textTransform:"uppercase", color:C.sub, fontFamily:MONO }}>Інші · {items.length}</span>
           <button type="button" onClick={()=>setOthersOpen({ brand:false, mkt:false })} style={{ display:"inline-flex", padding:2, border:"none", background:"transparent", color:C.sub, cursor:"pointer" }}><X size={13}/></button>
         </div>
         {items.map(it=>(
