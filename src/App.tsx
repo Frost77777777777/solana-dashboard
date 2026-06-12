@@ -952,7 +952,6 @@ function parseDate(val: unknown): Date | null {
 function toMonthKey(d: Date) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
 const MUK = ["Січень","Лютий","Березень","Квітень","Травень","Червень","Липень","Серпень","Вересень","Жовтень","Листопад","Грудень"];
 function toMonthLabel(k: string) { const [y,m]=k.split("-"); return `${MUK[parseInt(m,10)-1]} ${y}`; }
-function toMonthShort(k: string) { const [y,m]=k.split("-"); return `${MUK[parseInt(m,10)-1].slice(0,3)} '${y.slice(2)}`; }
 
 /* ─── currency formatting ────────────────────────────────────── */
 function fmt(n: number): string {
@@ -1055,32 +1054,6 @@ function prevMonthKey(mk: string): string {
   return `${y}-${String(m - 1).padStart(2, "0")}`;
 }
 
-/* ─── LFL growth badge ───────────────────────────────────────── */
-function LflBadge({ current, previous, fmt: fmtFn, t }: { current: number; previous: number | null; fmt: (v: number) => string; t?: T }) {
-  if (previous === null || previous === 0) return null;
-  const delta = current - previous;
-  const pct   = (delta / Math.abs(previous)) * 100;
-  const up    = delta >= 0;
-  const sign  = up ? "+" : "";
-  const subColor = t?.dark ? "rgba(255,255,255,0.35)" : t?.dim ?? "#6B7280";
-  // Neon-green chip for positive, crimson chip for negative (Wormhole dark);
-  // pastel chips on the light theme.
-  const chipBg    = t?.dark
-    ? (up ? "rgba(61,245,176,0.12)" : "rgba(255,77,109,0.14)")
-    : (up ? "#DCFCE7" : "rgba(239,68,68,0.08)");
-  const chipColor = t?.dark
-    ? (up ? "#3DF5B0" : "#FF4D6D")
-    : (up ? "#15803D" : "#DC2626");
-  return (
-    <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:4 }}>
-      <span style={{ display:"inline-flex", alignItems:"center", padding:"2px 7px", borderRadius:4, background:chipBg, fontSize:11, fontWeight:700, color:chipColor, letterSpacing:"-0.01em" }}>
-        {up ? "↑" : "↓"} {sign}{pct.toFixed(1)}%
-      </span>
-      <span style={{ fontSize:10, color:subColor }}>vs {fmtFn(previous)}</span>
-    </div>
-  );
-}
-
 /* ─── Chart Error Boundary ────────────────────────────────────── */
 class ChartErrorBoundary extends Component<
   { children: React.ReactNode; label?: string; t: T },
@@ -1114,220 +1087,6 @@ class ChartErrorBoundary extends Component<
     return this.props.children;
   }
 }
-
-/* ─── count-up animation component ───────────────────────────── */
-function AnimNum({ value, fmt: fmtFn }: { value: number; fmt: (v: number) => string }) {
-  const [disp, setDisp] = useState(value);
-  const prevRef = useRef(value);
-  const rafRef  = useRef<number>(0);
-  useEffect(() => {
-    const from = prevRef.current;
-    const to   = value;
-    // Skip animation when value hasn't changed meaningfully (avoids wasted RAF loops)
-    if (Math.abs(to - from) < 0.001 * (Math.abs(to) || 1)) {
-      setDisp(to);
-      prevRef.current = to;
-      return;
-    }
-    cancelAnimationFrame(rafRef.current);
-    const dur   = 280;
-    const start = performance.now();
-    function tick(now: number) {
-      const p = Math.min((now - start) / dur, 1);
-      const e = 1 - Math.pow(1 - p, 3); // ease-out cubic
-      setDisp(from + (to - from) * e);
-      if (p < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        prevRef.current = to;
-      }
-    }
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [value]);
-  return <>{fmtFn(disp)}</>;
-}
-
-/* ─── memoized KPI row ──────────────────────────────────────── */
-interface KpiRowProps {
-  kpi: { net:number; returnRate:number; refs:number; orders:number; successOrders:number; debt:number; logistics:number; del:number; com:number; grossIncome:number; moneyInTransit:number; transitOrders:number; };
-  prevKpi: { net:number; orders:number; logistics:number; } | null;
-  hubberLfl: { curr:number; prev:number; pct:number; year:string; prevYear:string; monthName:string } | null;
-  filteredCount: number;
-  syncError: boolean;
-  debtCol: string | null;
-  t: T;
-  fmt: (v:number)=>string;
-}
-const KPI_CARD_BASE: React.CSSProperties = {
-  borderRadius:12,
-  padding:"18px 18px 16px",
-  display:"flex", flexDirection:"column", justifyContent:"space-between",
-  minHeight:0,
-  boxSizing:"border-box" as const,
-};
-const KPI_LABEL: React.CSSProperties = {
-  fontSize:10, fontWeight:700, letterSpacing:"0.12em",
-  textTransform:"uppercase" as const,
-  fontFamily:"'JetBrains Mono', 'Inter', sans-serif",
-};
-const KPI_NUM: React.CSSProperties = {
-  fontSize:26, fontWeight:800, letterSpacing:"-0.03em", lineHeight:1,
-  margin:"8px 0 4px",
-  fontFamily:"'JetBrains Mono', 'Inter', sans-serif",
-};
-
-const KpiRow = memo(function KpiRow({ kpi, prevKpi, hubberLfl, filteredCount: _filteredCount, syncError, debtCol, t, fmt }: KpiRowProps) {
-  const cardBg: React.CSSProperties = {
-    background: t.card,
-    boxShadow: t.dark ? "0 10px 30px rgba(0,0,0,0.35)" : "0 1px 3px rgba(16,24,40,0.06)",
-  };
-  return (
-    <div className="kpi-cards-grid" style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, alignItems:"stretch" }}>
-      <style>{`.kpi-cards-grid > .kpi-card { display:flex; flex-direction:column; justify-content:space-between; min-height:0; box-sizing:border-box; }`}</style>
-
-      {/* 1 — Net Income */}
-      <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${kpi.net<0 ? t.red+"44" : t.border}`, borderLeft: kpi.net<0 ? `3px solid ${t.red}` : kpi.net>0 ? `3px solid ${t.em}` : `1px solid ${t.border}` }}>
-        <div>
-          <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
-            <span style={{ ...KPI_LABEL, color:t.dim }}>Чистий Дохід</span>
-            {syncError && <span style={{ fontSize:9, fontWeight:800, padding:"1px 5px", borderRadius:4, background:"#ff3b3b22", border:"1px solid #ff3b3b88", color:"#ff3b3b" }}>⚠ Sync</span>}
-          </div>
-          <div style={{ display:"flex", alignItems:"flex-end", gap:5, ...KPI_NUM, color:kpi.net>=0?t.em:t.red }}>
-            <AnimNum value={kpi.net} fmt={fmt}/>
-            {kpi.net>=0
-              ? <TrendingUp size={14} style={{ color:t.amb, marginBottom:2, flexShrink:0 }}/>
-              : <TrendingDown size={14} style={{ color:t.red, marginBottom:2, flexShrink:0 }}/>}
-          </div>
-          <LflBadge current={kpi.net} previous={prevKpi?.net??null} fmt={fmt} t={t}/>
-          {hubberLfl && (
-            <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-              <span style={{ fontSize:8, fontWeight:700, letterSpacing:"0.06em", color:t.text, textTransform:"uppercase" as const }}>LFL vs {hubberLfl.prevYear}</span>
-              <span style={{ display:"inline-flex", alignItems:"center", padding:"2px 7px", borderRadius:4, background:hubberLfl.pct>=0?"#DCFCE7":"rgba(239,68,68,0.08)", fontSize:11, fontWeight:700, color:hubberLfl.pct>=0?"#15803D":"#DC2626", letterSpacing:"-0.01em" }}>
-                {hubberLfl.pct>=0?"↑":"↓"} {hubberLfl.pct>=0?"+":""}{hubberLfl.pct.toFixed(1)}%
-              </span>
-              <span style={{ fontSize:9, color:t.text }}>{hubberLfl.monthName}</span>
-            </div>
-          )}
-        </div>
-        {/* Margin % + Net ROI */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
-          <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Margin %</span>
-            <strong style={{ fontSize:14, fontWeight:800, color:kpi.grossIncome>0?(kpi.net/kpi.grossIncome*100)>=0?t.em:t.red:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-              {kpi.grossIncome>0 ? (kpi.net/kpi.grossIncome*100).toFixed(1)+"%" : "—"}
-            </strong>
-          </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Net ROI</span>
-            <strong style={{ fontSize:14, fontWeight:800, color:kpi.logistics>0?(kpi.net/kpi.logistics)>=0?t.em:t.red:t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-              {kpi.logistics>0 ? (kpi.net/kpi.logistics).toFixed(2)+"x" : "—"}
-            </strong>
-          </div>
-        </div>
-        {/* Sub-metrics row */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:4, paddingTop:8, borderTop:`1px solid ${t.border}`, marginTop:8 }}>
-          <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:t.text, letterSpacing:"0.04em", textTransform:"uppercase" as const }}>лог</span>
-            <strong style={{ fontSize:10, fontWeight:700, color:t.amb }}>{fmt(kpi.logistics)}</strong>
-          </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:t.text, letterSpacing:"0.04em", textTransform:"uppercase" as const }}>дост</span>
-            <strong style={{ fontSize:10, fontWeight:700, color:t.red }}>{fmt(kpi.del)}</strong>
-          </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-            <span style={{ fontSize:7, color:t.text, letterSpacing:"0.04em", textTransform:"uppercase" as const }}>кому</span>
-            <strong style={{ fontSize:10, fontWeight:700, color:t.amb }}>{fmt(kpi.com)}</strong>
-          </div>
-        </div>
-      </div>
-
-      {/* 2 — Return rate */}
-      <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${t.border}` }}>
-        <div>
-          <span style={{ ...KPI_LABEL }}>Відмови %</span>
-          <div style={{ ...KPI_NUM, color:kpi.returnRate>0?t.red:t.text }}><AnimNum value={kpi.returnRate} fmt={v=>v.toFixed(1)+"%"}/></div>
-          {kpi.orders>0 && kpi.returnRate>0 && (
-            <div style={{ position:"relative", height:4, borderRadius:99, background:t.dark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.08)", overflow:"hidden", marginTop:8 }}>
-              <div style={{ width:`${Math.min(kpi.returnRate,100)}%`, height:"100%", borderRadius:99, background:t.red, transition:"width 0.5s ease" }}/>
-            </div>
-          )}
-        </div>
-        <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10, display:"flex", alignItems:"center", gap:6 }}>
-          <span style={{ fontSize:10, fontWeight:700, color:kpi.refs>0?t.red:t.text }}>{kpi.refs}</span>
-          <span style={{ fontSize:10, color:t.text }}>замовлень відмовлено</span>
-        </div>
-      </div>
-
-      {/* 3 — Orders */}
-      <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${t.border}` }}>
-        <div>
-          <span style={{ ...KPI_LABEL }}>Замовлення</span>
-          <div style={{ ...KPI_NUM, color:t.blue }}><AnimNum value={kpi.orders} fmt={v=>Math.round(v).toLocaleString()}/></div>
-          <LflBadge current={kpi.orders} previous={prevKpi?.orders??null} fmt={v=>Math.round(v).toLocaleString()} t={t}/>
-        </div>
-        {/* Average Check */}
-        <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
-          <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
-            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Середній чек</span>
-            <strong style={{ fontSize:16, fontWeight:800, color:t.blue, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-              {kpi.orders>0 ? fmt(kpi.grossIncome/kpi.orders) : "—"}
-            </strong>
-          </div>
-          <span style={{ fontSize:10, color:t.text }}>Успішних: <strong style={{ color:t.em }}>{kpi.successOrders.toLocaleString()}</strong></span>
-        </div>
-      </div>
-
-      {/* 4 — Debt / Receivables */}
-      {(()=>{
-        const hasDebt = Math.abs(kpi.debt) > 0;
-        return (
-          <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${hasDebt ? t.red+"44" : t.border}`, borderLeft: hasDebt ? `3px solid ${t.red}` : `1px solid ${t.border}` }}>
-            <div>
-              <span style={{ ...KPI_LABEL, color: hasDebt ? t.red : undefined, fontWeight: hasDebt ? 900 : 700 }}>Дебіторка{hasDebt ? " ⚠" : ""}</span>
-              <div style={{ ...KPI_NUM, color: hasDebt ? t.red : t.text, fontWeight:900 }}><AnimNum value={Math.abs(kpi.debt)} fmt={fmt}/></div>
-            </div>
-            <div style={{ paddingTop:10, borderTop:`1px solid ${hasDebt ? t.red+"33" : t.border}`, marginTop:10 }}>
-              <span style={{ fontSize: hasDebt ? 11 : 10, fontWeight: hasDebt ? 800 : 400, color: hasDebt ? t.red : t.text }}>
-                {debtCol ? (hasDebt ? "⚠ УВАГА: Заборгованість є!" : "Заборгованість відсутня") : "Дані відсутні"}
-              </span>
-            </div>
-            {/* Money in Transit sub-metric — always visible */}
-            <div style={{ paddingTop:8, borderTop:`1px solid ${t.border}`, marginTop:8 }}>
-              <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-                <span style={{ fontSize:8, color:kpi.moneyInTransit > 0 ? "#E29578" : t.dim, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontWeight:700, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>Гроші в дорозі 📦</span>
-                <strong style={{ fontSize:16, fontWeight:800, color:kpi.moneyInTransit > 0 ? "#E29578" : t.text, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-                  <AnimNum value={kpi.moneyInTransit} fmt={fmt}/>
-                </strong>
-                <span style={{ fontSize:9, color:t.dim }}>{kpi.transitOrders} замовлень</span>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* 5 — Logistics */}
-      <div className="kpi-card" style={{ ...KPI_CARD_BASE, ...cardBg, border:`1px solid ${t.border}` }}>
-        <div>
-          <span style={{ ...KPI_LABEL }}>Логістика</span>
-          <div style={{ ...KPI_NUM, color:t.amb }}><AnimNum value={kpi.logistics} fmt={fmt}/></div>
-          <LflBadge current={kpi.logistics} previous={prevKpi?.logistics??null} fmt={fmt} t={t}/>
-        </div>
-        {/* % of Revenue */}
-        <div style={{ paddingTop:10, borderTop:`1px solid ${t.border}`, marginTop:10 }}>
-          <div style={{ display:"flex", flexDirection:"column", gap:1, marginBottom:6 }}>
-            <span style={{ fontSize:8, color:t.text, letterSpacing:"0.08em", textTransform:"uppercase" as const, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>% від виручки</span>
-            <strong style={{ fontSize:16, fontWeight:800, color:kpi.grossIncome>0&&(kpi.logistics/kpi.grossIncome*100)>15?t.red:t.blue, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
-              {kpi.grossIncome>0 ? (kpi.logistics/kpi.grossIncome*100).toFixed(1)+"%" : "—"}
-            </strong>
-          </div>
-          <span style={{ fontSize:10, color:t.text }}>Доставка + Комісія</span>
-        </div>
-      </div>
-
-    </div>
-  );
-});
 
 /* ─── Wormhole-style flow primitives ────────────────────────────
    Pure presentational components. They receive already-computed
@@ -1763,34 +1522,25 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
                 <stop offset="52%"  stopColor="#342d4b"/>
                 <stop offset="100%" stopColor="#443b63"/>
               </linearGradient>
-              {/* geometric depth: a soft drop-shadow so overlapping wires read as separate tubes, not one
-                 flat mass. Applied only in the idle (non-animated) state so WebKit never re-rasterises it
-                 per frame during the connect animation (the Safari-stutter trap). */}
-              <filter id="wh-depth" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="0.5" stdDeviation="0.7" floodColor="#05040A" floodOpacity="0.55"/>
-              </filter>
             </defs>
             {/* connecting-wire: remount-keyed on selection so active streams morph/extend and "plug into"
-               the opposite side, originating from the selected node; inactive paths fade via key swap.
-               Each wire is a 2-layer path (gradient body + crisp light top-edge) so streams stay distinct
-               geometric tubes. The subtle pulse runs on ONE nested group (not per-path) to stay alive
-               without the per-frame CPU cost the user flagged earlier. */}
+               the opposite side, originating from the selected node. One-shot connect animation only —
+               NO looping/idle animation (100% static when nothing is selected) to avoid Safari/CPU cost.
+               Each wire is a 2-layer path (gradient body + crisp dark stroke) so streams stay distinct
+               geometric tubes without any drop-shadow/blur filter. */}
             <g key={selSource ? `s:${selSource}` : selTarget ? `t:${selTarget}` : "all"}
                style={{ transformBox:"fill-box", transformOrigin: selSource ? "0% 50%" : selTarget ? "100% 50%" : "50% 50%",
-                 willChange:"transform, opacity", backfaceVisibility:"hidden",
-                 filter: (selSource||selTarget) ? "none" : "url(#wh-depth)",
-                 animation: (selSource||selTarget) ? "whWireDraw .5s cubic-bezier(.4,0,.2,1) both" : "whWireFade .34s ease both" }}>
-              <g style={{ animation: (selSource||selTarget) ? "whWirePulse 2.6s ease-in-out infinite" : "none" }}>
-                {ribbons.map(r=>(
-                  <g key={r.key}>
-                    <path d={r.d} fill="url(#wh-flow)" fillOpacity={act?0.96:0.8}
-                      stroke="rgba(8,6,16,0.92)" strokeWidth={1.4} vectorEffect="non-scaling-stroke"
-                      strokeLinejoin="round" style={{ transition:"fill-opacity .16s" }}/>
-                    <path d={r.d} fill="none" stroke="rgba(190,182,255,0.30)" strokeWidth={0.8}
-                      vectorEffect="non-scaling-stroke" strokeLinejoin="round" pointerEvents="none"/>
-                  </g>
-                ))}
-              </g>
+                 transform:"translate3d(0,0,0)", WebkitTransform:"translate3d(0,0,0)", willChange:"transform", backfaceVisibility:"hidden",
+                 animation: (selSource||selTarget) ? "whWireDraw .5s cubic-bezier(.4,0,.2,1) both" : "none" }}>
+              {ribbons.map(r=>(
+                <g key={r.key}>
+                  <path d={r.d} fill="url(#wh-flow)" fillOpacity={act?0.96:0.8}
+                    stroke="rgba(8,6,16,0.92)" strokeWidth={1.4} vectorEffect="non-scaling-stroke"
+                    strokeLinejoin="round" style={{ transition:"fill-opacity .16s" }}/>
+                  <path d={r.d} fill="none" stroke="rgba(190,182,255,0.30)" strokeWidth={0.8}
+                    vectorEffect="non-scaling-stroke" strokeLinejoin="round" pointerEvents="none"/>
+                </g>
+              ))}
             </g>
           </svg>
         </div>
@@ -2892,9 +2642,6 @@ export default function Dashboard() {
     return "";
   }
 
-  /* ── current month key e.g. "2026-05" ── */
-  const CURRENT_MONTH_KEY = useMemo(()=>toMonthKey(new Date()),[]);
-
   /* ── company (brand) values — from _sheet_ column ── */
   const companies = useMemo(()=>{
     if (!fileData?.isMultiSheet) return [];
@@ -2950,19 +2697,6 @@ export default function Dashboard() {
       return true;
     });
   },[fileData, brandFilter, companyFilter, monthFilter]);
-
-  /* ── chartFiltered: same as filtered but IGNORES month filter ──
-     The monthly trend chart must always show the full historical trend,
-     not slice to a single month when a specific month is selected. ── */
-  const chartFiltered = useMemo(()=>{
-    if (!fileData) return [];
-    return fileData.rows.filter(r=>{
-      if (!r._mkt) return false;
-      if (brandFilter!=="All" && r._mkt !== brandFilter) return false;
-      if (companyFilter!=="All" && String(r["_sheet_"]??"").trim()!==companyFilter) return false;
-      return true;
-    });
-  },[fileData, brandFilter, companyFilter]);
 
   /* ── KPIs — pure reduce on pre-stamped fields ── */
   const kpi = useMemo(()=>{
@@ -3038,76 +2772,6 @@ export default function Dashboard() {
     }
     return { net, del, com, debt, grossIncome, logistics:del+com, orders:filtered.length, refs, successOrders:filtered.length-refs, returnRate:filtered.length>0?(refs/filtered.length)*100:0, moneyInTransit, transitOrders };
   },[filtered, fileData, monthFilter, yearFilter]);
-
-  /* ── LFL: prev-month KPI (same brand/company filters, prior month) ── */
-  const prevKpi = useMemo(()=>{
-    if (!fileData || monthFilter==="All" || monthFilter==="No Date") return null;
-    const prevMk = prevMonthKey(monthFilter);
-    let net=0, logistics=0, orders=0;
-    for (const r of fileData.rows) {
-      if (!r._mkt) continue;
-      if (brandFilter!=="All"   && r._mkt!==brandFilter) continue;
-      if (companyFilter!=="All" && String(r["_sheet_"]??"").trim()!==companyFilter) continue;
-      if (String(r._monthKey??"No Date")!==prevMk) continue;
-      net       += r._net   as number;
-      logistics += (r._fee  as number) + (r._ship as number);
-      orders++;
-    }
-    if (orders===0) return null;
-    return { net, logistics, orders };
-  },[fileData, monthFilter, brandFilter, companyFilter]);
-
-  /* ── chart ─────────────────────────────────────────────────────
-     Source: same `filtered` array as KPI (no re-calculation).
-     Every bar = SUM(income − commission − shipping) = r._net.
-     "No Date" rows get a "Без дати" bar at the end.
-     Sum of ALL bars MUST equal kpi.net. ─────────────────────── */
-  const chartData = useMemo(()=>{
-    if (!chartFiltered.length) return [];
-
-    // Group all chartFiltered rows by _monthKey; "No Date" rows go to "No Date" bucket
-    const bucketMap = new Map<string, { net: number; logistics: number; rows: number }>();
-    for (const r of chartFiltered) {
-      const k = String(r._monthKey ?? "No Date");
-      if (!bucketMap.has(k)) bucketMap.set(k, { net: 0, logistics: 0, rows: 0 });
-      const b = bucketMap.get(k)!;
-      b.net       += r._net   as number;
-      b.logistics += (r._fee  as number) + (r._ship as number);
-      b.rows++;
-    }
-
-    // Sort: real months ascending, "No Date" always last
-    const sortedKeys = Array.from(bucketMap.keys()).sort((a, b) => {
-      if (a === "No Date") return 1;
-      if (b === "No Date") return -1;
-      return a.localeCompare(b);
-    });
-
-    const buckets = sortedKeys.map(k => {
-      const { net, logistics, rows } = bucketMap.get(k)!;
-      const isFuture = k !== "No Date" && k > CURRENT_MONTH_KEY;
-      const isNoDate = k === "No Date";
-      const label    = isNoDate ? "Без дати" : toMonthShort(k);
-      return { key: k, label, netIncome: net, logistics, isFuture, isNoDate, rows };
-    });
-
-    // MANDATORY: print Month | Net Income table so user can verify every bucket
-    const tableRows = buckets.map(b => ({ Місяць: b.label, "Net Income": +b.netIncome.toFixed(2), "Рядки": b.rows }));
-    console.table(tableRows);
-    const chartTotal = buckets.reduce((s, b) => s + b.netIncome, 0);
-    console.log("Chart total (all bars):", +chartTotal.toFixed(2), "| KPI net:", +(filtered.reduce((s,r)=>s+(r._net as number),0)).toFixed(2));
-
-    return buckets;
-  },[chartFiltered, CURRENT_MONTH_KEY]);
-
-  /* ── Sync Error: chart sum must equal KPI net (The Mismatch Rule) ──
-     Only valid when monthFilter is "All" since chart now always shows full trend. ── */
-  const syncError = useMemo(()=>{
-    if (!kpi || !chartData.length) return false;
-    if (monthFilter !== "All") return false;
-    const chartSum = chartData.reduce((s,b) => s + b.netIncome, 0);
-    return Math.abs(chartSum - kpi.net) > 0.5;
-  },[kpi, chartData, monthFilter]);
 
   /* ── top products ── */
   const topProducts = useMemo(()=>{
@@ -3258,20 +2922,6 @@ export default function Dashboard() {
 
   /* ── bar chart show-trend toggle ── */
   const [showBarTrend, setShowBarTrend] = useState(false);
-
-  /* ── Hubber LFL: same month vs same month of previous year ── */
-  const hubberLfl = useMemo(()=>{
-    if (!hubberQuick || monthFilter==="All" || monthFilter==="No Date") return null;
-    const [yearStr, mStr] = monthFilter.split("-");
-    const prevYearStr = String(+yearStr - 1);
-    const monthIdx = parseInt(mStr, 10) - 1;
-    const monthName = hubberQuick.months[monthIdx];
-    if (!monthName) return null;
-    const curr = hubberQuick.values[yearStr]?.[monthName] ?? 0;
-    const prev = hubberQuick.values[prevYearStr]?.[monthName] ?? 0;
-    if (prev === 0) return null;
-    return { curr, prev, pct:((curr-prev)/prev)*100, year:yearStr, prevYear:prevYearStr, monthName };
-  }, [hubberQuick, monthFilter]);
 
   /* ── return optimisation advice — shown next to Топ Причин Повернень ── */
   const returnAdvice = useMemo(()=>{
@@ -3706,18 +3356,6 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
-
-            {/* Detailed KPI panel (LFL / margins) — memoized */}
-            <KpiRow
-              kpi={kpi}
-              prevKpi={prevKpi ?? null}
-              hubberLfl={hubberLfl ?? null}
-              filteredCount={filtered.length}
-              syncError={syncError ?? false}
-              debtCol={fileData.cols.debt ?? null}
-              t={t}
-              fmt={fmt}
-            />
 
             {/* ── Collapse toggle — everything below the monthly trend ── */}
             <button onClick={()=>setLowerOpen(v=>!v)} style={{
