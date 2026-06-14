@@ -1182,7 +1182,7 @@ const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks
 interface BMEdge { brand:string; mkt:string; gross:number; orders:number; net:number; refs:number; }
 type FlowSel = { side:"brand"|"mkt"; name:string } | null;
 interface FlowBand { name:string; color:string; total:number; pct:number; y0:number; y1:number; cy?:number; }
-const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
+const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSelect }:{
   edges:BMEdge[];
   fmt:(n:number)=>string;
   dateCtl?:{
@@ -1190,6 +1190,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
     yearFilter:string; monthFilter:string;
     setYearFilter:(y:string)=>void; setMonthFilter:(m:string)=>void;
   };
+  onSelect?:(sel:FlowSel)=>void;
 }) {
   const [mode, setMode] = useState<"volume"|"profit"|"orders"|"refusals">("volume");
   const [sel, setSel] = useState<FlowSel>(null);
@@ -1198,6 +1199,9 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl }:{
   const [othersOpen, setOthersOpen] = useState<{ brand:boolean; mkt:boolean }>({ brand:false, mkt:false });
   // effective focus = persistent click selection, or transient hover preview
   const act = sel ?? hov;
+  // lift the persistent click selection up so the side analytics blocks can scope
+  // to the chosen brand/marketplace. Hover never triggers global filtering.
+  useEffect(()=>{ onSelect?.(sel); }, [sel, onSelect]);
   const val = (e:{gross:number;orders:number;net:number;refs:number}) => mode==="volume" ? e.gross : mode==="profit" ? e.net : mode==="refusals" ? e.refs : e.orders;
   const fmtV = (n:number) => (mode==="orders"||mode==="refusals") ? Math.round(n).toLocaleString("uk-UA").replace(/,/g," ") : fmt(n);
 
@@ -2348,6 +2352,8 @@ export default function Dashboard() {
   const [rejTooltip,  setRejTooltip]  = useState<{ reason:string; rect:DOMRect } | null>(null);
   const [cityFilter,  setCityFilter]  = useState<string|null>(null);
   const [lowerOpen, setLowerOpen] = useState(false);
+  // Sankey click selection lifted up — scopes the side analytics blocks to a brand/marketplace.
+  const [flowSel, setFlowSel] = useState<FlowSel>(null);
   const [darkMode, setDarkMode] = useState(()=>_fc.darkMode);
   const fileRef = useRef<HTMLInputElement>(null);
   const t = darkMode ? DK : LT;
@@ -3038,6 +3044,67 @@ export default function Dashboard() {
     };
   },[filtered, fileData, companies]);
 
+  /* ── flow-selection scope ──────────────────────────────────────────────
+     When a node is clicked in the FLOW (Sankey) panel, the side analytics
+     blocks (У дорозі / Повернення / detail tables) recompute over only that
+     brand or marketplace. No selection ⇒ null ⇒ blocks fall back to the
+     combined totals (kpi / premium). Formulas mirror kpi (transit) and
+     premium (returns + tables) exactly — math/logic is unchanged. ── */
+  const flowScope = useMemo(()=>{
+    if (!flowSel || !fileData) return null;
+    const c = fileData.cols;
+    const hasCompanies = companies.length > 0;
+    const brandOf = (r:Row):string => {
+      if (hasCompanies) return String(r["_sheet_"] ?? "").trim() || "Інше";
+      return normalizeProductKey(getRowProduct(r, c.product ?? null)) || "Інше";
+    };
+    const mktOf = (r:Row):string => String(r._mkt ?? "") || "Інше";
+    const rows = filtered.filter(r => flowSel.side==="brand" ? brandOf(r)===flowSel.name : mktOf(r)===flowSel.name);
+
+    // ── transit (mirror of kpi) ──
+    let moneyInTransit=0, transitOrders=0;
+    for (const r of rows) {
+      const fill = r._fill as FillState | undefined;
+      const rawPm = c.paymentMethod ? String(r[c.paymentMethod] ?? "") : "";
+      const pm = rawPm.replace(/[\uFEFF\s]+/g, " ").toLowerCase().trim();
+      const isCOD = pm.includes("налож") || pm.includes("наклад") || pm.includes("cod") || pm.includes("cash on delivery") || pm.includes("накладен");
+      const isRozetka = pm.includes("розетк") || pm.includes("rozetka");
+      const isColored = fill === "green" || fill === "red";
+      const amount = c.amount ? parseFinancial(r[c.amount]) : (r._gross as number);
+      const reasonText = c.reason ? String(r[c.reason] ?? "").replace(/[\uFEFF]/g, "").trim() : "";
+      const hasReason = reasonText !== "";
+      const mk = String(r._monthKey ?? "No Date");
+      const inActiveRange =
+        monthFilter !== "All" ? mk === monthFilter
+        : yearFilter  !== "All" ? mk.startsWith(yearFilter)
+        : true;
+      if ((isCOD || isRozetka) && isColored && amount > 0 && !hasReason && inActiveRange) { moneyInTransit += amount; transitOrders++; }
+    }
+
+    // ── returns + brand/mkt tables (mirror of premium) ──
+    const brandMap = new Map<string,{orders:number;gross:number;cost:number;net:number}>();
+    const mktMap   = new Map<string,{orders:number;gross:number;refs:number}>();
+    let returnsOrders=0, returnsMoney=0;
+    for (const r of rows) {
+      const brand = brandOf(r), mkt = mktOf(r);
+      const gross = r._gross as number;
+      const cost  = (r._ship as number) + (r._fee as number);
+      const refusal = isRefusal(r, c);
+      const b = brandMap.get(brand) ?? { orders:0, gross:0, cost:0, net:0 };
+      b.orders++; b.gross += gross; b.cost += cost; b.net += gross - cost; brandMap.set(brand, b);
+      const m = mktMap.get(mkt) ?? { orders:0, gross:0, refs:0 };
+      m.orders++; m.gross += gross; if (refusal) m.refs++; mktMap.set(mkt, m);
+      if (refusal) { returnsOrders++; returnsMoney += gross; }
+    }
+
+    return {
+      sel: flowSel,
+      transitOrders, moneyInTransit, returnsOrders, returnsMoney,
+      brandRows: [...brandMap.entries()].map(([name,v])=>({ name, ...v })).sort((a,b)=>b.gross-a.gross),
+      mktRows:   [...mktMap.entries()].map(([name,v])=>({ name, ...v, returnRate: v.orders? (v.refs/v.orders)*100 : 0 })).sort((a,b)=>b.gross-a.gross),
+    };
+  },[flowSel, filtered, fileData, companies, monthFilter, yearFilter]);
+
   /* ── marketplace bar with MoM % overlay ── */
   const marketplaceBarWithMoM = useMemo(()=>{
     if (!fileData) return marketplaceBar.map(e=>({...e, momPct:null as number|null}));
@@ -3276,25 +3343,36 @@ export default function Dashboard() {
                 ]}/>
 
                 {/* Hero flow — primary screen element, full width */}
-                <BrandMktSankey edges={premium.edges} fmt={fmt} dateCtl={{
+                <BrandMktSankey edges={premium.edges} fmt={fmt} onSelect={setFlowSel} dateCtl={{
                   years, visibleMonths, hasNoDate: months.includes("No Date"),
                   yearFilter, monthFilter, setYearFilter, setMonthFilter,
                 }}/>
+
+                {/* Active flow-selection indicator — side blocks below are scoped to this node */}
+                {flowScope && (
+                  <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", borderRadius:10,
+                    background:"rgba(124,108,255,0.10)", border:`1px solid ${t.border}`,
+                    color:t.text, fontSize:12, fontWeight:600, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
+                    <span style={{ opacity:0.7 }}>Фільтр з ФЛОУ:</span>
+                    <span style={{ fontWeight:800 }}>{flowSel?.name}</span>
+                    <span style={{ opacity:0.7 }}>· блоки нижче показують лише ці дані</span>
+                  </div>
+                )}
 
                 {/* Supporting metric cards below the flow */}
                 <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:14, alignItems:"stretch" }}>
                   <SideColumn t={t} blocks={[
                     { title:"У дорозі (Transit)", rows:[
-                      { label:"Замовлення", value:String(kpi.transitOrders), strong:true },
-                      { label:"Гроші", value:fmt(kpi.moneyInTransit) },
+                      { label:"Замовлення", value:String((flowScope ?? kpi).transitOrders), strong:true },
+                      { label:"Гроші", value:fmt((flowScope ?? kpi).moneyInTransit) },
                       { label:"Опис", value:"Логістика" },
                     ], note:"Кошти за відправленими COD-замовленнями в очікуванні." },
                   ]}/>
 
                   <SideColumn t={t} blocks={[
                     { title:"Повернення", rows:[
-                      { label:"Замовлення", value:String(premium.returnsOrders), strong:true },
-                      { label:"Гроші", value:fmt(premium.returnsMoney) },
+                      { label:"Замовлення", value:String((flowScope ?? premium).returnsOrders), strong:true },
+                      { label:"Гроші", value:fmt((flowScope ?? premium).returnsMoney) },
                     ] },
                   ]}/>
                 </div>
@@ -3310,7 +3388,7 @@ export default function Dashboard() {
                       { key:"cost",   label:"Витрати ₴",  align:"right" },
                       { key:"net",    label:"Дохід ₴",    align:"right" },
                     ]}
-                    rows={premium.brandRows.slice(0,12).map(b=>({
+                    rows={(flowScope ?? premium).brandRows.slice(0,12).map(b=>({
                       name:b.name,
                       orders:String(b.orders),
                       gross:fmt(b.gross),
@@ -3319,10 +3397,10 @@ export default function Dashboard() {
                     }))}
                     totalRow={{
                       name:"Загалом",
-                      orders:String(premium.brandRows.reduce((s,b)=>s+b.orders,0)),
-                      gross:fmt(premium.brandRows.reduce((s,b)=>s+b.gross,0)),
-                      cost:fmt(premium.brandRows.reduce((s,b)=>s+b.cost,0)),
-                      net:fmt(premium.brandRows.reduce((s,b)=>s+b.net,0)),
+                      orders:String((flowScope ?? premium).brandRows.reduce((s,b)=>s+b.orders,0)),
+                      gross:fmt((flowScope ?? premium).brandRows.reduce((s,b)=>s+b.gross,0)),
+                      cost:fmt((flowScope ?? premium).brandRows.reduce((s,b)=>s+b.cost,0)),
+                      net:fmt((flowScope ?? premium).brandRows.reduce((s,b)=>s+b.net,0)),
                     }}
                   />
                   <DetailTable t={t}
@@ -3334,7 +3412,7 @@ export default function Dashboard() {
                       { key:"ret",    label:"Повернення %", align:"right" },
                       { key:"refs",   label:"К-сть відмов", align:"right" },
                     ]}
-                    rows={premium.mktRows.slice(0,12).map(m=>({
+                    rows={(flowScope ?? premium).mktRows.slice(0,12).map(m=>({
                       name:m.name,
                       orders:String(m.orders),
                       gross:fmt(m.gross),
@@ -3342,12 +3420,12 @@ export default function Dashboard() {
                       refs:String(m.refs),
                     }))}
                     totalRow={(()=>{
-                      const O=premium.mktRows.reduce((s,m)=>s+m.orders,0);
-                      const R=premium.mktRows.reduce((s,m)=>s+m.refs,0);
+                      const O=(flowScope ?? premium).mktRows.reduce((s,m)=>s+m.orders,0);
+                      const R=(flowScope ?? premium).mktRows.reduce((s,m)=>s+m.refs,0);
                       return {
                         name:"Загалом",
                         orders:String(O),
-                        gross:fmt(premium.mktRows.reduce((s,m)=>s+m.gross,0)),
+                        gross:fmt((flowScope ?? premium).mktRows.reduce((s,m)=>s+m.gross,0)),
                         ret:(O? (R/O)*100 : 0).toFixed(1)+"%",
                         refs:String(R),
                       };
