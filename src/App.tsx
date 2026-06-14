@@ -2275,7 +2275,7 @@ function InventorySkladPanel({ t }: { t: T }) {
                 onMouseEnter={e => (e.currentTarget.style.borderColor = "#F87171")}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = "#EF4444")}
         style={{
-          width:"100%", marginTop:12, padding:"12px 14px", borderRadius:4,
+          width:"100%", height:"100%", minHeight:88, padding:"12px 14px", borderRadius:4,
           background:"transparent",
           border:"1px solid #EF4444",
           color:"#EF4444", fontSize:13, fontWeight:900, cursor:"pointer",
@@ -2704,6 +2704,22 @@ export default function Dashboard() {
     });
   },[fileData, brandFilter, companyFilter, monthFilter]);
 
+  /* ── flow-selection scoped rows ────────────────────────────────────────
+     When a node is clicked in the FLOW (Sankey) panel, the collapsible
+     "Додаткова аналітика" blocks recompute over only that brand/marketplace.
+     No selection ⇒ returns `filtered` unchanged (same reference) so every
+     downstream memo behaves exactly as before. Mirrors flowScope's predicate. */
+  const scopedRows = useMemo(()=>{
+    if (!flowSel || !fileData) return filtered;
+    const c = fileData.cols;
+    const hasCompanies = companies.length > 0;
+    const brandOf = (r:Row):string =>
+      hasCompanies ? (String(r["_sheet_"] ?? "").trim() || "Інше")
+                   : (normalizeProductKey(getRowProduct(r, c.product ?? null)) || "Інше");
+    const mktOf = (r:Row):string => String(r._mkt ?? "") || "Інше";
+    return filtered.filter(r => flowSel.side==="brand" ? brandOf(r)===flowSel.name : mktOf(r)===flowSel.name);
+  },[flowSel, filtered, fileData, companies]);
+
   /* ── KPIs — pure reduce on pre-stamped fields ── */
   const kpi = useMemo(()=>{
     if (!fileData) return null;
@@ -2782,7 +2798,7 @@ export default function Dashboard() {
   /* ── top products ── */
   const topProducts = useMemo(()=>{
     const map=new Map<string,{rev:number;orders:number;qty:number;net:number}>();
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const raw = getRowProduct(r, fileData?.cols.product ?? null);
       const key = normalizeProductKey(raw);
       if (!key) continue;
@@ -2793,12 +2809,12 @@ export default function Dashboard() {
       e.net+=(r._net as number);
     }
     return Array.from(map.entries()).map(([name,v])=>({name,...v})).sort((a,b)=>b.net-a.net).slice(0,10);
-  },[filtered, fileData]);
+  },[scopedRows, fileData]);
 
   /* ── top-3 products by gross sales (сума замовлення) ── */
   const topRevProducts = useMemo(()=>{
     const map = new Map<string,number>();
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const raw = getRowProduct(r, fileData?.cols.product ?? null);
       const key = normalizeProductKey(raw);
       if (!key) continue;
@@ -2808,13 +2824,13 @@ export default function Dashboard() {
       .map(([name, rev]) => ({ name, rev }))
       .sort((a,b) => b.rev - a.rev)
       .slice(0, 3);
-  },[filtered, fileData]);
+  },[scopedRows, fileData]);
 
   /* ── ALL products — full analytics table (filter-aware, sortable) ── */
   const allProducts = useMemo(()=>{
     if (!fileData) return [];
     const map = new Map<string,{qty:number;net:number;rows:number;refs:number}>();
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const raw = getRowProduct(r, fileData.cols.product ?? null);
       const key = normalizeProductKey(raw);
       if (!key) continue;
@@ -2836,12 +2852,12 @@ export default function Dashboard() {
       if (productSort.col==="qty")  return mul * (a.qty - b.qty);
       return mul * (a.net - b.net);
     });
-  }, [filtered, fileData, productSearch, productSort]);
+  }, [scopedRows, fileData, productSearch, productSort]);
 
   /* ── top customers ── */
   const topCustomers = useMemo(()=>{
     const map=new Map<string,{orders:number;net:number}>();
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const key = getRowCustomer(r, fileData?.cols.customer ?? null);
       if (!key) continue;
       if(!map.has(key)) map.set(key,{orders:0,net:0});
@@ -2850,7 +2866,7 @@ export default function Dashboard() {
       e.net += (r._net as number);
     }
     return Array.from(map.entries()).map(([name,v])=>({name,...v})).sort((a,b)=>b.net-a.net).slice(0,20);
-  },[filtered, fileData]);
+  },[scopedRows, fileData]);
 
   /* ── customer insights — retention + VIP ── */
   const customerInsights = useMemo(()=>{
@@ -2858,7 +2874,7 @@ export default function Dashboard() {
     const c = fileData.cols;
     // Use phone as deduplication key when it's a separate col from customer; otherwise customer key
     const map = new Map<string, { orders:number; net:number; phone:string; displayName:string }>();
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const custKey = getRowCustomer(r, c.customer ?? null);
       if (!custKey) continue;
       // Prefer phone col for dedup if available and different from customer col
@@ -2877,7 +2893,7 @@ export default function Dashboard() {
     const total      = all.length;
     const vip        = [...all].sort((a,b) => b.net - a.net).slice(0, 10);
     return { newC, returning, total, vip };
-  },[filtered, fileData]);
+  },[scopedRows, fileData]);
 
   /* ── top cities — if city col detected ── */
   const topCities = useMemo(()=>{
@@ -2972,7 +2988,7 @@ export default function Dashboard() {
   const marketplaceBar = useMemo(()=>{
     if (!fileData) return [];
     const map = new Map<string,{net:number;orders:number;refs:number}>();
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const brand = rowBrand(r) || "Інше";
       if (!map.has(brand)) map.set(brand,{net:0,orders:0,refs:0});
       const e=map.get(brand)!;
@@ -2981,7 +2997,7 @@ export default function Dashboard() {
       e.net += r._net as number;
     }
     return Array.from(map.entries()).map(([name,v])=>({name,...v})).sort((a,b)=>b.net-a.net);
-  },[filtered,fileData]);
+  },[scopedRows,fileData]);
 
   /* ── premium dashboard aggregations (read-only) — feed the light
        Sankey + side columns + detail tables. Only sum already-stamped
@@ -3143,7 +3159,7 @@ export default function Dashboard() {
   const brandShareData = useMemo(()=>{
     if (!fileData) return [];
     const map = new Map<string,number>();
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const sheet = String(r["_sheet_"]??"").trim() || "Інше";
       map.set(sheet, (map.get(sheet)??0) + (r._net as number));
     }
@@ -3151,7 +3167,7 @@ export default function Dashboard() {
       .map(([name, net])=>({ name, net }))
       .filter(e=>e.net>0)
       .sort((a,b)=>b.net-a.net);
-  },[filtered, fileData]);
+  },[scopedRows, fileData]);
 
   /* ── pie: success vs refusals ── */
   const pieData = useMemo(()=>{
@@ -3167,7 +3183,7 @@ export default function Dashboard() {
     if (!fileData?.cols.city) return [];
     const orderMap = new Map<string,number>();
     const salesMap = new Map<string,number>(); // gross sales value (сума замовлення)
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const raw = String(r[fileData.cols.city!] ?? "").trim();
       if (!raw || raw==="-" || raw.toLowerCase()==="немає") continue;
       const key = extractCity(raw);
@@ -3192,7 +3208,7 @@ export default function Dashboard() {
       })
       .sort((a,b) => b.salesPct - a.salesPct); // sort by % of total sales, descending
     return sorted.slice(0, 5);
-  },[filtered, fileData]);
+  },[scopedRows, fileData]);
 
   /* ── daily trend: net income per day for the most relevant month ──
      Priority: 1) explicit monthFilter  2) most recent month in data  3) empty */
@@ -3204,12 +3220,14 @@ export default function Dashboard() {
     if (monthFilter && monthFilter !== "All" && monthFilter !== "No Date") {
       mKey = monthFilter;
     } else {
-      // Pick the most recent month that has any filtered rows
+      // Pick the most recent month that has rows, honouring the active year
+      // selector so the daily trend follows the chosen period.
       let latestKey = "";
-      for (const r of filtered) {
+      for (const r of scopedRows) {
         const d = parseDate(r[fileData.cols.date!]);
         if (!d) continue;
         const k = toMonthKey(d);
+        if (yearFilter !== "All" && !k.startsWith(yearFilter)) continue;
         if (!latestKey || k > latestKey) latestKey = k;
       }
       if (!latestKey) return { dailyTrend: [], dailyTrendMonthLabel: "" };
@@ -3219,7 +3237,7 @@ export default function Dashboard() {
     const [y, m] = mKey.split("-").map(Number);
     const daysInMonth = new Date(y, m, 0).getDate();
     const map = new Map<number,number>();
-    for (const r of filtered) {
+    for (const r of scopedRows) {
       const d = parseDate(r[fileData.cols.date!]);
       if (!d || toMonthKey(d) !== mKey) continue;
       const day = d.getDate();
@@ -3233,7 +3251,7 @@ export default function Dashboard() {
 
     const label = `${MUK[m - 1]} ${y}`;
     return { dailyTrend: result, dailyTrendMonthLabel: label };
-  },[filtered, fileData, monthFilter]);
+  },[scopedRows, fileData, monthFilter, yearFilter]);
 
   /* ─── render ──────────────────────────────────────────────── */
   return (
@@ -3450,7 +3468,7 @@ export default function Dashboard() {
             <div style={{ display: lowerOpen ? "flex" : "none", flexDirection:"column", gap:10 }}>
 
             {/* Archive + Inventory (relocated from the removed sidebar) */}
-            <div className="premium-tables-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, alignItems:"start" }}>
+            <div className="premium-tables-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, alignItems:"stretch" }}>
               <HubberSidebarPanel
                 data={hubberQuick}
                 setData={setHubberQuick}
@@ -3997,13 +4015,15 @@ export default function Dashboard() {
                   <p style={{ color:t.dim, fontSize:10, margin:0, whiteSpace:"nowrap" }}>Топ 10</p>
                 </div>
                 {topProducts.length>0 ? (
-                  <div style={{ overflowX:"auto" }}>
-                    <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
-                                            <thead><tr style={{ background:t.blue }}>
-                                              {["#","Назва, Модель","К-сть","Дохід ₴"].map(h=>(
-                                                <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:"#FFFFFF", borderBottom:`1px solid ${t.border}` }}>{h}</th>
-                        ))}
-                      </tr></thead>
+                  <div style={{ overflowX:"auto", maxHeight:340, overflowY:"auto" }}>
+                    <table style={{ width:"100%", fontSize:11, borderCollapse:"separate", borderSpacing:0 }}>
+                      <thead style={{ position:"sticky", top:0, background:t.blue }}>
+                        <tr>
+                          {["#","Назва, Модель","К-сть","Дохід ₴"].map(h=>(
+                            <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dark?"#06121A":"#FFFFFF", borderBottom:`1px solid ${t.border}` }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
                       <tbody>{topProducts.map((p,i)=>(
                         <tr key={i} style={{ borderBottom:`1px solid ${t.dark?"rgba(255,255,255,0.035)":t.border}`, background:i%2===0?"transparent":(t.dark?"rgba(255,255,255,0.015)":"rgba(0,0,0,0.015)") }}>
                           <td style={{ padding:"8px 14px", color:t.dim, fontWeight:700, verticalAlign:"top" }}>{i+1}</td>
@@ -4026,11 +4046,11 @@ export default function Dashboard() {
                 </div>
                 {topCustomers.length>0 ? (
                   <div style={{ overflowX:"auto", maxHeight:340, overflowY:"auto" }}>
-                    <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
+                    <table style={{ width:"100%", fontSize:11, borderCollapse:"separate", borderSpacing:0 }}>
                       <thead style={{ position:"sticky", top:0, background:t.blue }}>
                         <tr>
                           {["#","ПІБ / Телефон","Замовлень","Витрачено ₴"].map(h=>(
-                            <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:"#FFFFFF", borderBottom:`1px solid ${t.border}` }}>{h}</th>
+                            <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dark?"#06121A":"#FFFFFF", borderBottom:`1px solid ${t.border}` }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -4059,7 +4079,7 @@ export default function Dashboard() {
                 const active = productSort.col===col;
                 const toggle = ()=>setProductSort(s=>s.col===col?{col,dir:s.dir==="desc"?"asc":"desc"}:{col,dir:"desc"});
                 return (
-                  <th onClick={toggle} style={{ padding:"9px 14px", textAlign:align as "left"|"right", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:active?"#FFFFFF":"rgba(255,255,255,0.7)", borderBottom:`1px solid ${t.border}`, cursor:"pointer", whiteSpace:"nowrap", userSelect:"none" }}>
+                  <th onClick={toggle} style={{ padding:"9px 14px", textAlign:align as "left"|"right", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:active?(t.dark?"#06121A":"#FFFFFF"):(t.dark?"rgba(6,18,26,0.72)":"rgba(255,255,255,0.7)"), borderBottom:`1px solid ${t.border}`, cursor:"pointer", whiteSpace:"nowrap", userSelect:"none" }}>
                     {label}{active ? (productSort.dir==="desc"?" ↓":" ↑") : " ↕"}
                   </th>
                 );
@@ -4101,10 +4121,10 @@ export default function Dashboard() {
                   {/* table */}
                   {allProducts.length>0 ? (
                     <div style={{ overflowX:"auto", maxHeight:440, overflowY:"auto" }}>
-                      <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
+                      <table style={{ width:"100%", fontSize:11, borderCollapse:"separate", borderSpacing:0 }}>
                         <thead style={{ position:"sticky", top:0, zIndex:10, background:t.blue }}>
                           <tr>
-                            <th style={{ padding:"9px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:"#FFFFFF", borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap", width:36 }}>#</th>
+                            <th style={{ padding:"9px 14px", textAlign:"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dark?"#06121A":"#FFFFFF", borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap", width:36 }}>#</th>
                             <SortTh col="name" label="Назва, Модель"/>
                             <SortTh col="qty"  label="Кількість" align="right"/>
                             <SortTh col="net"  label="Чистий дохід" align="right"/>
@@ -4268,11 +4288,11 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div style={{ overflowX:"auto", maxHeight:360, overflowY:"auto" }}>
-                      <table style={{ width:"100%", fontSize:11, borderCollapse:"collapse" }}>
+                      <table style={{ width:"100%", fontSize:11, borderCollapse:"separate", borderSpacing:0 }}>
                         <thead style={{ position:"sticky", top:0, background:t.blue }}>
                           <tr>
                             {["#","ПІБ / Ключ","Телефон","Замовлень","Сума ₴","Тип"].map((h,hi)=>(
-                              <th key={h} style={{ padding:"8px 14px", textAlign: hi>=3?"right":"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:"#FFFFFF", borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap" }}>{h}</th>
+                              <th key={h} style={{ padding:"8px 14px", textAlign: hi>=3?"right":"left", fontWeight:600, fontSize:9, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dark?"#06121A":"#FFFFFF", borderBottom:`1px solid ${t.border}`, whiteSpace:"nowrap" }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
