@@ -1186,9 +1186,10 @@ const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks
 interface BMEdge { brand:string; mkt:string; gross:number; orders:number; net:number; refs:number; }
 type FlowSel = { side:"brand"|"mkt"; name:string } | null;
 interface FlowBand { name:string; color:string; total:number; pct:number; y0:number; y1:number; cy?:number; }
-const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSelect }:{
+const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSelect, t }:{
   edges:BMEdge[];
   fmt:(n:number)=>string;
+  t:T;
   dateCtl?:{
     years:string[]; visibleMonths:string[]; hasNoDate:boolean;
     yearFilter:string; monthFilter:string;
@@ -1208,12 +1209,34 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
   const val = (e:{gross:number;orders:number;net:number;refs:number}) => mode==="volume" ? e.gross : mode==="profit" ? e.net : mode==="refusals" ? e.refs : e.orders;
   const fmtV = (n:number) => (mode==="orders"||mode==="refusals") ? Math.round(n).toLocaleString("uk-UA").replace(/,/g," ") : fmt(n);
 
-  // dark Wormhole palette (independent of dashboard theme so the panel stays 1:1)
-  const C = {
+  // Wormhole palette — follows the dashboard theme: dark wormhole at night, light/high-contrast
+  // in day mode so the whole FLOW section is one cohesive style (no isolated dark patches).
+  const C = t.dark ? {
     text:"#ECECF4", sub:"#9A9AAE", dim:"#62627A", line:"rgba(255,255,255,0.07)",
     pillBg:"rgba(255,255,255,0.05)", pillBorder:"rgba(255,255,255,0.09)", pillText:"#9A9AAE",
     hi:"#DCF25B", hiText:"#1C2406", selBorder:"rgba(150,140,255,0.55)", selBg:"rgba(132,122,240,0.08)",
-    yellow:"#FFD93D",
+    yellow:"#FFD93D", hlBg:"rgba(255,217,61,0.12)", hlBorder:"rgba(255,217,61,0.5)",
+    hiSoftBg:"rgba(220,242,91,0.12)", modeActiveText:"#0B0B16",
+    panelBg:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)",
+    panelBorder:"rgba(255,255,255,0.07)", panelShadow:"0 22px 64px rgba(0,0,0,0.5)",
+    nodeFill:"#0B0B16", rowBg:"rgba(255,255,255,0.022)", rowBorder:"rgba(255,255,255,0.07)",
+    softBg:"rgba(255,255,255,0.04)", softBorder:"rgba(255,255,255,0.12)", countBg:"rgba(255,255,255,0.06)",
+    grad0:"#1f1a2e", grad1:"#342d4b", grad2:"#443b63",
+    wireStroke:"rgba(8,6,16,0.92)", wireEdge:"rgba(190,182,255,0.30)", watermark:"rgba(255,255,255,0.05)",
+    popBg:"#14132A", popBorder:"rgba(255,255,255,0.12)", popShadow:"0 18px 44px rgba(0,0,0,0.55)",
+  } : {
+    text:"#13141A", sub:"#3A3C44", dim:"#8A8C99", line:"rgba(0,0,0,0.08)",
+    pillBg:"rgba(0,0,0,0.04)", pillBorder:"rgba(0,0,0,0.10)", pillText:"#3A3C44",
+    hi:"#DCF25B", hiText:"#1C2406", selBorder:"rgba(109,95,232,0.55)", selBg:"rgba(109,95,232,0.08)",
+    yellow:"#B45309", hlBg:"rgba(180,83,9,0.10)", hlBorder:"rgba(180,83,9,0.45)",
+    hiSoftBg:"rgba(109,95,232,0.10)", modeActiveText:"#0B0B16",
+    panelBg:"radial-gradient(120% 140% at 50% 0%, #FFFFFF 0%, #F8F9FB 55%, #EEF0F4 100%)",
+    panelBorder:"#E6E8EE", panelShadow:"0 12px 32px rgba(20,22,40,0.08)",
+    nodeFill:"#FFFFFF", rowBg:"rgba(0,0,0,0.018)", rowBorder:"rgba(0,0,0,0.08)",
+    softBg:"rgba(0,0,0,0.04)", softBorder:"rgba(0,0,0,0.12)", countBg:"rgba(0,0,0,0.05)",
+    grad0:"#EBE8F8", grad1:"#DAD3F1", grad2:"#C8BFEC",
+    wireStroke:"rgba(255,255,255,0.92)", wireEdge:"rgba(109,95,232,0.35)", watermark:"rgba(0,0,0,0.045)",
+    popBg:"#FFFFFF", popBorder:"#E6E8EE", popShadow:"0 18px 44px rgba(20,22,40,0.16)",
   };
 
   const eList = edges.map(e=>({ ...e, v:val(e) })).filter(e=>e.v>0);
@@ -1346,8 +1369,8 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
   const Pill = ({ pct, on, hl }:{ pct:number; on:boolean; hl?:boolean }) => (
     <span style={{ fontSize:10.5, fontWeight:800, fontFamily:MONO, padding:"2.5px 8px", borderRadius:999, lineHeight:1.35, flexShrink:0, letterSpacing:"0.02em",
       color: on ? C.hiText : hl ? C.yellow : C.pillText,
-      background: on ? C.hi : hl ? "rgba(255,217,61,0.12)" : C.pillBg,
-      border:`1px solid ${on ? C.hi : hl ? "rgba(255,217,61,0.5)" : C.pillBorder}`,
+      background: on ? C.hi : hl ? C.hlBg : C.pillBg,
+      border:`1px solid ${on ? C.hi : hl ? C.hlBorder : C.pillBorder}`,
       transition:"color .16s, background .16s, border-color .16s" }}>
       {pct.toFixed(2).replace(".",",")}%
     </span>
@@ -1369,10 +1392,10 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
       style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translate3d(0,-50%,0)", willChange:"top",
         display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor: (isOthers && !expandable) ? "default" : "pointer",
         WebkitAppearance:"none", appearance:"none", font:"inherit", textAlign:"left", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", userSelect:"none",
-        background: seld||expanded ? C.selBg : "rgba(255,255,255,0.022)", border:`1.5px solid ${seld||expanded ? C.selBorder : "rgba(255,255,255,0.07)"}`,
+        background: seld||expanded ? C.selBg : C.rowBg, border:`1.5px solid ${seld||expanded ? C.selBorder : C.rowBorder}`,
         opacity: on?1:0.34, transition:"top .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, border-color .16s" }}>
       {isOthers
-        ? <span style={{ width:24, height:24, borderRadius:7, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10.5, fontWeight:800, fontFamily:MONO, color:C.sub, background:"rgba(255,255,255,0.06)", border:`1.5px solid ${C.pillBorder}` }}>{count}</span>
+        ? <span style={{ width:24, height:24, borderRadius:7, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10.5, fontWeight:800, fontFamily:MONO, color:C.sub, background:C.countBg, border:`1.5px solid ${C.pillBorder}` }}>{count}</span>
         : logoFor(b.name)
           ? <img src={logoFor(b.name)} alt={b.name} loading="lazy" style={{ width:24, height:24, borderRadius:6, flexShrink:0, objectFit:"cover", background:"#fff", padding:1.5, boxShadow:`0 0 0 1.5px ${b.color}, 0 0 0 4px ${b.color}1f` }}/>
           : <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>}
@@ -1405,7 +1428,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
     return (<>
       <div onClick={()=>setOthersOpen({ brand:false, mkt:false })} style={{ position:"fixed", inset:0, zIndex:70 }}/>
       <div style={{ position:"absolute", top:`min(${(cyTop*100).toFixed(2)}%, calc(100% - 230px))`, [side==="brand"?"left":"right"]:0, zIndex:71,
-        width:330, maxWidth:"96vw", maxHeight:320, overflowY:"auto", padding:6, borderRadius:12, background:"#14132A", border:"1px solid rgba(255,255,255,0.14)", boxShadow:"0 22px 60px rgba(0,0,0,0.6)" }}>
+        width:330, maxWidth:"96vw", maxHeight:320, overflowY:"auto", padding:6, borderRadius:12, background:C.popBg, border:`1px solid ${C.popBorder}`, boxShadow:C.popShadow }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 8px 8px", borderBottom:`1px solid ${C.line}`, marginBottom:4 }}>
           <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.06em", textTransform:"uppercase", color:C.sub, fontFamily:MONO }}>Інші · {items.length}</span>
           <button type="button" onClick={()=>setOthersOpen({ brand:false, mkt:false })} style={{ display:"inline-flex", padding:2, border:"none", background:"transparent", color:C.sub, cursor:"pointer" }}><X size={13}/></button>
@@ -1413,7 +1436,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         {items.map(it=>(
           <button type="button" key={it.name} title={it.name} onClick={()=>toggle(side, it.name)}
             style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"7px 9px", borderRadius:8, cursor:"pointer", border:"none", background:"transparent", textAlign:"left", font:"inherit" }}
-            onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.05)"; }}
+            onMouseEnter={e=>{ (e.currentTarget as HTMLButtonElement).style.background=C.softBg; }}
             onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.background="transparent"; }}>
             {logoFor(it.name)
               ? <img src={logoFor(it.name)} alt={it.name} loading="lazy" style={{ width:20, height:20, borderRadius:5, flexShrink:0, objectFit:"cover", background:"#fff", padding:1 }}/>
@@ -1428,15 +1451,15 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
   };
 
   return (
-    <div style={{ background:"radial-gradient(120% 140% at 50% 0%, #14132A 0%, #0B0B16 45%, #07070E 100%)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:22, padding:"24px 20px 38px", display:"flex", flexDirection:"column", boxShadow:"0 22px 64px rgba(0,0,0,0.5)" }}>
+    <div style={{ background:C.panelBg, border:`1px solid ${C.panelBorder}`, borderRadius:22, padding:"24px 20px 38px", display:"flex", flexDirection:"column", boxShadow:C.panelShadow }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6, gap:10, flexWrap:"wrap" }}>
-        <div style={{ display:"inline-flex", padding:3, borderRadius:9, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ display:"inline-flex", padding:3, borderRadius:9, background:C.softBg, border:`1px solid ${C.softBorder}` }}>
           {([["volume","Оборот"],["profit","Дохід"],["orders","Замовлення"],["refusals","Відмови"]] as const).map(([m,lbl])=>(
-            <button key={m} onClick={()=>setMode(m)} style={{ padding:"5px 16px", borderRadius:7, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? "#0B0B16" : C.sub, background: mode===m ? C.hi : "transparent", transition:"all .15s" }}>{lbl}</button>
+            <button key={m} onClick={()=>setMode(m)} style={{ padding:"5px 16px", borderRadius:7, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO, color: mode===m ? C.modeActiveText : C.sub, background: mode===m ? C.hi : "transparent", transition:"all .15s" }}>{lbl}</button>
           ))}
         </div>
         {sel
-          ? <button onClick={clearSel} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 13px", borderRadius:8, border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.04)", cursor:"pointer", fontSize:11, fontWeight:700, color:C.text }}><X size={13}/> Скинути виділення</button>
+          ? <button onClick={clearSel} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 13px", borderRadius:8, border:`1px solid ${C.softBorder}`, background:C.softBg, cursor:"pointer", fontSize:11, fontWeight:700, color:C.text }}><X size={13}/> Скинути виділення</button>
           : <span style={{ fontSize:11, color:C.dim, fontWeight:600 }}>Клікніть вузол, щоб виділити його потоки</span>}
       </div>
       {/* ── Date filters relocated into the flow block ── */}
@@ -1450,8 +1473,8 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
                 return (
                   <button key={y} onClick={()=>{ dateCtl.setYearFilter(y as string); if(y!=="All" && dateCtl.monthFilter!=="All" && dateCtl.monthFilter!=="No Date" && !dateCtl.monthFilter.startsWith(y as string)) dateCtl.setMonthFilter("All"); }}
                     style={{ padding:"4px 11px", borderRadius:7, cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:MONO,
-                      color: active ? "#0B0B16" : C.sub, background: active ? C.hi : "rgba(255,255,255,0.04)",
-                      border:`1px solid ${active ? C.hi : "rgba(255,255,255,0.1)"}`, transition:"all .15s" }}>{y==="All"?"Всі роки":y}</button>
+                      color: active ? C.modeActiveText : C.sub, background: active ? C.hi : C.softBg,
+                      border:`1px solid ${active ? C.hi : C.softBorder}`, transition:"all .15s" }}>{y==="All"?"Всі роки":y}</button>
                 );
               })}
             </div>
@@ -1462,19 +1485,19 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
             return (
               <div style={{ position:"relative" }}>
                 <button onClick={()=>setMonthOpen(o=>!o)}
-                  style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"5px 11px", borderRadius:7, fontSize:11, fontWeight:700, fontFamily:MONO, color:C.text, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.12)", cursor:"pointer", outline:"none" }}>
+                  style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"5px 11px", borderRadius:7, fontSize:11, fontWeight:700, fontFamily:MONO, color:C.text, background:C.softBg, border:`1px solid ${C.softBorder}`, cursor:"pointer", outline:"none" }}>
                   {curLabel}
                   <ChevronDown size={12} style={{ transform: monthOpen?"rotate(180deg)":"none", transition:"transform .15s", color:C.sub }}/>
                 </button>
                 {monthOpen && (<>
                   <div onClick={()=>setMonthOpen(false)} style={{ position:"fixed", inset:0, zIndex:60 }}/>
-                  <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:61, minWidth:190, maxHeight:300, overflowY:"auto", padding:6, borderRadius:11, background:"#14132A", border:"1px solid rgba(255,255,255,0.12)", boxShadow:"0 18px 44px rgba(0,0,0,0.55)" }}>
+                  <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:61, minWidth:190, maxHeight:300, overflowY:"auto", padding:6, borderRadius:11, background:C.popBg, border:`1px solid ${C.popBorder}`, boxShadow:C.popShadow }}>
                     {opts.map(o=>{
                       const on = o.v===dateCtl.monthFilter;
                       return (
                         <button key={o.v} onClick={()=>{ dateCtl.setMonthFilter(o.v); setMonthOpen(false); }}
-                          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", padding:"7px 10px", borderRadius:7, cursor:"pointer", fontSize:11.5, fontWeight:700, fontFamily:MONO, textAlign:"left", border:"none", color: on?C.hi:C.text, background: on?"rgba(220,242,91,0.12)":"transparent", transition:"background .12s" }}
-                          onMouseEnter={e=>{ if(!on) (e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.05)"; }}
+                          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", padding:"7px 10px", borderRadius:7, cursor:"pointer", fontSize:11.5, fontWeight:700, fontFamily:MONO, textAlign:"left", border:"none", color: on?(t.dark?C.hi:C.selBorder):C.text, background: on?C.hiSoftBg:"transparent", transition:"background .12s" }}
+                          onMouseEnter={e=>{ if(!on) (e.currentTarget as HTMLButtonElement).style.background=C.softBg; }}
                           onMouseLeave={e=>{ if(!on) (e.currentTarget as HTMLButtonElement).style.background="transparent"; }}>
                           {o.label}{on && <Check size={13}/>}
                         </button>
@@ -1487,7 +1510,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
           })()}
           {(dateCtl.yearFilter!=="All" || dateCtl.monthFilter!=="All") && (
             <button onClick={()=>{ dateCtl.setYearFilter("All"); dateCtl.setMonthFilter("All"); }}
-              style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"5px 11px", borderRadius:7, cursor:"pointer", fontSize:10.5, fontWeight:700, color:C.sub, background:"transparent", border:"1px solid rgba(255,255,255,0.12)" }}><RefreshCw size={11}/> Скинути</button>
+              style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"5px 11px", borderRadius:7, cursor:"pointer", fontSize:10.5, fontWeight:700, color:C.sub, background:"transparent", border:`1px solid ${C.softBorder}` }}><RefreshCw size={11}/> Скинути</button>
           )}
         </div>
       )}
@@ -1500,7 +1523,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
       ) : (
       <div className="flow-hero-grid" style={{ display:"grid", gridTemplateColumns:"minmax(240px,380px) 11px 1fr 11px minmax(240px,380px)", flex:1, minHeight:640, position:"relative" }}>
         {/* watermark */}
-        <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:"rgba(255,255,255,0.05)", pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
+        <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:C.watermark, pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
           {leftBands.map(b=>NodeRow({ b, side:"brand", on:leftActive(b.name), seld:b.name===selSource, hl:!!selTarget }))}
@@ -1510,7 +1533,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
           {leftBands.map(b=>{ const on=leftActive(b.name); return (
             <div key={b.name} style={{ position:"absolute", left:-1, right:-1, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`,
-              background:"#0B0B16", border:`1.5px solid ${b.color}`, borderRadius:3,
+              background:C.nodeFill, border:`1.5px solid ${b.color}`, borderRadius:3,
               boxShadow: on ? `0 0 9px ${b.color}, inset 0 0 5px ${b.color}66` : `0 0 0 ${b.color}`,
               opacity: on?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, box-shadow .2s" }}/>
           ); })}
@@ -1521,9 +1544,9 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
             <defs>
               {/* static structural gradient — shaded left → mid-tone → highlighted right (volume & depth) */}
               <linearGradient id="wh-flow" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stopColor="#1f1a2e"/>
-                <stop offset="52%"  stopColor="#342d4b"/>
-                <stop offset="100%" stopColor="#443b63"/>
+                <stop offset="0%"   stopColor={C.grad0}/>
+                <stop offset="52%"  stopColor={C.grad1}/>
+                <stop offset="100%" stopColor={C.grad2}/>
               </linearGradient>
             </defs>
             {/* connecting-wire: remount-keyed on selection so active streams morph/extend and "plug into"
@@ -1538,9 +1561,9 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
               {ribbons.map(r=>(
                 <g key={r.key}>
                   <path d={r.d} fill="url(#wh-flow)" fillOpacity={act?0.96:0.8}
-                    stroke="rgba(8,6,16,0.92)" strokeWidth={1.4} vectorEffect="non-scaling-stroke"
+                    stroke={C.wireStroke} strokeWidth={1.4} vectorEffect="non-scaling-stroke"
                     strokeLinejoin="round" style={{ transition:"fill-opacity .16s" }}/>
-                  <path d={r.d} fill="none" stroke="rgba(190,182,255,0.30)" strokeWidth={0.8}
+                  <path d={r.d} fill="none" stroke={C.wireEdge} strokeWidth={0.8}
                     vectorEffect="non-scaling-stroke" strokeLinejoin="round" pointerEvents="none"/>
                 </g>
               ))}
@@ -1551,7 +1574,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         <div style={{ position:"relative", borderLeft:`1px solid ${C.line}` }}>
           {rightBands.map(b=>{ const on=rightActive(b.name); return (
             <div key={b.name} style={{ position:"absolute", left:-1, right:-1, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`,
-              background:"#0B0B16", border:`1.5px solid ${b.color}`, borderRadius:3,
+              background:C.nodeFill, border:`1.5px solid ${b.color}`, borderRadius:3,
               boxShadow: on ? `0 0 9px ${b.color}, inset 0 0 5px ${b.color}66` : `0 0 0 ${b.color}`,
               opacity: on?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, box-shadow .2s" }}/>
           ); })}
@@ -3424,7 +3447,7 @@ export default function Dashboard() {
                 ]}/>
 
                 {/* Hero flow — primary screen element, full width */}
-                <BrandMktSankey edges={premium.edges} fmt={fmt} onSelect={setFlowSel} dateCtl={{
+                <BrandMktSankey edges={premium.edges} fmt={fmt} t={t} onSelect={setFlowSel} dateCtl={{
                   years, visibleMonths, hasNoDate: months.includes("No Date"),
                   yearFilter, monthFilter, setYearFilter, setMonthFilter,
                 }}/>
@@ -3432,8 +3455,8 @@ export default function Dashboard() {
                 {/* Active flow-selection indicator — side blocks below are scoped to this node */}
                 {flowScope && (
                   <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", borderRadius:10,
-                    background:"rgba(124,108,255,0.10)", border:`1px solid ${DK.border}`,
-                    color:DK.text, fontSize:12, fontWeight:600, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
+                    background:t.dark?"rgba(124,108,255,0.10)":"rgba(109,95,232,0.08)", border:`1px solid ${t.border}`,
+                    color:t.text, fontSize:12, fontWeight:600, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
                     <span style={{ opacity:0.7 }}>Фільтр з ФЛОУ:</span>
                     <span style={{ fontWeight:800 }}>{flowSel?.name}</span>
                     <span style={{ opacity:0.7 }}>· блоки нижче показують лише ці дані</span>
@@ -3442,7 +3465,7 @@ export default function Dashboard() {
 
                 {/* Supporting metric cards below the flow */}
                 <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:14, alignItems:"stretch" }}>
-                  <SideColumn t={DK} blocks={[
+                  <SideColumn t={t} blocks={[
                     { title:"У дорозі (Transit)", rows:[
                       { label:"Замовлення", value:String((flowScope ?? kpi).transitOrders), strong:true },
                       { label:"Гроші", value:fmt((flowScope ?? kpi).moneyInTransit) },
@@ -3450,7 +3473,7 @@ export default function Dashboard() {
                     ], note:"Кошти за відправленими COD-замовленнями в очікуванні." },
                   ]}/>
 
-                  <SideColumn t={DK} blocks={[
+                  <SideColumn t={t} blocks={[
                     { title:"Повернення", rows:[
                       { label:"Замовлення", value:String((flowScope ?? premium).returnsOrders), strong:true },
                       { label:"Гроші", value:fmt((flowScope ?? premium).returnsMoney) },
@@ -3460,7 +3483,7 @@ export default function Dashboard() {
 
                 {/* Bottom detail tables */}
                 <div className="premium-tables-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-                  <DetailTable t={DK}
+                  <DetailTable t={t}
                     title="Деталі по брендах"
                     cols={[
                       { key:"name",   label:premium.brandLabel },
@@ -3484,7 +3507,7 @@ export default function Dashboard() {
                       net:fmt((flowScope ?? premium).brandRows.reduce((s,b)=>s+b.net,0)),
                     }}
                   />
-                  <DetailTable t={DK}
+                  <DetailTable t={t}
                     title="Деталі по маркетплейсах"
                     cols={[
                       { key:"name",   label:"Маркетплейс" },
