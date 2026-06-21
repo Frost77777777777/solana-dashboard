@@ -1631,6 +1631,42 @@ const DetailTable = memo(function DetailTable({ title, cols, rows, t, totalRow }
 
 
 /* ─── HubberSidebarPanel — sidebar card + portal modal ─────────── */
+/* Custom year picker matching the app theme — native <select> popups render with the OS
+   white background and ignore the dark theme, so the compare-years dropdowns use this instead. */
+function HubberYearSelect({ value, onChange, label, options, t }:{
+  value:string; onChange:(v:string)=>void; label:string; options:string[]; t:T;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const popBg = t.dark ? "#141A2B" : "#FFFFFF";
+  const hoverBg = t.dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+  const onBg = t.dark ? "rgba(94,234,255,0.10)" : "rgba(109,95,232,0.10)";
+  return (
+    <div style={{ position:"relative", flex:1 }}>
+      <button type="button" onClick={()=>setOpen(o=>!o)}
+        style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", gap:6, padding:"5px 8px", borderRadius:6, border:`1px solid ${t.border}`, fontSize:11, fontWeight:600, color:t.text, background:t.bg, cursor:"pointer", outline:"none" }}>
+        <span>{value || label}</span>
+        <ChevronDown size={12} style={{ transform: open?"rotate(180deg)":"none", transition:"transform .15s", color:t.sub, flexShrink:0 }}/>
+      </button>
+      {open && (<>
+        <div onClick={()=>setOpen(false)} style={{ position:"fixed", inset:0, zIndex:100000 }}/>
+        <div style={{ position:"absolute", top:"calc(100% + 5px)", left:0, zIndex:100001, minWidth:"100%", maxHeight:260, overflowY:"auto", padding:5, borderRadius:9, background:popBg, border:`1px solid ${t.border}`, boxShadow: t.dark?"0 18px 44px rgba(0,0,0,0.6)":"0 14px 36px rgba(20,22,40,0.16)" }}>
+          {[{ v:"", l:label }, ...options.map(o=>({ v:o, l:o }))].map(o=>{
+            const on = o.v===value;
+            return (
+              <button key={o.v||"__none"} type="button" onClick={()=>{ onChange(o.v); setOpen(false); }}
+                style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", padding:"6px 9px", borderRadius:6, cursor:"pointer", fontSize:11.5, fontWeight:700, textAlign:"left", border:"none", color: on?t.blue:t.text, background: on?onBg:"transparent", transition:"background .12s" }}
+                onMouseEnter={e=>{ if(!on)(e.currentTarget as HTMLButtonElement).style.background=hoverBg; }}
+                onMouseLeave={e=>{ if(!on)(e.currentTarget as HTMLButtonElement).style.background="transparent"; }}>
+                {o.l}{on && <Check size={13}/>}
+              </button>
+            );
+          })}
+        </div>
+      </>)}
+    </div>
+  );
+}
+
 function HubberSidebarPanel({
   data, setData, selYear, setSelYear, t, mktBreakdown
 }: {
@@ -1797,13 +1833,8 @@ function HubberSidebarPanel({
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               <div style={{ fontSize:10, fontWeight:700, color:t.text, letterSpacing:"0.05em", textTransform:"uppercase" as const }}>Порівняти роки</div>
               <div style={{ display:"flex", gap:6 }}>
-                {[{val:cmpA, set:setCmpA, label:"Рік A"},{val:cmpB, set:setCmpB, label:"Рік B"}].map(({val,set,label})=>(
-                  <select key={label} value={val} onChange={e=>set(e.target.value)}
-                    style={{ flex:1, padding:"4px 6px", borderRadius:6, border:`1px solid ${t.border}`, fontSize:11, fontWeight:600, color:t.text, background:t.bg, cursor:"pointer", outline:"none" }}>
-                    <option value="">{label}</option>
-                    {displayYears.map(y=><option key={y} value={y}>{y}</option>)}
-                  </select>
-                ))}
+                <HubberYearSelect value={cmpA} onChange={setCmpA} label="Рік A" options={displayYears} t={t}/>
+                <HubberYearSelect value={cmpB} onChange={setCmpB} label="Рік B" options={displayYears} t={t}/>
               </div>
               {isComparing && (
                 <div style={{ display:"flex", gap:12, alignItems:"center" }}>
