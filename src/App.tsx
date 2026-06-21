@@ -27,6 +27,9 @@ interface Cols {
   amount:        string | null; // Сума / Сума замовлення — order amount used for Money in Transit
 }
 
+/* ─── Warehouse (СКЛАД) inventory item, parsed from the "СКЛАД" sheet ─── */
+interface SkladItem { product: string; qty: number; price: number; brand: string }
+
 interface FileData {
   fileName:     string;
   columns:      string[];  // all unique columns across sheets
@@ -35,6 +38,7 @@ interface FileData {
   isMultiSheet: boolean;
   sheetNames:   string[];
   cacheVersion: string;    // must equal STORAGE_KEY — prevents stale HMR data from polluting cache
+  skladItems?:  SkladItem[]; // inventory pulled from the workbook's "СКЛАД" sheet (if present)
 }
 
 const STORAGE_KEY   = "orbit_analytics_v26"; // v26: row-fill-color transit logic (invalidates pre-color cache)
@@ -1194,11 +1198,10 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
 }) {
   const [mode, setMode] = useState<"volume"|"profit"|"orders"|"refusals">("volume");
   const [sel, setSel] = useState<FlowSel>(null);
-  const [hov, setHov] = useState<FlowSel>(null);
   const [monthOpen, setMonthOpen] = useState(false);
   const [othersOpen, setOthersOpen] = useState<{ brand:boolean; mkt:boolean }>({ brand:false, mkt:false });
-  // effective focus = persistent click selection, or transient hover preview
-  const act = sel ?? hov;
+  // effective focus = persistent click selection ONLY (hover never re-scopes the chart)
+  const act = sel;
   // lift the persistent click selection up so the side analytics blocks can scope
   // to the chosen brand/marketplace. Hover never triggers global filtering.
   useEffect(()=>{ onSelect?.(sel); }, [sel, onSelect]);
@@ -1332,15 +1335,13 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
 
   const leftActive  = (n:string)=> selSource ? n===selSource : true;
   const rightActive = (n:string)=> selTarget ? n===selTarget : true;
-  // click is authoritative: also clear the transient hover preview so deselect/reset can't be
-  // left stranded by a hov value whose onPointerLeave never fired (node buttons remount on render)
+  // selection is driven solely by clicks (hover no longer re-scopes the chart)
   const toggle = (side:"brand"|"mkt", name:string)=> {
-    setHov(null);
     if (name===OTHERS) { setOthersOpen(o=>({ brand:false, mkt:false, [side]:!o[side] })); return; }
     setOthersOpen({ brand:false, mkt:false });
     setSel(p=> p && p.side===side && p.name===name ? null : { side, name });
   };
-  const clearSel = ()=> { setSel(null); setHov(null); setOthersOpen({ brand:false, mkt:false }); };
+  const clearSel = ()=> { setSel(null); setOthersOpen({ brand:false, mkt:false }); };
 
   const Pill = ({ pct, on, hl }:{ pct:number; on:boolean; hl?:boolean }) => (
     <span style={{ fontSize:10.5, fontWeight:800, fontFamily:MONO, padding:"2.5px 8px", borderRadius:999, lineHeight:1.35, flexShrink:0, letterSpacing:"0.02em",
@@ -1365,8 +1366,6 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
     return (
     <button type="button" title={isOthers?`Інші · ${count}`:b.name} key={b.name}
       onClick={()=>{ if (isOthers && !expandable) return; toggle(side,b.name); }}
-      onPointerEnter={e=>{ if(e.pointerType!=="touch" && !isOthers) setHov({ side, name:b.name }); }}
-      onPointerLeave={e=>{ if(e.pointerType!=="touch" && !isOthers) setHov(null); }}
       style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translate3d(0,-50%,0)", willChange:"top",
         display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor: (isOthers && !expandable) ? "default" : "pointer",
         WebkitAppearance:"none", appearance:"none", font:"inherit", textAlign:"left", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", userSelect:"none",
@@ -2048,7 +2047,7 @@ function HubberSidebarPanel({
               style={{
                 width:"100%", padding:"6px 10px", borderRadius:6,
                 background:t.blue, border:"none",
-                color:"#fff", fontSize:10, fontWeight:700, cursor:"pointer",
+                color:t.dark?"#06121A":"#fff", fontSize:10, fontWeight:700, cursor:"pointer",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:5,
                 transition:"opacity 0.15s ease",
               }}
@@ -2094,7 +2093,26 @@ function detectWarehouseBrand(productName: string): string {
   return "Інше";
 }
 
-interface SkladItem { product: string; qty: number; price: number; brand: string }
+/* True for a worksheet that holds inventory (СКЛАД), not order data. */
+function isSkladSheetName(name: string): boolean {
+  return /склад/i.test(name.trim());
+}
+
+/* Parse a "СКЛАД" worksheet (rows as arrays) into inventory items.
+   Layout: col A — товар, B — кількість, D — ціна. */
+function parseSkladRows(rows: unknown[][]): SkladItem[] {
+  const items: SkladItem[] = [];
+  for (const row of rows) {
+    if (!row || row.length < 2) continue;
+    const productRaw = String(row[0] ?? "").trim();
+    if (!productRaw || /^(назва|товар|product|найменування)/i.test(productRaw)) continue;
+    const qty = Math.max(0, Math.round(Math.abs(toNum(row[1] ?? 0))));
+    const price = Math.max(0, Math.abs(toNum(row[3] ?? 0)));
+    if (qty === 0 && price === 0) continue;
+    items.push({ product: productRaw, qty, price, brand: detectWarehouseBrand(productRaw) });
+  }
+  return items;
+}
 
 /* ─── InventorySkladPanel — СКЛАД sidebar button + portal modal ─ */
 const SKLAD_STORAGE_KEY = "solana_sklad_items";
@@ -2103,11 +2121,17 @@ function readSkladCache(): SkladItem[] {
   return [];
 }
 
-function InventorySkladPanel({ t }: { t: T }) {
+function InventorySkladPanel({ t, externalItems }: { t: T; externalItems?: SkladItem[] }) {
   const [open, setOpen] = React.useState(false);
-  const [skladItems, setSkladItems] = React.useState<SkladItem[]>(()=>readSkladCache());
+  // Inventory comes from the workbook's "СКЛАД" sheet when present; localStorage is a fallback.
+  const [skladItems, setSkladItems] = React.useState<SkladItem[]>(()=> externalItems?.length ? externalItems : readSkladCache());
   const [searchQ, setSearchQ] = React.useState("");
   const skladRef = React.useRef<HTMLInputElement>(null);
+
+  // Auto-load whenever the uploaded workbook supplies a СКЛАД sheet.
+  React.useEffect(()=>{
+    if (externalItems?.length) setSkladItems(externalItems);
+  },[externalItems]);
 
   React.useEffect(()=>{
     try { localStorage.setItem(SKLAD_STORAGE_KEY, JSON.stringify(skladItems)); } catch {}
@@ -2119,18 +2143,13 @@ function InventorySkladPanel({ t }: { t: T }) {
       try {
         const wb = XLSX.read(new Uint8Array(ev.target?.result as ArrayBuffer), { type:"array" });
         const items: SkladItem[] = [];
-        for (const sheetName of wb.SheetNames) {
+        // Prefer the dedicated СКЛАД sheet; fall back to scanning every sheet.
+        const skladSheets = wb.SheetNames.filter(isSkladSheetName);
+        const scan = skladSheets.length ? skladSheets : wb.SheetNames;
+        for (const sheetName of scan) {
           const sh = wb.Sheets[sheetName];
           const rows = XLSX.utils.sheet_to_json<unknown[]>(sh, { header:1 });
-          for (const row of rows) {
-            if (!row || row.length < 2) continue;
-            const productRaw = String(row[0] ?? "").trim();
-            if (!productRaw || /^(назва|товар|product|найменування)/i.test(productRaw)) continue;
-            const qty = Math.max(0, Math.round(Math.abs(toNum(row[1] ?? 0))));
-            const price = Math.max(0, Math.abs(toNum(row[3] ?? 0)));
-            if (qty === 0 && price === 0) continue;
-            items.push({ product: productRaw, qty, price, brand: detectWarehouseBrand(productRaw) });
-          }
+          items.push(...parseSkladRows(rows as unknown[][]));
         }
         if (items.length > 0) setSkladItems(items);
       } catch { /* parse error — ignore */ }
@@ -2268,27 +2287,52 @@ function InventorySkladPanel({ t }: { t: T }) {
     document.body
   ) : null;
 
+  const hasData = skladItems.length > 0;
+  const RED = "#EF4444";
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = "#F87171")}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = "#EF4444")}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "#F87171"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = `${RED}88`; e.currentTarget.style.transform = "translateY(0)"; }}
         style={{
-          width:"100%", height:"100%", minHeight:88, padding:"12px 14px", borderRadius:4,
-          background:"transparent",
-          border:"1px solid #EF4444",
-          color:"#EF4444", fontSize:13, fontWeight:900, cursor:"pointer",
-          display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-          letterSpacing:"0.08em", textTransform:"uppercase" as const,
+          width:"100%", height:"100%", minHeight:88, padding:"14px 16px", borderRadius:12,
+          background: t.dark ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.04)",
+          border:`1px solid ${RED}88`,
+          cursor:"pointer", textAlign:"left",
+          display:"flex", flexDirection:"column", gap:10, justifyContent:"center",
           transition:"all 0.2s ease",
         }}
       >
-        📦 СКЛАД
-        {skladItems.length > 0 && (
-          <span style={{ fontSize:9, fontWeight:600, padding:"1px 6px", borderRadius:4, background:"transparent", color:"#EF4444" }}>
-            {totalItems.toLocaleString("uk-UA")} шт
-          </span>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ display:"flex", alignItems:"center", justifyContent:"center", width:30, height:30, borderRadius:8, background:`${RED}1A`, color:RED, flexShrink:0 }}>
+              <HardDrive size={16}/>
+            </span>
+            <div>
+              <div style={{ fontSize:13, fontWeight:900, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:RED }}>СКЛАД</div>
+              <div style={{ fontSize:10, color:t.sub, marginTop:1 }}>{hasData ? "Залишки товарів" : "Натисніть, щоб завантажити"}</div>
+            </div>
+          </div>
+          {hasData && (
+            <span style={{ fontSize:9, fontWeight:700, padding:"2px 8px", borderRadius:999, background:`${RED}1A`, color:RED, whiteSpace:"nowrap" as const }}>
+              {totalPositions} позицій
+            </span>
+          )}
+        </div>
+        {hasData && (
+          <div style={{ display:"flex", gap:14, paddingTop:2 }}>
+            {[
+              { label:"Одиниць", value:totalItems.toLocaleString("uk-UA") },
+              { label:"Брендів", value:String(brands.length) },
+              { label:"Вартість", value:`${totalValue.toLocaleString("uk-UA")} ₴` },
+            ].map((s,i)=>(
+              <div key={i}>
+                <div style={{ fontSize:15, fontWeight:800, color:t.text, letterSpacing:"-0.02em" }}>{s.value}</div>
+                <div style={{ fontSize:9, fontWeight:600, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:t.dim }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
         )}
       </button>
       {modal}
@@ -2436,7 +2480,15 @@ export default function Dashboard() {
         } catch (ejErr) {
           console.warn("[transit] exceljs load failed — falling back to xlsx fill reader:", ejErr);
         }
-        const isMultiSheet = wb.SheetNames.length > 1;
+        // The "СКЛАД" sheet holds inventory, not orders — parse it separately and
+        // keep it out of the order-row pipeline / multi-sheet detection.
+        const orderSheetNames = wb.SheetNames.filter(n => !isSkladSheetName(n));
+        const skladItems: SkladItem[] = [];
+        for (const sn of wb.SheetNames.filter(isSkladSheetName)) {
+          const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sn], { header:1 });
+          skladItems.push(...parseSkladRows(rows as unknown[][]));
+        }
+        const isMultiSheet = orderSheetNames.length > 1;
         const allRows: Row[] = [];
         const colSet = new Set<string>();
         const fillStats = { green: 0, red: 0, none: 0 };
@@ -2450,7 +2502,7 @@ export default function Dashboard() {
         const sheetEJ: Record<string, SheetInfo> = {};
         const rowMeta: { sheetName: string; ejRow: number; sheetRow0: number }[] = [];
 
-        for (const sheetName of wb.SheetNames) {
+        for (const sheetName of orderSheetNames) {
           const sh = wb.Sheets[sheetName];
           const rawRows = XLSX.utils.sheet_to_json<Row>(sh, { raw:true,  cellDates:true } as XLSX.Sheet2JSONOpts);
           const fmtRows = XLSX.utils.sheet_to_json<Row>(sh, { raw:false });
@@ -2619,7 +2671,7 @@ export default function Dashboard() {
         totalsByMarketplace["── GRAND TOTAL ──"] = { rows: allRows.filter(r=>r._mkt).length, net_income: grandNet };
         console.table(totalsByMarketplace);
 
-        setFileData({ fileName:file.name, columns, rows:allRows, cols, isMultiSheet, sheetNames:wb.SheetNames, cacheVersion:STORAGE_KEY });
+        setFileData({ fileName:file.name, columns, rows:allRows, cols, isMultiSheet, sheetNames:orderSheetNames, cacheVersion:STORAGE_KEY, skladItems: skladItems.length ? skladItems : undefined });
         setUploadedAt(new Date());
       } catch (err) {
         setParseError("Не вдалося обробити дані. Будь ласка, перевірте формат та структуру файлу.");
@@ -3169,14 +3221,25 @@ export default function Dashboard() {
       .sort((a,b)=>b.net-a.net);
   },[scopedRows, fileData]);
 
+  /* ── success / refusals counts — scoped to the FLOW selection (mirrors kpi math
+     on scopedRows; identical to global kpi when no node is selected) ── */
+  const scopedCounts = useMemo(()=>{
+    if (!fileData) return { orders:0, refs:0, successOrders:0, returnRate:0 };
+    const c = fileData.cols;
+    let refs=0;
+    for (const r of scopedRows) if (isRefusal(r, c)) refs++;
+    const orders = scopedRows.length;
+    return { orders, refs, successOrders: orders-refs, returnRate: orders>0 ? (refs/orders)*100 : 0 };
+  },[scopedRows, fileData]);
+
   /* ── pie: success vs refusals ── */
   const pieData = useMemo(()=>{
-    if (!kpi||kpi.orders===0) return [];
+    if (scopedCounts.orders===0) return [];
     return [
-      { name:"Успішні", value:kpi.successOrders },
-      { name:"Відмови", value:kpi.refs },
+      { name:"Успішні", value:scopedCounts.successOrders },
+      { name:"Відмови", value:scopedCounts.refs },
     ];
-  },[kpi]);
+  },[scopedCounts]);
 
   /* ── city top-5 for geography module ── */
   const cityTop = useMemo(()=>{
@@ -3369,8 +3432,8 @@ export default function Dashboard() {
                 {/* Active flow-selection indicator — side blocks below are scoped to this node */}
                 {flowScope && (
                   <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", borderRadius:10,
-                    background:"rgba(124,108,255,0.10)", border:`1px solid ${t.border}`,
-                    color:t.text, fontSize:12, fontWeight:600, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
+                    background:"rgba(124,108,255,0.10)", border:`1px solid ${DK.border}`,
+                    color:DK.text, fontSize:12, fontWeight:600, fontFamily:"'JetBrains Mono', 'Inter', sans-serif" }}>
                     <span style={{ opacity:0.7 }}>Фільтр з ФЛОУ:</span>
                     <span style={{ fontWeight:800 }}>{flowSel?.name}</span>
                     <span style={{ opacity:0.7 }}>· блоки нижче показують лише ці дані</span>
@@ -3379,7 +3442,7 @@ export default function Dashboard() {
 
                 {/* Supporting metric cards below the flow */}
                 <div className="premium-flow-grid" style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))", gap:14, alignItems:"stretch" }}>
-                  <SideColumn t={t} blocks={[
+                  <SideColumn t={DK} blocks={[
                     { title:"У дорозі (Transit)", rows:[
                       { label:"Замовлення", value:String((flowScope ?? kpi).transitOrders), strong:true },
                       { label:"Гроші", value:fmt((flowScope ?? kpi).moneyInTransit) },
@@ -3387,7 +3450,7 @@ export default function Dashboard() {
                     ], note:"Кошти за відправленими COD-замовленнями в очікуванні." },
                   ]}/>
 
-                  <SideColumn t={t} blocks={[
+                  <SideColumn t={DK} blocks={[
                     { title:"Повернення", rows:[
                       { label:"Замовлення", value:String((flowScope ?? premium).returnsOrders), strong:true },
                       { label:"Гроші", value:fmt((flowScope ?? premium).returnsMoney) },
@@ -3397,7 +3460,7 @@ export default function Dashboard() {
 
                 {/* Bottom detail tables */}
                 <div className="premium-tables-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-                  <DetailTable t={t}
+                  <DetailTable t={DK}
                     title="Деталі по брендах"
                     cols={[
                       { key:"name",   label:premium.brandLabel },
@@ -3421,7 +3484,7 @@ export default function Dashboard() {
                       net:fmt((flowScope ?? premium).brandRows.reduce((s,b)=>s+b.net,0)),
                     }}
                   />
-                  <DetailTable t={t}
+                  <DetailTable t={DK}
                     title="Деталі по маркетплейсах"
                     cols={[
                       { key:"name",   label:"Маркетплейс" },
@@ -3477,7 +3540,7 @@ export default function Dashboard() {
                 t={t}
                 mktBreakdown={mktBreakdownForArchive}
               />
-              <InventorySkladPanel t={t} />
+              <InventorySkladPanel t={t} externalItems={fileData?.skladItems} />
             </div>
 
             {/* ── Row 2: Bar chart by marketplace + Donut + Pie chart ── */}
@@ -3673,17 +3736,17 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                   <div style={{ display:"flex", gap:16 }}>
                     <div style={{ textAlign:"center" }}>
-                      <div style={{ fontSize:22, fontWeight:900, color:t.em }}>{kpi!.successOrders}</div>
+                      <div style={{ fontSize:22, fontWeight:900, color:t.em }}>{scopedCounts.successOrders}</div>
                       <div style={{ fontSize:10, color:t.dim }}>Успішні</div>
                     </div>
                     <div style={{ width:1, background:t.border }}/>
                     <div style={{ textAlign:"center" }}>
-                      <div style={{ fontSize:22, fontWeight:900, color:t.red }}>{kpi!.refs}</div>
+                      <div style={{ fontSize:22, fontWeight:900, color:t.red }}>{scopedCounts.refs}</div>
                       <div style={{ fontSize:10, color:t.dim }}>Відмови</div>
                     </div>
                     <div style={{ width:1, background:t.border }}/>
                     <div style={{ textAlign:"center" }}>
-                      <div style={{ fontSize:22, fontWeight:900, color:t.amb }}>{kpi!.returnRate.toFixed(1)}%</div>
+                      <div style={{ fontSize:22, fontWeight:900, color:t.amb }}>{scopedCounts.returnRate.toFixed(1)}%</div>
                       <div style={{ fontSize:10, color:t.dim }}>% Відмов</div>
                     </div>
                   </div>
