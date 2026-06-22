@@ -236,6 +236,11 @@ body.dashboard-pinned {
   color: rgba(255,255,255,0.72);
 }
 
+/* Premium detail tables — subtle row hover for readability */
+.detail-table { width: 100%; border-collapse: collapse; }
+.detail-table tbody tr { transition: background 0.12s ease; }
+.detail-table tbody tr:hover { background: var(--row-hover) !important; }
+
 /* KPI cards responsive */
 @media (max-width: 1200px) {
   .kpi-cards-grid {

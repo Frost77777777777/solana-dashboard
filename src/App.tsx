@@ -1157,16 +1157,20 @@ const PremiumKpiCards = memo(function PremiumKpiCards({ cards, t }:{ cards:PKpi[
 /* ── stacked metric blocks for the side columns ── */
 interface SideBlock { title:string; rows:{ label:string; value:string; strong?:boolean }[]; note?:string; }
 const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks:SideBlock[]; t:T; align?:"left"|"right" }) {
+  const accent = t.blue;
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14, height:"100%" }}>
       {blocks.map((b,i)=>(
-        <div key={i} style={{ ...glass(t), padding:"14px 16px", display:"flex", flexDirection:"column", gap:9, flex:1 }}>
-          <span style={{ fontSize:11, fontWeight:800, letterSpacing:"0.08em", textTransform:"uppercase", color:t.text, textAlign:align }}>{b.title}</span>
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+        <div key={i} style={{ ...glass(t), padding:"15px 17px", display:"flex", flexDirection:"column", gap:10, flex:1 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:9, justifyContent: align==="right"?"flex-end":"flex-start" }}>
+            {align!=="right" && <span style={{ width:3, height:13, borderRadius:2, background:accent, flexShrink:0 }}/>}
+            <span style={{ fontSize:11.5, fontWeight:800, letterSpacing:"0.08em", textTransform:"uppercase", color:t.text }}>{b.title}</span>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column" }}>
             {b.rows.map((r,j)=>(
-              <div key={j} style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:10 }}>
+              <div key={j} style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:10, padding:"7px 0", borderTop: j? `1px solid ${t.border}`:"none" }}>
                 <span style={{ fontSize:11, fontWeight:600, letterSpacing:"0.04em", textTransform:"uppercase", color:t.sub }}>{r.label}</span>
-                <span style={{ fontSize:r.strong?15:13, fontWeight:r.strong?800:700, color:t.text, fontFamily:MONO, textAlign:"right" }}>{r.value}</span>
+                <span style={{ fontSize:r.strong?17:13, fontWeight:r.strong?800:700, color:t.text, fontFamily:MONO, fontVariantNumeric:"tabular-nums", textAlign:"right" }}>{r.value}</span>
               </div>
             ))}
           </div>
@@ -1323,6 +1327,26 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
   const leftBands  = placeLabels(clickSource ? fullBand(clickSource, bTot(clickSource), bColor(clickSource)) : (leftSel  ?? leftAll));
   const rightBands = placeLabels(clickTarget ? fullBand(clickTarget, mTot(clickTarget), mColor(clickTarget)) : (rightSel ?? rightAll));
 
+  // ── readable label-column layout ──
+  // The thin bars (cols 2/4) and the ribbons keep the TRUE volume proportions (y0/y1 above).
+  // For the label columns alone we re-flow the node boxes with a gentle sqrt scale + a minimum
+  // height floor: a dominant node (e.g. 62% share) no longer crushes the small ones into
+  // unreadable slivers, every node gets a legible box, and the column fills top→bottom.
+  // Order and rough proportion are preserved (box still grows with volume); the exact share is
+  // still shown by the % pill and by the true-scale bar/ribbon next to it.
+  const layoutBoxes = (bands:FlowBand[]):FlowBand[] => {
+    const n = bands.length; if (!n) return bands;
+    const PAD = 0.012, span = 1 - 2*PAD;
+    const MINH = Math.min(0.13, span / n);          // readable floor, never above an equal share
+    const free = Math.max(0, span - n*MINH);
+    const w = bands.map(b => Math.sqrt(Math.max(b.total, 0)));
+    const wsum = w.reduce((a,x)=>a+x,0) || 1;
+    let cur = PAD;
+    return bands.map((b,i)=>{ const h = MINH + w[i]/wsum*free; const y0=cur, y1=cur+h; cur=y1; return { ...b, y0, y1, cy:(y0+y1)/2 }; });
+  };
+  const leftBoxes  = layoutBoxes(leftBands);
+  const rightBoxes = layoutBoxes(rightBands);
+
   // ribbons — each path is inset top/bottom so adjacent streams keep a dark gap and read as
   // distinct geometric "wires" (not one merged mass), even when a clicked node spans full height.
   // Bigger gap in the selected state where there are few, large wires; tiny gap in the busy idle view.
@@ -1339,19 +1363,25 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
   // parallel bands. The node rectangle itself still renders full height. min() leaves the hover state
   // (already-compact band) untouched.
   const EMIT_CAP = 0.36;
+  // ribbons attach to the same readable box layout the nodes use; per-node width scale = boxHeight/total
+  // keeps every node's outgoing/incoming streams proportional WITHIN the node (so the breakdown is exact)
+  // while the node height itself is the compressed, legible box.
+  const lScale = new Map(leftBoxes.map(b=>[b.name, b.total>0 ? (b.y1-b.y0)/b.total : 0]));
+  const rScale = new Map(rightBoxes.map(b=>[b.name, b.total>0 ? (b.y1-b.y0)/b.total : 0]));
   if (selSource) {
-    const sb = leftBands.find(b=>b.name===selSource);
-    if (sb) { const emit=Math.min(sb.y1-sb.y0, EMIT_CAP); let cur=(sb.y0+sb.y1)/2 - emit/2; for (const rb of rightBands) { const lh=(rb.y1-rb.y0)*emit; ribbons.push({ key:`${selSource}->${rb.name}`, d:wire(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
+    const sb = leftBoxes.find(b=>b.name===selSource);
+    if (sb) { const emit=Math.min(sb.y1-sb.y0, EMIT_CAP); let cur=(sb.y0+sb.y1)/2 - emit/2; for (const rb of rightBoxes) { const lh=(rb.y1-rb.y0)*emit; ribbons.push({ key:`${selSource}->${rb.name}`, d:wire(cur,cur+lh,rb.y0,rb.y1) }); cur+=lh; } }
   } else if (selTarget) {
-    const tb = rightBands.find(b=>b.name===selTarget);
-    if (tb) { const emit=Math.min(tb.y1-tb.y0, EMIT_CAP); let cur=(tb.y0+tb.y1)/2 - emit/2; for (const lb of leftBands) { const rh=(lb.y1-lb.y0)*emit; ribbons.push({ key:`${lb.name}->${selTarget}`, d:wire(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
+    const tb = rightBoxes.find(b=>b.name===selTarget);
+    if (tb) { const emit=Math.min(tb.y1-tb.y0, EMIT_CAP); let cur=(tb.y0+tb.y1)/2 - emit/2; for (const lb of leftBoxes) { const rh=(lb.y1-lb.y0)*emit; ribbons.push({ key:`${lb.name}->${selTarget}`, d:wire(lb.y0,lb.y1,cur,cur+rh) }); cur+=rh; } }
   } else {
-    const lCur = new Map(leftBands.map(b=>[b.name,b.y0]));
-    const rCur = new Map(rightBands.map(b=>[b.name,b.y0]));
-    for (const lb of leftBands) for (const rb of rightBands) {
-      const ev = edge(lb.name,rb.name); if (!ev) continue; const h=ev/G;
-      const lY0=lCur.get(lb.name)!, lY1=lY0+h; lCur.set(lb.name,lY1);
-      const rY0=rCur.get(rb.name)!, rY1=rY0+h; rCur.set(rb.name,rY1);
+    const lCur = new Map(leftBoxes.map(b=>[b.name,b.y0]));
+    const rCur = new Map(rightBoxes.map(b=>[b.name,b.y0]));
+    for (const lb of leftBoxes) for (const rb of rightBoxes) {
+      const ev = edge(lb.name,rb.name); if (!ev) continue;
+      const lh=ev*(lScale.get(lb.name)??0), rh=ev*(rScale.get(rb.name)??0);
+      const lY0=lCur.get(lb.name)!, lY1=lY0+lh; lCur.set(lb.name,lY1);
+      const rY0=rCur.get(rb.name)!, rY1=rY0+rh; rCur.set(rb.name,rY1);
       ribbons.push({ key:`${lb.name}->${rb.name}`, d:wire(lY0,lY1,rY0,rY1) });
     }
   }
@@ -1426,7 +1456,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
   const OthersPanel = ({ side }:{ side:"brand"|"mkt" }) => {
     const open = side==="brand" ? othersOpen.brand : othersOpen.mkt;
     if (!open) return null;
-    const bands = side==="brand" ? leftBands : rightBands;
+    const bands = side==="brand" ? leftBoxes : rightBoxes;
     const ob = bands.find(b=>b.name===OTHERS); if (!ob) return null;
     const smalls = side==="brand" ? brandSmall : mktSmall;
     const colF = side==="brand" ? bColor : mColor;
@@ -1540,13 +1570,13 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:C.watermark, pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
-          {NodeContours({ bands:leftBands, activeFn:leftActive })}
-          {leftBands.map(b=>NodeRow({ b, side:"brand", on:leftActive(b.name), seld:b.name===selSource, hl:!!selTarget }))}
+          {NodeContours({ bands:leftBoxes, activeFn:leftActive })}
+          {leftBoxes.map(b=>NodeRow({ b, side:"brand", on:leftActive(b.name), seld:b.name===selSource, hl:!!selTarget }))}
           {OthersPanel({ side:"brand" })}
         </div>
-        {/* left bars — premium Wormhole node rectangles: dark fill, sharp glowing border, proportional height */}
+        {/* left bars — premium Wormhole node rectangles: dark fill, sharp glowing border; height = readable box layout (aligned with the label boxes & ribbons) */}
         <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
-          {leftBands.map(b=>{ const on=leftActive(b.name); return (
+          {leftBoxes.map(b=>{ const on=leftActive(b.name); return (
             <div key={b.name} style={{ position:"absolute", left:-1, right:-1, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`,
               background:C.nodeFill, border:`1.5px solid ${b.color}`, borderRadius:3,
               boxShadow: on ? `0 0 9px ${b.color}, inset 0 0 5px ${b.color}66` : `0 0 0 ${b.color}`,
@@ -1585,9 +1615,9 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
             </g>
           </svg>
         </div>
-        {/* right bars — premium Wormhole node rectangles: dark fill, sharp glowing border, proportional height */}
+        {/* right bars — premium Wormhole node rectangles: dark fill, sharp glowing border; height = readable box layout (aligned with the label boxes & ribbons) */}
         <div style={{ position:"relative", borderLeft:`1px solid ${C.line}` }}>
-          {rightBands.map(b=>{ const on=rightActive(b.name); return (
+          {rightBoxes.map(b=>{ const on=rightActive(b.name); return (
             <div key={b.name} style={{ position:"absolute", left:-1, right:-1, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`,
               background:C.nodeFill, border:`1.5px solid ${b.color}`, borderRadius:3,
               boxShadow: on ? `0 0 9px ${b.color}, inset 0 0 5px ${b.color}66` : `0 0 0 ${b.color}`,
@@ -1596,8 +1626,8 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
-          {NodeContours({ bands:rightBands, activeFn:rightActive })}
-          {rightBands.map(b=>NodeRow({ b, side:"mkt", on:rightActive(b.name), seld:b.name===selTarget, hl:!!selSource }))}
+          {NodeContours({ bands:rightBoxes, activeFn:rightActive })}
+          {rightBoxes.map(b=>NodeRow({ b, side:"mkt", on:rightActive(b.name), seld:b.name===selTarget, hl:!!selSource }))}
           {OthersPanel({ side:"mkt" })}
         </div>
       </div>
@@ -1609,14 +1639,21 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
 /* ── generic detail table ── */
 interface DetailCol { key:string; label:string; align?:"left"|"right"; }
 const DetailTable = memo(function DetailTable({ title, cols, rows, t, totalRow }:{ title:string; cols:DetailCol[]; rows:Record<string,string>[]; t:T; totalRow?:Record<string,string> }) {
+  const accent = t.blue;
+  const zebra  = t.dark ? "rgba(255,255,255,0.025)" : "rgba(17,20,26,0.022)";
+  const hover  = t.dark ? "rgba(94,234,255,0.07)"   : "rgba(109,95,232,0.06)";
+  const totBg  = t.dark ? "rgba(94,234,255,0.07)"   : "rgba(109,95,232,0.055)";
   return (
-    <div style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:12 }}>
-      <span style={{ fontSize:13, fontWeight:800, letterSpacing:"0.02em", color:t.text }}>{title}</span>
-      <table style={{ width:"100%", borderCollapse:"collapse" }}>
+    <div style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:13 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+        <span style={{ width:3, height:14, borderRadius:2, background:accent, flexShrink:0 }}/>
+        <span style={{ fontSize:13, fontWeight:800, letterSpacing:"0.02em", color:t.text }}>{title}</span>
+      </div>
+      <table className="detail-table" style={{ ["--row-hover" as string]:hover } as React.CSSProperties}>
         <thead>
           <tr>
             {cols.map(c=>(
-              <th key={c.key} style={{ textAlign:c.align||"left", padding:"7px 8px", fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", color:t.dim, borderBottom:`1px solid ${t.border}` }}>{c.label}</th>
+              <th key={c.key} style={{ textAlign:c.align||"left", padding:"0 10px 9px", fontSize:10, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase", color:t.sub, borderBottom:`1.5px solid ${t.border}`, whiteSpace:"nowrap" }}>{c.label}</th>
             ))}
           </tr>
         </thead>
@@ -1624,18 +1661,25 @@ const DetailTable = memo(function DetailTable({ title, cols, rows, t, totalRow }
           {rows.length===0 ? (
             <tr><td colSpan={cols.length} style={{ padding:"14px 8px", fontSize:12, color:t.dim, textAlign:"center" }}>Немає даних</td></tr>
           ) : rows.map((r,i)=>(
-            <tr key={i} style={{ borderTop: i? `1px solid ${t.border}`:"none" }}>
-              {cols.map((c,ci)=>(
-                <td key={c.key} style={{ textAlign:c.align||"left", padding:"9px 8px", fontSize:12.5, fontWeight: ci===0?700:600, color: ci===0?t.text:t.sub, fontFamily: ci===0?undefined:MONO, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:220 }}>{r[c.key]}</td>
-              ))}
+            <tr key={i} style={{ background: i%2 ? zebra : "transparent" }}>
+              {cols.map((c,ci)=>{
+                const last = ci===cols.length-1;
+                return (
+                  <td key={c.key} style={{ textAlign:c.align||"left", padding:"9px 10px", fontSize:12.5,
+                    fontWeight: ci===0 ? 700 : last ? 700 : 600,
+                    color: (ci===0||last) ? t.text : t.sub,
+                    fontFamily: ci===0?undefined:MONO, fontVariantNumeric:"tabular-nums",
+                    whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:220 }}>{r[c.key]}</td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
         {totalRow && rows.length>0 && (
           <tfoot>
-            <tr style={{ borderTop:`2px solid ${t.dark?"rgba(255,255,255,0.18)":t.border}` }}>
+            <tr style={{ background:totBg }}>
               {cols.map((c,ci)=>(
-                <td key={c.key} style={{ textAlign:c.align||"left", padding:"10px 8px", fontSize:12.5, fontWeight:800, color:t.text, fontFamily: ci===0?undefined:MONO, whiteSpace:"nowrap", letterSpacing: ci===0?"0.04em":undefined, textTransform: ci===0?"uppercase" as const:undefined }}>{totalRow[c.key] ?? ""}</td>
+                <td key={c.key} style={{ textAlign:c.align||"left", padding:"11px 10px", fontSize:12.5, fontWeight:800, color:t.text, fontFamily: ci===0?undefined:MONO, fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap", letterSpacing: ci===0?"0.05em":undefined, textTransform: ci===0?"uppercase" as const:undefined, borderTop:`2px solid ${accent}` }}>{totalRow[c.key] ?? ""}</td>
               ))}
             </tr>
           </tfoot>
