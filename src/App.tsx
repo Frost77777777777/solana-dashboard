@@ -1644,12 +1644,12 @@ const DetailTable = memo(function DetailTable({ title, cols, rows, t, totalRow }
   const hover  = t.dark ? "rgba(94,234,255,0.07)"   : "rgba(109,95,232,0.06)";
   const totBg  = t.dark ? "rgba(94,234,255,0.07)"   : "rgba(109,95,232,0.055)";
   return (
-    <div style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:13 }}>
+    <div style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:13, height:"100%" }}>
       <div style={{ display:"flex", alignItems:"center", gap:9 }}>
         <span style={{ width:3, height:14, borderRadius:2, background:accent, flexShrink:0 }}/>
         <span style={{ fontSize:13, fontWeight:800, letterSpacing:"0.02em", color:t.text }}>{title}</span>
       </div>
-      <table className="detail-table" style={{ ["--row-hover" as string]:hover } as React.CSSProperties}>
+      <table className="detail-table" style={{ ["--row-hover" as string]:hover, flex:1 } as React.CSSProperties}>
         <thead>
           <tr>
             {cols.map(c=>(
@@ -1674,6 +1674,7 @@ const DetailTable = memo(function DetailTable({ title, cols, rows, t, totalRow }
               })}
             </tr>
           ))}
+          {rows.length>0 && <tr aria-hidden style={{ height:"100%" }}><td colSpan={cols.length} style={{ padding:0, border:"none" }}/></tr>}
         </tbody>
         {totalRow && rows.length>0 && (
           <tfoot>
