@@ -1408,6 +1408,20 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
     );
   };
 
+  // per-node contour: a rounded outline around each Source/Target node, colored by the node's
+  // highlight and sized to the volume band it occupies — so it grows/shrinks as filters change.
+  const NodeContours = ({ bands, activeFn }:{ bands:FlowBand[]; activeFn:(n:string)=>boolean }) => (<>
+    {bands.map(b=>{ const on=activeFn(b.name); return (
+      <div key={`ct-${b.name}`} aria-hidden style={{ position:"absolute", left:0, right:0,
+        top:`calc(${b.y0*100}% + 2px)`, height:`calc(${(b.y1-b.y0)*100}% - 4px)`,
+        border:`2px solid ${b.color}`, borderRadius:14, pointerEvents:"none",
+        background: on ? `${b.color}12` : "transparent",
+        boxShadow: on ? `0 0 0 1px ${b.color}26, inset 0 0 14px ${b.color}1a` : "none",
+        opacity: on?1:0.26,
+        transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, box-shadow .2s" }}/>
+    ); })}
+  </>);
+
   // accordion overlay listing the small items grouped under "Інші" — works in global view and while a node is selected
   const OthersPanel = ({ side }:{ side:"brand"|"mkt" }) => {
     const open = side==="brand" ? othersOpen.brand : othersOpen.mkt;
@@ -1526,6 +1540,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:C.watermark, pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
+          {NodeContours({ bands:leftBands, activeFn:leftActive })}
           {leftBands.map(b=>NodeRow({ b, side:"brand", on:leftActive(b.name), seld:b.name===selSource, hl:!!selTarget }))}
           {OthersPanel({ side:"brand" })}
         </div>
@@ -1581,6 +1596,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
+          {NodeContours({ bands:rightBands, activeFn:rightActive })}
           {rightBands.map(b=>NodeRow({ b, side:"mkt", on:rightActive(b.name), seld:b.name===selTarget, hl:!!selSource }))}
           {OthersPanel({ side:"mkt" })}
         </div>
