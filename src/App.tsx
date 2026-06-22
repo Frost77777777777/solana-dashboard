@@ -1422,13 +1422,15 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
       style={{ position:"absolute", left:0, right:0, top:`${(b.cy ?? (b.y0+b.y1)/2)*100}%`, transform:"translate3d(0,-50%,0)", willChange:"top",
         display:"flex", alignItems:"center", gap:11, padding:"7px 12px", borderRadius:11, cursor: (isOthers && !expandable) ? "default" : "pointer",
         WebkitAppearance:"none", appearance:"none", font:"inherit", textAlign:"left", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", userSelect:"none",
-        background: seld||expanded ? C.selBg : C.rowBg, border:`1.5px solid ${seld||expanded ? C.selBorder : C.rowBorder}`,
-        opacity: on?1:0.34, transition:"top .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, border-color .16s" }}>
+        background: seld||expanded ? C.softBg : "transparent", border:`1px solid ${seld||expanded ? C.softBorder : "transparent"}`,
+        opacity: on?1:0.4, transition:"top .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, border-color .16s" }}
+      onMouseEnter={e=>{ if(!(seld||expanded)) (e.currentTarget as HTMLButtonElement).style.background=C.softBg; }}
+      onMouseLeave={e=>{ if(!(seld||expanded)) (e.currentTarget as HTMLButtonElement).style.background="transparent"; }}>
       {isOthers
         ? <span style={{ width:24, height:24, borderRadius:7, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:10.5, fontWeight:800, fontFamily:MONO, color:C.sub, background:C.countBg, border:`1.5px solid ${C.pillBorder}` }}>{count}</span>
         : logoFor(b.name)
-          ? <img src={logoFor(b.name)} alt={b.name} loading="lazy" style={{ width:24, height:24, borderRadius:6, flexShrink:0, objectFit:"cover", background:"#fff", padding:1.5, boxShadow:`0 0 0 1.5px ${b.color}, 0 0 0 4px ${b.color}1f` }}/>
-          : <span style={{ width:17, height:17, borderRadius:"50%", background:b.color, flexShrink:0, boxShadow:`0 0 0 3px ${b.color}22` }}/>}
+          ? <img src={logoFor(b.name)} alt={b.name} loading="lazy" style={{ width:24, height:24, borderRadius:6, flexShrink:0, objectFit:"cover" }}/>
+          : <span style={{ width:11, height:11, borderRadius:"50%", background:b.color, flexShrink:0 }}/>}
       <span style={{ fontSize:13, fontWeight:650, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1, textAlign:"left" }}>{isOthers?"Інші":b.name}</span>
       <span style={{ fontSize:12.5, color:C.sub, fontFamily:MONO, whiteSpace:"nowrap", flexShrink:0 }}>{fmtV(b.total)}</span>
       {isOthers && expandable
@@ -1437,20 +1439,6 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
     </button>
     );
   };
-
-  // per-node contour: a rounded outline around each Source/Target node, colored by the node's
-  // highlight and sized to the volume band it occupies — so it grows/shrinks as filters change.
-  const NodeContours = ({ bands, activeFn }:{ bands:FlowBand[]; activeFn:(n:string)=>boolean }) => (<>
-    {bands.map(b=>{ const on=activeFn(b.name); return (
-      <div key={`ct-${b.name}`} aria-hidden style={{ position:"absolute", left:0, right:0,
-        top:`calc(${b.y0*100}% + 2px)`, height:`calc(${(b.y1-b.y0)*100}% - 4px)`,
-        border:`2px solid ${b.color}`, borderRadius:14, pointerEvents:"none",
-        background: on ? `${b.color}12` : "transparent",
-        boxShadow: on ? `0 0 0 1px ${b.color}26, inset 0 0 14px ${b.color}1a` : "none",
-        opacity: on?1:0.26,
-        transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, background .16s, box-shadow .2s" }}/>
-    ); })}
-  </>);
 
   // accordion overlay listing the small items grouped under "Інші" — works in global view and while a node is selected
   const OthersPanel = ({ side }:{ side:"brand"|"mkt" }) => {
@@ -1570,7 +1558,6 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:C.watermark, pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
-          {NodeContours({ bands:leftBoxes, activeFn:leftActive })}
           {leftBoxes.map(b=>NodeRow({ b, side:"brand", on:leftActive(b.name), seld:b.name===selSource, hl:!!selTarget }))}
           {OthersPanel({ side:"brand" })}
         </div>
@@ -1578,9 +1565,8 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         <div style={{ position:"relative", borderRight:`1px solid ${C.line}` }}>
           {leftBoxes.map(b=>{ const on=leftActive(b.name); return (
             <div key={b.name} style={{ position:"absolute", left:-1, right:-1, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`,
-              background:C.nodeFill, border:`1.5px solid ${b.color}`, borderRadius:3,
-              boxShadow: on ? `0 0 9px ${b.color}, inset 0 0 5px ${b.color}66` : `0 0 0 ${b.color}`,
-              opacity: on?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, box-shadow .2s" }}/>
+              background:C.nodeFill, border:`1px solid ${C.line}`, borderRadius:3,
+              opacity: on?0.9:0.4, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s" }}/>
           ); })}
         </div>
         {/* ribbons */}
@@ -1619,14 +1605,12 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         <div style={{ position:"relative", borderLeft:`1px solid ${C.line}` }}>
           {rightBoxes.map(b=>{ const on=rightActive(b.name); return (
             <div key={b.name} style={{ position:"absolute", left:-1, right:-1, top:`calc(${b.y0*100}% + 1.5px)`, height:`calc(${(b.y1-b.y0)*100}% - 3px)`,
-              background:C.nodeFill, border:`1.5px solid ${b.color}`, borderRadius:3,
-              boxShadow: on ? `0 0 9px ${b.color}, inset 0 0 5px ${b.color}66` : `0 0 0 ${b.color}`,
-              opacity: on?1:0.26, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, box-shadow .2s" }}/>
+              background:C.nodeFill, border:`1px solid ${C.line}`, borderRadius:3,
+              opacity: on?0.9:0.4, transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s" }}/>
           ); })}
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
-          {NodeContours({ bands:rightBoxes, activeFn:rightActive })}
           {rightBoxes.map(b=>NodeRow({ b, side:"mkt", on:rightActive(b.name), seld:b.name===selTarget, hl:!!selSource }))}
           {OthersPanel({ side:"mkt" })}
         </div>
