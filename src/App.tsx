@@ -1159,9 +1159,9 @@ interface SideBlock { title:string; rows:{ label:string; value:string; strong?:b
 const SideColumn = memo(function SideColumn({ blocks, t, align="left" }:{ blocks:SideBlock[]; t:T; align?:"left"|"right" }) {
   const accent = t.blue;
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14, height:"100%" }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
       {blocks.map((b,i)=>(
-        <div key={i} style={{ ...glass(t), padding:"15px 17px", display:"flex", flexDirection:"column", gap:10, flex:1 }}>
+        <div key={i} style={{ ...glass(t), padding:"15px 17px", display:"flex", flexDirection:"column", gap:10, flex:"1 1 auto", minHeight:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:9, justifyContent: align==="right"?"flex-end":"flex-start" }}>
             {align!=="right" && <span style={{ width:3, height:13, borderRadius:2, background:accent, flexShrink:0 }}/>}
             <span style={{ fontSize:11.5, fontWeight:800, letterSpacing:"0.08em", textTransform:"uppercase", color:t.text }}>{b.title}</span>
@@ -1628,12 +1628,12 @@ const DetailTable = memo(function DetailTable({ title, cols, rows, t, totalRow }
   const hover  = t.dark ? "rgba(94,234,255,0.07)"   : "rgba(109,95,232,0.06)";
   const totBg  = t.dark ? "rgba(94,234,255,0.07)"   : "rgba(109,95,232,0.055)";
   return (
-    <div style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:13, height:"100%" }}>
+    <div style={{ ...glass(t), padding:"16px 18px", display:"flex", flexDirection:"column", gap:13 }}>
       <div style={{ display:"flex", alignItems:"center", gap:9 }}>
         <span style={{ width:3, height:14, borderRadius:2, background:accent, flexShrink:0 }}/>
         <span style={{ fontSize:13, fontWeight:800, letterSpacing:"0.02em", color:t.text }}>{title}</span>
       </div>
-      <table className="detail-table" style={{ ["--row-hover" as string]:hover, flex:1 } as React.CSSProperties}>
+      <table className="detail-table" style={{ ["--row-hover" as string]:hover, flex:"1 1 auto" } as React.CSSProperties}>
         <thead>
           <tr>
             {cols.map(c=>(
@@ -2495,6 +2495,7 @@ export default function Dashboard() {
   const [rejTooltip,  setRejTooltip]  = useState<{ reason:string; rect:DOMRect } | null>(null);
   const [cityFilter,  setCityFilter]  = useState<string|null>(null);
   const [lowerOpen, setLowerOpen] = useState(false);
+  const [topProdMode, setTopProdMode] = useState<"rev"|"qty">("rev");
   // Sankey click selection lifted up — scopes the side analytics blocks to a brand/marketplace.
   const [flowSel, setFlowSel] = useState<FlowSel>(null);
   const [darkMode, setDarkMode] = useState(()=>_fc.darkMode);
@@ -2962,19 +2963,19 @@ export default function Dashboard() {
     return Array.from(map.entries()).map(([name,v])=>({name,...v})).sort((a,b)=>b.net-a.net).slice(0,10);
   },[scopedRows, fileData]);
 
-  /* ── top-3 products by gross sales (сума замовлення) ── */
+  /* ── products by gross sales (сума замовлення) + quantity sold ── */
   const topRevProducts = useMemo(()=>{
-    const map = new Map<string,number>();
+    const map = new Map<string,{rev:number;qty:number}>();
     for (const r of scopedRows) {
       const raw = getRowProduct(r, fileData?.cols.product ?? null);
       const key = normalizeProductKey(raw);
       if (!key) continue;
-      map.set(key, (map.get(key) ?? 0) + (r._gross as number));
+      const e = map.get(key) ?? { rev:0, qty:0 };
+      e.rev += (r._gross as number);
+      e.qty += parseNum(fileData?.cols.quantity ? r[fileData.cols.quantity] : null) || 1;
+      map.set(key, e);
     }
-    return Array.from(map.entries())
-      .map(([name, rev]) => ({ name, rev }))
-      .sort((a,b) => b.rev - a.rev)
-      .slice(0, 3);
+    return Array.from(map.entries()).map(([name, v]) => ({ name, ...v }));
   },[scopedRows, fileData]);
 
   /* ── ALL products — full analytics table (filter-aware, sortable) ── */
@@ -4137,32 +4138,44 @@ export default function Dashboard() {
             {/* 💰 Top-3 products by gross revenue (сума замовлення) */}
             {topRevProducts.length > 0 && (
               <div className="orbit-fadein" style={{ ...glassBase, padding:"16px 22px 14px", animationDelay:"260ms" }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:14, flexWrap:"wrap" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                    <span style={{ fontSize:15 }}>💰</span>
-                    <p style={{ color:t.text, fontSize:14, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>Топ товарів за виручкою</p>
+                    <span style={{ fontSize:15 }}>{topProdMode==="rev"?"💰":"📦"}</span>
+                    <p style={{ color:t.text, fontSize:14, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>{topProdMode==="rev"?"Топ товарів за виручкою":"Топ товарів за к-стю продажів"}</p>
                   </div>
-                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase" as const, color:t.text }}>Топ 3</span>
+                  <div style={{ display:"inline-flex", padding:2, borderRadius:8, background:t.dark?"rgba(255,255,255,0.05)":"rgba(0,0,0,0.04)", border:`1px solid ${t.border}` }}>
+                    {([["rev","Виручка"],["qty","Продажі"]] as const).map(([m,lbl])=>(
+                      <button key={m} onClick={()=>setTopProdMode(m)} style={{ padding:"4px 11px", borderRadius:6, border:"none", cursor:"pointer", fontSize:10.5, fontWeight:700, letterSpacing:"0.02em",
+                        color: topProdMode===m ? (t.dark?"#06121A":"#FFFFFF") : t.sub, background: topProdMode===m ? t.blue : "transparent", transition:"all .15s" }}>{lbl}</button>
+                    ))}
+                  </div>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {(()=>{
-                    const maxRev = topRevProducts[0]?.rev ?? 1;
                     const fmtRev = (n:number) => Math.round(n).toLocaleString("uk-UA").replace(/,/g," ");
+                    const fmtQty = (n:number) => (n%1===0?n.toFixed(0):n.toFixed(1)).toLocaleString();
                     const MEDALS = ["🥇","🥈","🥉"];
-                    return topRevProducts.map((p, i) => (
+                    const top3 = [...topRevProducts]
+                      .sort((a,b)=> topProdMode==="rev" ? b.rev-a.rev : b.qty-a.qty)
+                      .slice(0,3);
+                    const maxVal = (topProdMode==="rev" ? top3[0]?.rev : top3[0]?.qty) ?? 1;
+                    return top3.map((p, i) => {
+                      const v = topProdMode==="rev" ? p.rev : p.qty;
+                      return (
                       <div key={p.name} style={{ display:"flex", alignItems:"center", gap:10 }}>
                         <span style={{ fontSize:14, flexShrink:0 }}>{MEDALS[i]}</span>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:4 }}>
                             <span style={{ fontSize:12, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</span>
-                            <span style={{ fontSize:13, fontWeight:700, color:i===0?"#004080":t.text, flexShrink:0 }}>{fmtRev(p.rev)} ₴</span>
+                            <span style={{ fontSize:13, fontWeight:700, color:i===0?"#004080":t.text, flexShrink:0 }}>{topProdMode==="rev" ? `${fmtRev(v)} ₴` : `${fmtQty(v)} шт`}</span>
                           </div>
                           <div style={{ height:4, borderRadius:99, background:t.dark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)", overflow:"hidden" }}>
-                            <div style={{ width:`${(p.rev/maxRev)*100}%`, height:"100%", borderRadius:99, background: BASE_BLUE[i] ?? BASE_BLUE[BASE_BLUE.length-1], transition:"width 0.6s ease" }}/>
+                            <div style={{ width:`${(v/maxVal)*100}%`, height:"100%", borderRadius:99, background: BASE_BLUE[i] ?? BASE_BLUE[BASE_BLUE.length-1], transition:"width 0.6s ease" }}/>
                           </div>
                         </div>
                       </div>
-                    ));
+                      );
+                    });
                   })()}
                 </div>
               </div>
