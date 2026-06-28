@@ -1411,6 +1411,20 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
   // node button on each state change — which loses pointerleave events (stranded hover) and even
   // drops clicks (mousedown/mouseup land on different instances). Returning an intrinsic <button>
   // keeps a stable element type so React reconciles in place.
+  // neutral dark contour around each Source/Target node band — Wormhole-style boundaries that
+  // make adjacent nodes visually separable. Sized to the band's volume (grows/shrinks with the
+  // active filter). Monochrome only (no per-brand colors); pointer-events:none so it never
+  // intercepts clicks/hover on the node rows beneath it.
+  const NodeDividers = ({ boxes, activeFn }:{ boxes:FlowBand[]; activeFn:(n:string)=>boolean }) => (<>
+    {boxes.map(b=>{ const on=activeFn(b.name); return (
+      <div key={`nd-${b.name}`} aria-hidden style={{ position:"absolute", left:0, right:0,
+        top:`calc(${b.y0*100}% + 2px)`, height:`calc(${(b.y1-b.y0)*100}% - 4px)`,
+        border:`1px solid ${on ? C.softBorder : C.line}`, borderRadius:11, pointerEvents:"none",
+        opacity: on?1:0.7,
+        transition:"top .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), opacity .16s, border-color .16s" }}/>
+    ); })}
+  </>);
+
   const NodeRow = ({ b, side, on, seld, hl }:{ b:FlowBand; side:"brand"|"mkt"; on:boolean; seld:boolean; hl?:boolean }) => {
     const isOthers = b.name===OTHERS;
     const expandable = isOthers;                               // group-expand works in global view AND while a node is selected
@@ -1558,6 +1572,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         <span style={{ position:"absolute", top:"6%", left:"50%", transform:"translateX(-50%)", fontSize:11, fontWeight:800, letterSpacing:"0.42em", color:C.watermark, pointerEvents:"none", whiteSpace:"nowrap" }}>SOLANA // CORE</span>
         {/* left node rows (Source) */}
         <div style={{ position:"relative" }}>
+          {NodeDividers({ boxes:leftBoxes, activeFn:leftActive })}
           {leftBoxes.map(b=>NodeRow({ b, side:"brand", on:leftActive(b.name), seld:b.name===selSource, hl:!!selTarget }))}
           {OthersPanel({ side:"brand" })}
         </div>
@@ -1611,6 +1626,7 @@ const BrandMktSankey = memo(function BrandMktSankey({ edges, fmt, dateCtl, onSel
         </div>
         {/* right node rows (Target) */}
         <div style={{ position:"relative" }}>
+          {NodeDividers({ boxes:rightBoxes, activeFn:rightActive })}
           {rightBoxes.map(b=>NodeRow({ b, side:"mkt", on:rightActive(b.name), seld:b.name===selTarget, hl:!!selSource }))}
           {OthersPanel({ side:"mkt" })}
         </div>
